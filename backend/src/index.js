@@ -28,11 +28,12 @@ setupSocket(io);
 
 const PORT = process.env.PORT || 3001;
 
-initDb()
-  .then(() => {
-    server.listen(PORT, () => console.log(`Server running on :${PORT}`));
-  })
-  .catch((err) => {
+// Start listening immediately so Railway's healthcheck passes,
+// then initialize the DB (Railway networking can take a few seconds on cold start).
+server.listen(PORT, () => {
+  console.log(`Server running on :${PORT}`);
+  initDb().catch((err) => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
   });
+});
