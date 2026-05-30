@@ -1,0 +1,150 @@
+.area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  background: var(--bg-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 48px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.hash {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  flex: 1;
+}
+
+.headerActions { display: flex; gap: 4px; }
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+
+.iconBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+.iconBtn.active { color: var(--text-primary); }
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0 8px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.welcomeBanner {
+  padding: 32px 16px 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.channelIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.welcomeBanner h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.welcomeBanner p { color: var(--text-secondary); font-size: 14px; }
+
+.typing {
+  padding: 0 16px 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 20px;
+}
+
+.typingDots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.typingDots span {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: bounce 1.4s infinite ease-in-out;
+}
+
+.typingDots span:nth-child(1) { animation-delay: 0s; }
+.typingDots span:nth-child(2) { animation-delay: 0.2s; }
+.typingDots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-4px); }
+}
+
+.inputArea {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 16px;
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  padding: 0 8px 0 16px;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  padding: 12px 0;
+  background: transparent;
+  font-size: 15px;
+  resize: none;
+}
+
+.sendBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.sendBtn:hover:not(:disabled) { background: var(--accent-hover); }
+.sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
