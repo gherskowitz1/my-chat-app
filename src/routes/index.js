@@ -4,7 +4,7 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { signup, login, getMe } = require('../controllers/authController');
 const { getChannels, createChannel, deleteChannel, getMessages } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getUsers } = require('../controllers/dmController');
-const { getToken } = require('../controllers/livekitController');
+const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const { updateServer, getServer, renameChannel, getAllUsers, updateUserRole, deleteUser } = require('../controllers/adminController');
 
 // Auth
@@ -36,5 +36,8 @@ router.delete('/admin/users/:userId', authMiddleware, adminMiddleware, deleteUse
 
 // LiveKit
 router.get('/livekit/token/:roomName', authMiddleware, getToken);
+router.get('/livekit/rooms/:roomName/participants', authMiddleware, adminMiddleware, getParticipants);
+router.post('/livekit/rooms/:roomName/mute/:identity', authMiddleware, adminMiddleware, muteParticipant);
+router.delete('/livekit/rooms/:roomName/participants/:identity', authMiddleware, adminMiddleware, removeParticipant);
 
 module.exports = router;

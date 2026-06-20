@@ -32,9 +32,15 @@
   line-height: 1.4;
 }
 
+.roomWrapper {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 8px;
+}
+
 .room {
   height: 400px;
-  margin: 4px 8px;
   border-radius: var(--radius-md);
   overflow: hidden;
+  margin-bottom: 4px;
 }

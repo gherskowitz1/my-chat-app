@@ -7,9 +7,12 @@ import {
 import '@livekit/components-styles';
 import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
+import VoiceAdminControls from './VoiceAdminControls';
+import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
 export default function VoiceChannel({ channel, onLeave }) {
+  const { user } = useAuth();
   const [token, setToken] = useState(null);
   const [livekitUrl, setLivekitUrl] = useState(null);
   const [error, setError] = useState(null);
@@ -78,19 +81,24 @@ export default function VoiceChannel({ channel, onLeave }) {
     : true;
 
   return (
-    <div className={styles.room}>
-      <LiveKitRoom
-        token={token}
-        serverUrl={livekitUrl}
-        connect={true}
-        video={false}
-        audio={audioConstraints}
-        onDisconnected={leave}
-        style={{ height: '100%' }}
-      >
-        <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
-        <VideoConference />
-      </LiveKitRoom>
+    <div className={styles.roomWrapper}>
+      <div className={styles.room}>
+        <LiveKitRoom
+          token={token}
+          serverUrl={livekitUrl}
+          connect={true}
+          video={false}
+          audio={audioConstraints}
+          onDisconnected={leave}
+          style={{ height: '100%' }}
+        >
+          <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
+          <VideoConference />
+        </LiveKitRoom>
+      </div>
+      {user?.role === 'admin' && (
+        <VoiceAdminControls roomName={channel.id} />
+      )}
     </div>
   );
 }
