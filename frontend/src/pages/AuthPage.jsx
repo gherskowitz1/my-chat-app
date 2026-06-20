@@ -94,6 +94,21 @@ export default function AuthPage() {
             <>Already have an account? <button onClick={() => { setMode('login'); setError(''); }}>Log In</button></>
           )}
         </p>
+
+        <div className={styles.downloadSection}>
+          <div className={styles.downloadDivider}><span>or</span></div>
+          <a
+            href="https://github.com/gherskowitz1/my-chat-app/releases/download/1.0.0/The%20Crows%20Nest%20Setup%201.0.0.exe"
+            className={styles.downloadBtn}
+            download
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            Download Windows App
+          </a>
+          <p className={styles.downloadHint}>Windows 10/11 · 64-bit · ~95 MB</p>
+        </div>
       </div>
     </div>
   );
