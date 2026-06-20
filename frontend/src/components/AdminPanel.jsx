@@ -1,7 +1,41 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import styles from './AdminPanel.module.css';
+
+const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
+
+async function patch(path, body) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function del(path) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function get(path) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
@@ -21,9 +55,9 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
 
   const load = useCallback(async () => {
     const [srv, chs, usrs] = await Promise.all([
-      api.get(`/servers/${DEFAULT_SERVER}`),
-      api.get(`/servers/${DEFAULT_SERVER}/channels`),
-      api.get('/admin/users'),
+      get(`/servers/${DEFAULT_SERVER}`),
+      get(`/servers/${DEFAULT_SERVER}/channels`),
+      get('/admin/users'),
     ]);
     setServer(srv);
     setChannels(chs);
@@ -37,14 +71,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
     e.preventDefault();
     setSaving(true);
     try {
-      const updated = await api.patch ?
-        await fetch(`${(import.meta.env.VITE_API_URL || '') + '/api'}/servers/${DEFAULT_SERVER}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-          body: JSON.stringify({ name: server.name, description: server.description }),
-        }).then(r => r.json())
-        : null;
-      if (updated?.error) throw new Error(updated.error);
+      const updated = await patch(`/servers/${DEFAULT_SERVER}`, { name: server.name, description: server.description });
       onServerRenamed(updated.name);
       flash('Server updated!');
     } catch (err) {
@@ -59,12 +86,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
 
   const saveChannel = async (channelId, newName, type) => {
     try {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || '') + '/api'}/channels/${channelId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ name: newName, type }),
-      }).then(r => r.json());
-      if (res.error) throw new Error(res.error);
+      const res = await patch(`/channels/${channelId}`, { name: newName, type });
       setChannels(prev => prev.map(c => c.id === channelId ? { ...c, name: res.name } : c));
       onChannelRenamed(res);
       socket?.emit('channel:renamed', res);
@@ -79,12 +101,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
   const toggleRole = async (user) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin';
     try {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || '') + '/api'}/admin/users/${user.id}/role`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ role: newRole }),
-      }).then(r => r.json());
-      if (res.error) throw new Error(res.error);
+      const res = await patch(`/admin/users/${user.id}/role`, { role: newRole });
       setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: newRole } : u));
       flash(`${user.username} is now ${newRole}`);
     } catch (err) {
@@ -95,11 +112,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
   const deleteUser = async (user) => {
     if (!confirm(`Remove ${user.username} from the server? This cannot be undone.`)) return;
     try {
-      const res = await fetch(`${(import.meta.env.VITE_API_URL || '') + '/api'}/admin/users/${user.id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      }).then(r => r.json());
-      if (res.error) throw new Error(res.error);
+      await del(`/admin/users/${user.id}`);
       setUsers(prev => prev.filter(u => u.id !== user.id));
       flash(`${user.username} removed`);
     } catch (err) {
