@@ -32,10 +32,7 @@ export default function AuthPage() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-            <circle cx="20" cy="20" r="20" fill="#5865F2"/>
-            <path d="M28 14c-2-1-4-1.5-4-1.5l-.4.8c1.4.4 2.8 1 4 1.8A13.3 13.3 0 0 0 20 14c-2.8 0-5 .6-7.6 1.1 1.2-.8 2.7-1.4 4-1.8L16 12.5S14 13 12 14c-2.5 4-3 8-3 8s1.5 2 4.5 2.5l1-1.3c-.8-.2-1.8-.5-2.5-1 .2.1.4.2.6.3C14 23.2 17 24 20 24s6-.8 7.4-1.5l.6-.3c-.7.5-1.7.8-2.5 1l1 1.3C29.5 24 31 22 31 22s-.5-4-3-8ZM17 21a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm6 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" fill="white"/>
-          </svg>
+          <img src="/crowsnest.png" alt="The Crows Nest" width="48" height="48" style={{ borderRadius: '8px' }} />
           <span>The Crows Nest</span>
         </div>
 
