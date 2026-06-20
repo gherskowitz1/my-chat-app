@@ -98,7 +98,7 @@ export default function AuthPage() {
         <div className={styles.downloadSection}>
           <div className={styles.downloadDivider}><span>or</span></div>
           <a
-            href="https://github.com/gherskowitz1/my-chat-app/releases/download/1.0.0/The%20Crows%20Nest%20Setup%201.0.0.exe"
+            href="https://github.com/gherskowitz1/my-chat-app/releases/download/1.0.0/The.Crows.Nest.Setup.1.0.0.exe"
             className={styles.downloadBtn}
             download
           >
