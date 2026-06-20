@@ -8,6 +8,7 @@ import '@livekit/components-styles';
 import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
 import VoiceAdminControls from './VoiceAdminControls';
+import VolumeMixer from './VolumeMixer';
 import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
@@ -75,27 +76,32 @@ export default function VoiceChannel({ channel, onLeave }) {
     );
   }
 
-  // Build audio constraints from saved preferences
   const audioConstraints = audioPrefs?.inputDeviceId
     ? { deviceId: { exact: audioPrefs.inputDeviceId } }
     : true;
 
   return (
     <div className={styles.roomWrapper}>
-      <div className={styles.room}>
-        <LiveKitRoom
-          token={token}
-          serverUrl={livekitUrl}
-          connect={true}
-          video={false}
-          audio={audioConstraints}
-          onDisconnected={leave}
-          style={{ height: '100%' }}
-        >
-          <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
+      <LiveKitRoom
+        token={token}
+        serverUrl={livekitUrl}
+        connect={true}
+        video={false}
+        audio={audioConstraints}
+        onDisconnected={leave}
+      >
+        {/* Audio renderer + LiveKit UI — inside LiveKitRoom context */}
+        <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
+        <div className={styles.room}>
           <VideoConference />
-        </LiveKitRoom>
-      </div>
+        </div>
+
+        {/* Volume mixer — available to all users, needs LiveKit context */}
+        <VolumeMixer />
+
+        {/* Admin server-side controls — outside LiveKit context is fine */}
+      </LiveKitRoom>
+
       {user?.role === 'admin' && (
         <VoiceAdminControls roomName={channel.id} />
       )}
