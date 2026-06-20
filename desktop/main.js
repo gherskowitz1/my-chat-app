@@ -4,7 +4,7 @@ const fs = require('fs');
 const Store = require('electron-store');
 
 const store = new Store();
-const APP_URL = 'https://enthusiastic-peace-production-7a96.up.railway.app';
+const APP_URL = 'https://www.thecrowsnesttalk.com';
 const isDev = process.argv.includes('--dev');
 
 let mainWindow;
