@@ -162,3 +162,19 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.privacy {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.privacy a {
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.privacy a:hover {
+  color: var(--text-link);
+  text-decoration: underline;
+}

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import AuthPage from './pages/AuthPage';
 import ChatLayout from './pages/ChatLayout';
+import PrivacyPage from './pages/PrivacyPage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -19,6 +20,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" replace />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/*" element={user ? <SocketProvider><ChatLayout /></SocketProvider> : <Navigate to="/auth" replace />} />
     </Routes>
   );

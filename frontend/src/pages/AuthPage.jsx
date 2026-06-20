@@ -109,6 +109,10 @@ export default function AuthPage() {
           </a>
           <p className={styles.downloadHint}>Windows 10/11 · 64-bit · ~95 MB</p>
         </div>
+
+        <p className={styles.privacy}>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+        </p>
       </div>
     </div>
   );
