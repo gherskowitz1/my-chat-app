@@ -1,15 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
-  useTracks,
-  ParticipantTile,
-  ControlBar,
 } from '@livekit/components-react';
 import '@livekit/components-styles';
-import { Track } from 'livekit-client';
 import { api } from '../services/api';
+import { getAudioPreferences } from './UserSettings';
 import styles from './VoiceChannel.module.css';
 
 export default function VoiceChannel({ channel, onLeave }) {
@@ -18,14 +15,17 @@ export default function VoiceChannel({ channel, onLeave }) {
   const [error, setError] = useState(null);
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [audioPrefs, setAudioPrefs] = useState(null);
 
   const join = async () => {
     setJoining(true);
     setError(null);
     try {
       const data = await api.get(`/livekit/token/${encodeURIComponent(channel.id)}`);
+      const prefs = getAudioPreferences();
       setToken(data.token);
       setLivekitUrl(data.url);
+      setAudioPrefs(prefs);
       setJoined(true);
     } catch (err) {
       setError(err.message === 'LiveKit not configured'
@@ -39,13 +39,16 @@ export default function VoiceChannel({ channel, onLeave }) {
   const leave = () => {
     setJoined(false);
     setToken(null);
+    setAudioPrefs(null);
     onLeave();
   };
 
   if (error) {
     return (
       <div className={styles.errorBanner}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        </svg>
         {error}
       </div>
     );
@@ -69,6 +72,11 @@ export default function VoiceChannel({ channel, onLeave }) {
     );
   }
 
+  // Build audio constraints from saved preferences
+  const audioConstraints = audioPrefs?.inputDeviceId
+    ? { deviceId: { exact: audioPrefs.inputDeviceId } }
+    : true;
+
   return (
     <div className={styles.room}>
       <LiveKitRoom
@@ -76,11 +84,11 @@ export default function VoiceChannel({ channel, onLeave }) {
         serverUrl={livekitUrl}
         connect={true}
         video={false}
-        audio={true}
+        audio={audioConstraints}
         onDisconnected={leave}
         style={{ height: '100%' }}
       >
-        <RoomAudioRenderer />
+        <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
         <VideoConference />
       </LiveKitRoom>
     </div>

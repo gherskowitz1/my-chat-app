@@ -76,8 +76,15 @@
   font-weight: 700;
   font-size: 16px;
   color: white;
-  cursor: default;
+  cursor: pointer;
   flex-shrink: 0;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  border: none;
+}
+
+.avatar:hover {
+  opacity: 0.85;
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .iconBtn {

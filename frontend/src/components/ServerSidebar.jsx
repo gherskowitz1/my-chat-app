@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import styles from './ServerSidebar.module.css';
 
-export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin }) {
+export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings }) {
   const { user, logout } = useAuth();
 
   return (
@@ -40,15 +40,16 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
         </button>
       )}
 
-      {/* User avatar at bottom */}
+      {/* User area — click avatar for settings, separate logout button */}
       <div className={styles.userArea}>
-        <div
+        <button
           className={styles.avatar}
           style={{ background: user?.avatar_color }}
-          title={`${user?.username} (${user?.role})`}
+          title="User Settings"
+          onClick={onOpenSettings}
         >
           {user?.username?.[0]?.toUpperCase()}
-        </div>
+        </button>
         <button className={styles.logoutBtn} onClick={logout} title="Log out">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17 7l-1.4 1.4 2.6 2.6H9v2h9.2l-2.6 2.6L17 17l5-5-5-5zm-6 10H5V7h6V5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6v-2z"/>

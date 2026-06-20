@@ -6,6 +6,7 @@ import DMSidebar from '../components/DMSidebar';
 import DMArea from '../components/DMArea';
 import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
+import UserSettings from '../components/UserSettings';
 import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
@@ -16,6 +17,7 @@ export default function ChatLayout() {
   const [activeConversation, setActiveConversation] = useState(null);
   const [showMembers, setShowMembers] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [serverName, setServerName] = useState('General Server');
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
 
@@ -36,6 +38,7 @@ export default function ChatLayout() {
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         onOpenAdmin={() => setShowAdmin(true)}
+        onOpenSettings={() => setShowSettings(true)}
       />
 
       {activeSection === 'server' ? (
@@ -78,6 +81,10 @@ export default function ChatLayout() {
           onServerRenamed={handleServerRenamed}
           onChannelRenamed={handleChannelRenamed}
         />
+      )}
+
+      {showSettings && (
+        <UserSettings onClose={() => setShowSettings(false)} />
       )}
     </div>
   );
