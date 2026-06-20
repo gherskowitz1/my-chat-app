@@ -4,7 +4,8 @@ const fs = require('fs');
 const Store = require('electron-store');
 
 const store = new Store();
-const APP_URL = 'https://www.thecrowsnesttalk.com';
+// Switch to custom domain once SSL cert is issued by Railway
+const APP_URL = 'https://enthusiastic-peace-production-7a96.up.railway.app';
 const isDev = process.argv.includes('--dev');
 
 let mainWindow;
@@ -14,6 +15,7 @@ function createWindow() {
   const bounds = store.get('windowBounds', { width: 1280, height: 800, x: undefined, y: undefined });
 
   mainWindow = new BrowserWindow({
+    title: 'The Crows Nest',
     width: bounds.width,
     height: bounds.height,
     x: bounds.x,
@@ -82,7 +84,7 @@ function createTray() {
     { label: 'Quit', click: () => { app.isQuitting = true; app.quit(); } },
   ]);
 
-  tray.setToolTip('Chatter');
+  tray.setToolTip('The Crows Nest');
   tray.setContextMenu(contextMenu);
   tray.on('click', () => {
     if (mainWindow.isVisible()) {

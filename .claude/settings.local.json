@@ -14,7 +14,13 @@
       "Bash(git push *)",
       "Bash(node -e \"require\\('docx'\\)\")",
       "Bash(node create-admin-guide.js)",
-      "Bash(npm uninstall *)"
+      "Bash(npm uninstall *)",
+      "Bash(identify /c/Projects/my-chat-app/desktop/crowsnest.png)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const m = require\\('png-to-ico'\\); console.log\\(typeof m, Object.keys\\(m\\)\\)\")",
+      "Bash(node -e \"const j = require\\('jimp'\\); console.log\\(Object.keys\\(j\\).slice\\(0,10\\)\\)\")",
+      "Bash(Remove-Item -Recurse -Force dist)",
+      "Bash(grep -v \"^$\")"
     ]
   }
 }

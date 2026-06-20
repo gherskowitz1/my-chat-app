@@ -1,7 +1,7 @@
 {
-  "name": "chatter",
+  "name": "the-crows-nest",
   "version": "1.0.0",
-  "description": "Chatter - Discord-like chat app",
+  "description": "The Crows Nest - Chat app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -11,14 +11,14 @@
     "dist:linux": "electron-builder --linux"
   },
   "build": {
-    "appId": "com.chatter.app",
-    "productName": "Chatter",
+    "appId": "com.thecrowsnest.app",
+    "productName": "The Crows Nest",
     "directories": {
       "output": "dist"
     },
     "win": {
       "target": "nsis",
-      "icon": "assets/icon.ico"
+      "icon": "assets/icon.png"
     },
     "mac": {
       "target": "dmg",
@@ -40,6 +40,9 @@
   },
   "devDependencies": {
     "electron": "^31.0.0",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "jimp": "^1.6.1",
+    "png-to-ico": "^3.0.1",
+    "png2icons": "^2.0.1"
   }
 }
