@@ -11,7 +11,10 @@
       "Bash(git config *)",
       "Bash(npx --yes railway --version)",
       "Bash(gh auth *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(node -e \"require\\('docx'\\)\")",
+      "Bash(node create-admin-guide.js)",
+      "Bash(npm uninstall *)"
     ]
   }
 }

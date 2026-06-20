@@ -5,6 +5,7 @@ const { signup, login, getMe } = require('../controllers/authController');
 const { getChannels, createChannel, deleteChannel, getMessages } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getUsers } = require('../controllers/dmController');
 const { getToken } = require('../controllers/livekitController');
+const { updateServer, getServer, renameChannel, getAllUsers, updateUserRole, deleteUser } = require('../controllers/adminController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -24,6 +25,14 @@ router.get('/channels/:channelId/messages', authMiddleware, getMessages);
 router.get('/dm/conversations', authMiddleware, getMyConversations);
 router.post('/dm/conversations/:targetUserId', authMiddleware, getOrCreateConversation);
 router.get('/dm/conversations/:conversationId/messages', authMiddleware, getDmMessages);
+
+// Admin
+router.get('/servers/:serverId', authMiddleware, getServer);
+router.patch('/servers/:serverId', authMiddleware, adminMiddleware, updateServer);
+router.patch('/channels/:channelId', authMiddleware, adminMiddleware, renameChannel);
+router.get('/admin/users', authMiddleware, adminMiddleware, getAllUsers);
+router.patch('/admin/users/:userId/role', authMiddleware, adminMiddleware, updateUserRole);
+router.delete('/admin/users/:userId', authMiddleware, adminMiddleware, deleteUser);
 
 // LiveKit
 router.get('/livekit/token/:roomName', authMiddleware, getToken);

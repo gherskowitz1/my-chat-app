@@ -1,31 +1,48 @@
-import React, { useState } from 'react';
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
 import ServerSidebar from '../components/ServerSidebar';
 import ChannelSidebar from '../components/ChannelSidebar';
 import ChatArea from '../components/ChatArea';
 import DMSidebar from '../components/DMSidebar';
 import DMArea from '../components/DMArea';
 import MemberList from '../components/MemberList';
+import AdminPanel from '../components/AdminPanel';
 import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
 export default function ChatLayout() {
-  const [activeSection, setActiveSection] = useState('server'); // 'server' | 'dm'
+  const [activeSection, setActiveSection] = useState('server');
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeConversation, setActiveConversation] = useState(null);
   const [showMembers, setShowMembers] = useState(true);
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [serverName, setServerName] = useState('General Server');
+  const [channelRefreshKey, setChannelRefreshKey] = useState(0);
+
+  const handleServerRenamed = useCallback((name) => {
+    setServerName(name);
+  }, []);
+
+  const handleChannelRenamed = useCallback((updatedChannel) => {
+    // If the active channel was renamed, update it
+    setActiveChannel(prev => prev?.id === updatedChannel.id ? { ...prev, name: updatedChannel.name } : prev);
+    // Force ChannelSidebar to re-fetch
+    setChannelRefreshKey(k => k + 1);
+  }, []);
 
   return (
     <div className={styles.layout}>
       <ServerSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        onOpenAdmin={() => setShowAdmin(true)}
       />
 
       {activeSection === 'server' ? (
         <ChannelSidebar
+          key={channelRefreshKey}
           serverId={DEFAULT_SERVER}
+          serverName={serverName}
           activeChannel={activeChannel}
           onChannelSelect={setActiveChannel}
         />
@@ -54,6 +71,14 @@ export default function ChatLayout() {
           <EmptyState section={activeSection} />
         )}
       </div>
+
+      {showAdmin && (
+        <AdminPanel
+          onClose={() => setShowAdmin(false)}
+          onServerRenamed={handleServerRenamed}
+          onChannelRenamed={handleChannelRenamed}
+        />
+      )}
     </div>
   );
 }

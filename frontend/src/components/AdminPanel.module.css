@@ -1,0 +1,300 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.panel {
+  display: flex;
+  width: 860px;
+  height: 580px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 16px 64px rgba(0,0,0,0.6);
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px;
+  background: var(--bg-tertiary);
+  display: flex;
+  flex-direction: column;
+  padding: 24px 12px 16px;
+  flex-shrink: 0;
+}
+
+.sidebarTitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 0 8px;
+  margin-bottom: 8px;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  width: 100%;
+  text-align: left;
+  transition: background 0.1s, color 0.1s;
+}
+
+.tabBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tabBtn.active { background: var(--bg-active); color: var(--text-primary); }
+
+.spacer { flex: 1; }
+
+.closeBtn {
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: left;
+  transition: color 0.1s, background 0.1s;
+}
+.closeBtn:hover { color: var(--red); background: rgba(242,63,66,0.1); }
+
+/* ── Content ── */
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  position: relative;
+}
+
+.section h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+
+.flash {
+  position: sticky;
+  top: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 16px;
+  z-index: 10;
+}
+
+.flash.success { background: rgba(35,165,90,0.2); color: #57f287; border: 1px solid rgba(35,165,90,0.4); }
+.flash.error { background: rgba(242,63,66,0.15); color: #f9a8a9; border: 1px solid rgba(242,63,66,0.3); }
+
+/* ── Server form ── */
+.form { display: flex; flex-direction: column; gap: 20px; max-width: 480px; }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.field input {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  font-size: 15px;
+}
+
+.field input:focus { box-shadow: 0 0 0 2px var(--accent); }
+
+.saveBtn {
+  padding: 10px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  align-self: flex-start;
+  transition: background 0.15s;
+}
+
+.saveBtn:hover:not(:disabled) { background: var(--accent-hover); }
+.saveBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ── Channels ── */
+.channelGroup { margin-bottom: 24px; }
+
+.groupLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.channelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  margin-bottom: 4px;
+}
+
+.channelEditRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  margin-bottom: 4px;
+  border: 1px solid var(--accent);
+}
+
+.prefix { color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
+
+.channelName { flex: 1; font-size: 14px; }
+
+.channelInput {
+  flex: 1;
+  background: transparent;
+  font-size: 14px;
+  padding: 4px 0;
+}
+
+.editBtn {
+  opacity: 0;
+  color: var(--text-muted);
+  padding: 3px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  transition: opacity 0.1s, color 0.1s;
+}
+
+.channelRow:hover .editBtn { opacity: 1; }
+.editBtn:hover { color: var(--text-primary); }
+
+.saveSmall {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cancelSmall {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  font-style: italic;
+}
+
+/* ── Users ── */
+.userList { display: flex; flex-direction: column; gap: 6px; }
+
+.userRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  transition: background 0.1s;
+}
+
+.userRow:hover { background: var(--bg-hover); }
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.userInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.username { font-size: 14px; font-weight: 600; }
+.email { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.userActions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.adminBadge { background: var(--accent); color: white; }
+.memberBadge { background: var(--bg-tertiary); color: var(--text-muted); }
+
+.roleBtn {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
+}
+
+.roleBtn:hover { background: var(--accent); color: white; }
+
+.deleteUserBtn {
+  padding: 5px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  transition: color 0.1s, background 0.1s;
+}
+
+.deleteUserBtn:hover { color: var(--red); background: rgba(242,63,66,0.15); }

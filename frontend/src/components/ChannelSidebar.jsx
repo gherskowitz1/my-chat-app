@@ -5,7 +5,7 @@ import { useSocket } from '../context/SocketContext';
 const VoiceChannel = lazy(() => import('./VoiceChannel'));
 import styles from './ChannelSidebar.module.css';
 
-export default function ChannelSidebar({ serverId, activeChannel, onChannelSelect }) {
+export default function ChannelSidebar({ serverId, serverName, activeChannel, onChannelSelect }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -30,11 +30,14 @@ export default function ChannelSidebar({ serverId, activeChannel, onChannelSelec
       setChannels((prev) => prev.filter((c) => c.id !== id));
       if (activeChannel?.id === id) onChannelSelect(null);
     };
+    const onRenamed = (ch) => setChannels((prev) => prev.map((c) => c.id === ch.id ? { ...c, name: ch.name } : c));
     socket.on('channel:created', onCreated);
     socket.on('channel:deleted', onDeleted);
+    socket.on('channel:renamed', onRenamed);
     return () => {
       socket.off('channel:created', onCreated);
       socket.off('channel:deleted', onDeleted);
+      socket.off('channel:renamed', onRenamed);
     };
   }, [socket, activeChannel, onChannelSelect]);
 
@@ -69,7 +72,7 @@ export default function ChannelSidebar({ serverId, activeChannel, onChannelSelec
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
-        <h2>General Server</h2>
+        <h2>{serverName || 'General Server'}</h2>
       </div>
 
       <div className={styles.channels}>

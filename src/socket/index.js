@@ -115,6 +115,9 @@ module.exports = function setupSocket(io) {
     socket.on('channel:deleted', (channelId) => {
       socket.broadcast.emit('channel:deleted', channelId);
     });
+    socket.on('channel:renamed', (channel) => {
+      socket.broadcast.emit('channel:renamed', channel);
+    });
 
     socket.on('disconnect', () => {
       const sockets = onlineUsers.get(userId);

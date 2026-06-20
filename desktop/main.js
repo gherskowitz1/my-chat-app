@@ -21,8 +21,8 @@ function createWindow() {
     minWidth: 940,
     minHeight: 600,
     backgroundColor: '#313338',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    frame: process.platform !== 'win32',
+    titleBarStyle: 'default',
+    frame: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -34,16 +34,9 @@ function createWindow() {
     show: false,
   });
 
-  // Custom title bar for Windows
-  if (process.platform === 'win32') {
-    mainWindow.setTitleBarOverlay({
-      color: '#1e1f22',
-      symbolColor: '#b5bac1',
-      height: 32,
-    });
-  }
-
-  mainWindow.loadURL(APP_URL);
+  mainWindow.loadURL(APP_URL).catch((err) => {
+    console.error('Failed to load URL:', err);
+  });
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
