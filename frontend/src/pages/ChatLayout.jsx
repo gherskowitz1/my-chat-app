@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import ServerSidebar from '../components/ServerSidebar';
 import ChannelSidebar from '../components/ChannelSidebar';
 import ChatArea from '../components/ChatArea';
@@ -7,6 +7,7 @@ import DMArea from '../components/DMArea';
 import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
 import UserSettings from '../components/UserSettings';
+import { api } from '../services/api';
 import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
@@ -18,17 +19,26 @@ export default function ChatLayout() {
   const [showMembers, setShowMembers] = useState(true);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [serverName, setServerName] = useState('General Server');
+  const [serverName, setServerName] = useState('');
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
+
+  // Load real server name from DB on mount
+  useEffect(() => {
+    api.get(`/servers/${DEFAULT_SERVER}`)
+      .then(s => setServerName(s.name))
+      .catch(() => setServerName('General Server'));
+  }, []);
 
   const handleServerRenamed = useCallback((name) => {
     setServerName(name);
   }, []);
 
   const handleChannelRenamed = useCallback((updatedChannel) => {
-    // If the active channel was renamed, update it
-    setActiveChannel(prev => prev?.id === updatedChannel.id ? { ...prev, name: updatedChannel.name } : prev);
-    // Force ChannelSidebar to re-fetch
+    setActiveChannel(prev =>
+      prev?.id === updatedChannel.id ? { ...prev, name: updatedChannel.name } : prev
+    );
+    // Increment key to tell ChannelSidebar to re-fetch channels,
+    // but pass the current serverName so it doesn't reset
     setChannelRefreshKey(k => k + 1);
   }, []);
 
