@@ -6,12 +6,16 @@ const AuthContext = createContext(null);
 // Helper — also save token to Electron's native store when running in desktop app
 function persistToken(token) {
   localStorage.setItem('token', token);
-  window.electron?.saveToken(token);
+  if (typeof window.electron?.saveToken === 'function') {
+    window.electron.saveToken(token);
+  }
 }
 
 function clearToken() {
   localStorage.removeItem('token');
-  window.electron?.clearToken();
+  if (typeof window.electron?.clearToken === 'function') {
+    window.electron.clearToken();
+  }
 }
 
 export function AuthProvider({ children }) {
