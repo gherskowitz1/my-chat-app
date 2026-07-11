@@ -5,6 +5,8 @@ import { SocketProvider } from './context/SocketContext';
 import AuthPage from './pages/AuthPage';
 import ChatLayout from './pages/ChatLayout';
 import PrivacyPage from './pages/PrivacyPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -21,6 +23,8 @@ function AppRoutes() {
     <Routes>
       <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" replace />} />
       <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/*" element={user ? <SocketProvider><ChatLayout /></SocketProvider> : <Navigate to="/auth" replace />} />
     </Routes>
   );

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styles from './AuthPage.module.css';
 
@@ -85,6 +86,9 @@ export default function AuthPage() {
           <button type="submit" className={styles.submit} disabled={loading}>
             {loading ? 'Loading…' : mode === 'login' ? 'Log In' : 'Create Account'}
           </button>
+          {mode === 'login' && (
+            <Link to="/forgot-password" className={styles.forgotLink}>Forgot your password?</Link>
+          )}
         </form>
 
         <p className={styles.toggle}>

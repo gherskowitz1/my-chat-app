@@ -6,11 +6,14 @@ const { getChannels, createChannel, deleteChannel, getMessages } = require('../c
 const { getOrCreateConversation, getMyConversations, getDmMessages, getUsers } = require('../controllers/dmController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const { updateServer, getServer, renameChannel, getAllUsers, updateUserRole, deleteUser } = require('../controllers/adminController');
+const { forgotPassword, resetPassword } = require('../controllers/passwordResetController');
 
 // Auth
 router.post('/auth/signup', signup);
 router.post('/auth/login', login);
 router.get('/auth/me', authMiddleware, getMe);
+router.post('/auth/forgot-password', forgotPassword);
+router.post('/auth/reset-password', resetPassword);
 
 // Users
 router.get('/users', authMiddleware, getUsers);

@@ -110,6 +110,16 @@
 
 .toggle button:hover { text-decoration: underline; }
 
+.forgotLink {
+  display: block;
+  text-align: center;
+  margin-top: 4px;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.forgotLink:hover { color: var(--text-link); text-decoration: underline; }
+
 .downloadSection {
   margin-top: 16px;
   display: flex;
