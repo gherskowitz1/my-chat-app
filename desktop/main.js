@@ -132,8 +132,18 @@ function createWindow() {
 
 // ── Tray ─────────────────────────────────────────────────────
 function createTray() {
+  // Windows tray needs a proper ICO with 16x16 size included
   const iconPath = path.join(__dirname, 'assets', process.platform === 'win32' ? 'tray.ico' : 'tray.png');
-  const icon = fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty();
+  let icon;
+  if (fs.existsSync(iconPath)) {
+    icon = nativeImage.createFromPath(iconPath);
+    // Resize to 16x16 for tray on Windows — prevents blank icon
+    if (process.platform === 'win32' && !icon.isEmpty()) {
+      icon = icon.resize({ width: 16, height: 16 });
+    }
+  } else {
+    icon = nativeImage.createEmpty();
+  }
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
