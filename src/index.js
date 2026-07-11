@@ -11,7 +11,11 @@ const app = express();
 const server = http.createServer(app);
 
 const allowedOrigins = process.env.CLIENT_URL
-  ? [process.env.CLIENT_URL]
+  ? [
+      process.env.CLIENT_URL,
+      process.env.CLIENT_URL.replace('https://www.', 'https://admin.'),
+      'https://admin.thecrowsnesttalk.com',
+    ]
   : ['http://localhost:5173', 'http://localhost:3000'];
 
 const io = new Server(server, {
