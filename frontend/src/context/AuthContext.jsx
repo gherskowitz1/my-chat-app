@@ -3,38 +3,69 @@ import { api } from '../services/api';
 
 const AuthContext = createContext(null);
 
+// Helper — also save token to Electron's native store when running in desktop app
+function persistToken(token) {
+  localStorage.setItem('token', token);
+  window.electron?.saveToken(token);
+}
+
+function clearToken() {
+  localStorage.removeItem('token');
+  window.electron?.clearToken();
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      api.get('/auth/me')
-        .then((data) => setUser(data))
-        .catch(() => localStorage.removeItem('token'))
-        .finally(() => setLoading(false));
+    // If running in Electron, listen for the native-stored token to be restored
+    if (window.electron?.onRestoreToken) {
+      window.electron.onRestoreToken((token) => {
+        if (token && !localStorage.getItem('token')) {
+          localStorage.setItem('token', token);
+        }
+      });
+    }
+
+    // Small delay to allow token:restore IPC to fire before we check
+    const init = () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        api.get('/auth/me')
+          .then((data) => setUser(data))
+          .catch(() => clearToken())
+          .finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    };
+
+    // Give Electron 200ms to inject the restored token before checking
+    const isElectron = !!window.electron;
+    if (isElectron) {
+      setTimeout(init, 200);
     } else {
-      setLoading(false);
+      init();
     }
   }, []);
 
   const login = async (email, password) => {
     const data = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', data.token);
+    persistToken(data.token);
     setUser(data.user);
     return data.user;
   };
 
   const signup = async (username, email, password) => {
     const data = await api.post('/auth/signup', { username, email, password });
-    localStorage.setItem('token', data.token);
+    persistToken(data.token);
     setUser(data.user);
     return data.user;
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    clearToken();
     setUser(null);
   };
 

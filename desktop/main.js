@@ -61,6 +61,14 @@ function createWindow() {
     return { action: 'deny' };
   });
 
+  // Restore saved token into localStorage before React reads it
+  mainWindow.webContents.on('did-finish-load', () => {
+    const savedToken = store.get('authToken');
+    if (savedToken) {
+      mainWindow.webContents.send('token:restore', savedToken);
+    }
+  });
+
   // Inject custom CSS for native feel
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.insertCSS(`
@@ -146,6 +154,14 @@ function createAppMenu() {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
+
+// Token persistence
+ipcMain.on('token:save', (_, token) => {
+  store.set('authToken', token);
+});
+ipcMain.on('token:clear', () => {
+  store.delete('authToken');
+});
 
 // Desktop notifications via IPC
 ipcMain.on('notify', (_, { title, body }) => {
