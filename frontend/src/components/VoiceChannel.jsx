@@ -9,6 +9,7 @@ import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
 import VoiceAdminControls from './VoiceAdminControls';
 import VolumeMixer from './VolumeMixer';
+import VoiceControls from './VoiceControls';
 import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
@@ -96,8 +97,11 @@ export default function VoiceChannel({ channel, onLeave }) {
           <VideoConference />
         </div>
 
-        {/* Volume mixer — available to all users, needs LiveKit context */}
+        {/* Volume mixer — per-participant volume sliders */}
         <VolumeMixer />
+
+        {/* Keyboard shortcuts + mute/deafen/leave controls */}
+        <VoiceControls onLeave={leave} />
 
         {/* Admin server-side controls — outside LiveKit context is fine */}
       </LiveKitRoom>
