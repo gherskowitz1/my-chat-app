@@ -31,7 +31,7 @@ async function signup(req, res) {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '180d' }
     );
     res.json({ token, user });
   } catch (err) {
@@ -58,7 +58,7 @@ async function login(req, res) {
     const token = jwt.sign(
       { id: user.id, username: user.username, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '180d' }
     );
     res.json({
       token,
