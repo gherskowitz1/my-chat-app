@@ -1,4 +1,5 @@
 require('dotenv').config();
+console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY, 'length:', process.env.RESEND_API_KEY?.length);
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
