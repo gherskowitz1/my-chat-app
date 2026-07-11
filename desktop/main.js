@@ -58,6 +58,8 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
   console.error('Auto-updater error:', err.message);
+  mainWindow?.setProgressBar(-1);
+  // Don't show dialog for background auto-checks — only surface errors from manual checks
 });
 
 // ── Window ──────────────────────────────────────────────────
@@ -175,6 +177,8 @@ function checkForUpdatesManually() {
   }
 
   autoUpdater.checkForUpdates().then((result) => {
+    // update-available and update-downloaded events handle the dialogs
+    // If no update info returned, we're up to date
     if (!result?.updateInfo) {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
@@ -184,11 +188,18 @@ function checkForUpdatesManually() {
         buttons: ['OK'],
       });
     }
-  }).catch(() => {
+  }).catch((err) => {
+    // 404 means no release published yet — not a real error
+    const isNoRelease = err.message?.includes('404') || err.message?.includes('Cannot find');
     dialog.showMessageBox(mainWindow, {
-      type: 'error',
-      title: 'Update Check Failed',
-      message: 'Could not check for updates. Please check your internet connection.',
+      type: 'info',
+      title: isNoRelease ? 'Up to Date' : 'Update Check Failed',
+      message: isNoRelease
+        ? 'You\'re on the latest version!'
+        : 'Could not check for updates.',
+      detail: isNoRelease
+        ? `Current version: ${app.getVersion()}`
+        : 'Please check your internet connection and try again.',
       buttons: ['OK'],
     });
   });
