@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const { Resend } = require('resend');
 const { pool } = require('../db');
 
-const FROM_EMAIL = 'noreply@thecrowsnesttalk.com';
+const FROM_EMAIL = 'The Crows Nest <noreply@thecrowsnesttalk.com>';
 
 function getResend() {
   return new Resend(process.env.RESEND_API_KEY);
@@ -41,7 +41,7 @@ async function forgotPassword(req, res) {
 
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
-    await getResend().emails.send({
+    const emailResult = await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'Reset your Crows Nest password',
@@ -57,10 +57,15 @@ async function forgotPassword(req, res) {
       `,
     });
 
+    if (emailResult.error) {
+      console.error('Resend error:', emailResult.error);
+      return res.status(500).json({ error: `Email failed: ${emailResult.error.message}` });
+    }
+
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (err) {
     console.error('forgotPassword error:', err);
-    res.status(500).json({ error: 'Failed to send reset email' });
+    res.status(500).json({ error: `Failed to send reset email: ${err.message}` });
   }
 }
 
