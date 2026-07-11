@@ -8,4 +8,6 @@ contextBridge.exposeInMainWorld('electron', {
   saveToken: (token) => ipcRenderer.send('token:save', token),
   clearToken: () => ipcRenderer.send('token:clear'),
   onRestoreToken: (callback) => ipcRenderer.once('token:restore', (_, token) => callback(token)),
+  checkForUpdates: () => ipcRenderer.send('update:check'),
+  version: require('./package.json').version,
 });

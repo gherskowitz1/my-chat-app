@@ -1,20 +1,27 @@
 {
   "name": "the-crows-nest",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "The Crows Nest - Chat app",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never",
+    "dist:linux": "electron-builder --linux --publish never",
+    "release:win": "electron-builder --win --publish always",
+    "release:mac": "electron-builder --mac --publish always"
   },
   "build": {
     "appId": "com.thecrowsnest.app",
     "productName": "The Crows Nest",
     "directories": {
       "output": "dist"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "gherskowitz1",
+      "repo": "my-chat-app"
     },
     "win": {
       "target": "nsis",
@@ -36,7 +43,8 @@
     }
   },
   "dependencies": {
-    "electron-store": "^8.1.0"
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.8.9"
   },
   "devDependencies": {
     "electron": "^31.0.0",
