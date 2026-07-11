@@ -36,11 +36,18 @@
   display: flex;
   flex-direction: column;
   margin: 4px 8px;
+  gap: 4px;
+}
+
+/* Force LiveKitRoom to use flex column so children stack */
+.roomWrapper > div:first-child {
+  display: flex !important;
+  flex-direction: column !important;
 }
 
 .room {
-  height: 400px;
+  height: 280px;
   border-radius: var(--radius-md);
   overflow: hidden;
-  margin-bottom: 4px;
+  flex-shrink: 0;
 }

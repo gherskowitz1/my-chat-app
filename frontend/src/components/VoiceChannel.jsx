@@ -90,20 +90,14 @@ export default function VoiceChannel({ channel, onLeave }) {
         video={false}
         audio={audioConstraints}
         onDisconnected={leave}
+        style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
       >
-        {/* Audio renderer + LiveKit UI — inside LiveKitRoom context */}
         <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
         <div className={styles.room}>
           <VideoConference />
         </div>
-
-        {/* Volume mixer — per-participant volume sliders */}
         <VolumeMixer />
-
-        {/* Keyboard shortcuts + mute/deafen/leave controls */}
         <VoiceControls onLeave={leave} />
-
-        {/* Admin server-side controls — outside LiveKit context is fine */}
       </LiveKitRoom>
 
       {user?.role === 'admin' && (
