@@ -15,8 +15,16 @@ export default function VoiceControls({ onLeave }) {
   const [muted, setMuted] = useState(false);
   const [deafened, setDeafened] = useState(false);
   const [toast, setToast] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
   const toastTimerRef = useRef(null);
   const preDeafenMuteRef = useRef(false);
+  const startTimeRef = useRef(Date.now());
+
+  // Session timer
+  useEffect(() => {
+    const id = setInterval(() => setElapsed(Math.floor((Date.now() - startTimeRef.current) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Sync muted state from LiveKit
   useEffect(() => {
@@ -95,6 +103,13 @@ export default function VoiceControls({ onLeave }) {
     leaveVoice: handleLeave,
   }, true);
 
+  const formatTime = (s) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60).toString().padStart(2, '0');
+    const sec = (s % 60).toString().padStart(2, '0');
+    return h > 0 ? `${h}:${m}:${sec}` : `${m}:${sec}`;
+  };
+
   return (
     <>
       {/* Toast notification */}
@@ -102,6 +117,9 @@ export default function VoiceControls({ onLeave }) {
 
       {/* Compact shortcut bar */}
       <div className={styles.bar}>
+        <span className={styles.timer} title="Time in voice channel">
+          🕐 {formatTime(elapsed)}
+        </span>
         <button
           className={`${styles.ctrl} ${muted ? styles.off : styles.on}`}
           onClick={toggleMute}

@@ -1,3 +1,14 @@
+.timer {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: monospace;
+  padding: 4px 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
 .bar {
   display: flex;
   align-items: center;

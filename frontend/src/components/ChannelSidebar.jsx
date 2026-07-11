@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import VoiceParticipants from './VoiceParticipants';
 const VoiceChannel = lazy(() => import('./VoiceChannel'));
 import styles from './ChannelSidebar.module.css';
 
@@ -128,6 +129,10 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
                   </button>
                 )}
               </div>
+              {/* Always show who's in the voice channel */}
+              {activeVoiceChannel?.id !== ch.id && (
+                <VoiceParticipants channelId={ch.id} />
+              )}
               {activeVoiceChannel?.id === ch.id && (
                 <Suspense fallback={<div style={{padding:'8px 16px',fontSize:12,color:'var(--text-muted)'}}>Loading…</div>}>
                   <VoiceChannel channel={ch} onLeave={() => setActiveVoiceChannel(null)} />
