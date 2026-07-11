@@ -3,8 +3,11 @@ const crypto = require('crypto');
 const { Resend } = require('resend');
 const { pool } = require('../db');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = 'noreply@thecrowsnesttalk.com';
+
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY);
+}
 const APP_URL = process.env.CLIENT_URL || 'https://www.thecrowsnesttalk.com';
 const TOKEN_EXPIRY_MINUTES = 60;
 
@@ -38,7 +41,7 @@ async function forgotPassword(req, res) {
 
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: FROM_EMAIL,
       to: email,
       subject: 'Reset your Crows Nest password',
