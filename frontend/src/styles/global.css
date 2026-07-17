@@ -95,6 +95,39 @@ a { color: inherit; text-decoration: none; }
   font-size: 1rem !important;
 }
 
+/* LiveKit's default device-menu theme doesn't give this popup a solid
+   background or truncate long device names, so it read as low-contrast and
+   the labels ("Microphone Array (Intel(R) Smart Sound...)") would overflow
+   and visually collide with whatever was behind/around them. */
+.lk-device-menu {
+  background: var(--bg-tertiary) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+  z-index: 1000 !important;
+  max-width: 280px !important;
+  padding: 6px !important;
+}
+
+.lk-device-menu .lk-button {
+  display: block !important;
+  width: 100% !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  color: var(--text-primary) !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.lk-device-menu .lk-button:hover {
+  background: var(--bg-hover) !important;
+}
+
+.lk-device-menu li[data-lk-active="true"] .lk-button {
+  background: var(--accent) !important;
+  color: white !important;
+}
+
 /* VideoConference hardcodes its in-room text chat toggle on with no prop to
    disable it, so it's removed here instead — not used in this app. */
 .lk-chat-toggle {
