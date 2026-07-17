@@ -53,6 +53,9 @@ export default function AdminDashboard() {
               <span>{t.icon}</span> {t.label}
             </button>
           ))}
+          <a className={styles.navBtn} href="/CrowsNest-Admin-Guide.docx" download>
+            <span>📖</span> Admin Guide
+          </a>
         </nav>
 
         <div className={styles.sidebarFooter}>
