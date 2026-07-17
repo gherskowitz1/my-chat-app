@@ -19,9 +19,12 @@ async function createChannel(req, res) {
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
 
   try {
+    const safeName = type === 'voice'
+      ? name.trim()
+      : name.trim().toLowerCase().replace(/\s+/g, '-');
     const { rows } = await pool.query(
       'INSERT INTO channels (server_id, name, type) VALUES ($1, $2, $3) RETURNING *',
-      [serverId, name.toLowerCase().replace(/\s+/g, '-'), type]
+      [serverId, safeName, type]
     );
     res.status(201).json(rows[0]);
   } catch (err) {

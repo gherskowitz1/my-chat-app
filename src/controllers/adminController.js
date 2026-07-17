@@ -33,7 +33,13 @@ async function renameChannel(req, res) {
   const { name } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
   try {
-    const safeName = req.body.type === 'voice'
+    // Look up the channel's actual type rather than trusting the client to
+    // send it — a caller that omits it would otherwise silently fall through
+    // to slugifying voice channel names too.
+    const { rows: existing } = await pool.query('SELECT type FROM channels WHERE id = $1', [channelId]);
+    if (!existing[0]) return res.status(404).json({ error: 'Channel not found' });
+
+    const safeName = existing[0].type === 'voice'
       ? name.trim()
       : name.trim().toLowerCase().replace(/\s+/g, '-');
     const { rows } = await pool.query(
