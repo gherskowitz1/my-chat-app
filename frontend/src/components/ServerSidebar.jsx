@@ -5,6 +5,14 @@ import styles from './ServerSidebar.module.css';
 export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings }) {
   const { user, logout } = useAuth();
 
+  // Opens the standalone admin dashboard (admin.<domain>) in a new tab. Inside
+  // the Electron app, window.open is already redirected to the OS browser by
+  // main.js's setWindowOpenHandler, so this works the same in both contexts.
+  const openAdminPortal = () => {
+    const url = window.location.origin.replace('://www.', '://admin.');
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
   return (
     <div className={styles.sidebar}>
       {/* DM button */}
@@ -30,6 +38,15 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
       </button>
 
       <div className={styles.spacer} />
+
+      {/* Full admin portal (admin.<domain>) — only visible to admins */}
+      {user?.role === 'admin' && (
+        <button className={styles.iconBtn} onClick={openAdminPortal} title="Admin Portal">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2 4 5v6c0 5.25 3.4 10.16 8 11 4.6-.84 8-5.75 8-11V5l-8-3zm0 9.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-2.65v8.34z"/>
+          </svg>
+        </button>
+      )}
 
       {/* Admin settings gear — only visible to admins */}
       {user?.role === 'admin' && (
