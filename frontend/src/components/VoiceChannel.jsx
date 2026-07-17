@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   VideoConference,
@@ -10,10 +10,14 @@ import { getAudioPreferences } from './UserSettings';
 import VoiceAdminControls from './VoiceAdminControls';
 import VolumeMixer from './VolumeMixer';
 import VoiceControls from './VoiceControls';
+import VoiceChimes from './VoiceChimes';
 import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
-export default function VoiceChannel({ channel, onLeave }) {
+const INACTIVITY_LIMIT_MS = 4 * 60 * 60 * 1000; // 4 hours
+export const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
+
+export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchChannel }) {
   const { user } = useAuth();
   const [token, setToken] = useState(null);
   const [livekitUrl, setLivekitUrl] = useState(null);
@@ -21,6 +25,7 @@ export default function VoiceChannel({ channel, onLeave }) {
   const [joining, setJoining] = useState(false);
   const [joined, setJoined] = useState(false);
   const [audioPrefs, setAudioPrefs] = useState(null);
+  const lastActivityRef = useRef(Date.now());
 
   const join = async () => {
     setJoining(true);
@@ -47,6 +52,28 @@ export default function VoiceChannel({ channel, onLeave }) {
     setAudioPrefs(null);
     onLeave();
   };
+
+  // AFK auto-move — after 4h with no mouse/keyboard activity anywhere in the
+  // app, move to the AFK channel (which force-mutes on entry, see below).
+  useEffect(() => {
+    if (!joined || !afkChannel || afkChannel.id === channel.id) return;
+
+    lastActivityRef.current = Date.now();
+    const bump = () => { lastActivityRef.current = Date.now(); };
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, bump));
+
+    const checkId = setInterval(() => {
+      if (Date.now() - lastActivityRef.current >= INACTIVITY_LIMIT_MS) {
+        onSwitchChannel?.(afkChannel);
+      }
+    }, 60 * 1000);
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, bump));
+      clearInterval(checkId);
+    };
+  }, [joined, afkChannel, channel.id, onSwitchChannel]);
 
   if (error) {
     return (
@@ -81,6 +108,8 @@ export default function VoiceChannel({ channel, onLeave }) {
     ? { deviceId: { exact: audioPrefs.inputDeviceId } }
     : true;
 
+  const isAfkChannel = normalizeChannelName(channel.name) === 'takingashit';
+
   return (
     <div className={styles.roomWrapper}>
       <LiveKitRoom
@@ -93,11 +122,12 @@ export default function VoiceChannel({ channel, onLeave }) {
         style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
       >
         <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
+        <VoiceChimes />
         <div className={styles.room}>
           <VideoConference />
         </div>
         <VolumeMixer />
-        <VoiceControls onLeave={leave} />
+        <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
       </LiveKitRoom>
 
       {user?.role === 'admin' && (

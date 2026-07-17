@@ -8,7 +8,7 @@ import styles from './VoiceControls.module.css';
  * Sits inside <LiveKitRoom> so it has access to LiveKit hooks.
  * Handles keyboard shortcuts + shows a shortcut HUD.
  */
-export default function VoiceControls({ onLeave }) {
+export default function VoiceControls({ onLeave, forceMuted }) {
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
   const shortcuts = loadShortcuts();
@@ -42,6 +42,13 @@ export default function VoiceControls({ onLeave }) {
     };
   }, [localParticipant]);
 
+  // AFK channel — force mic off and keep it locked there
+  useEffect(() => {
+    if (!forceMuted || !localParticipant) return;
+    localParticipant.setMicrophoneEnabled(false);
+    setMuted(true);
+  }, [forceMuted, localParticipant]);
+
   const showToast = (msg) => {
     setToast(msg);
     clearTimeout(toastTimerRef.current);
@@ -49,7 +56,7 @@ export default function VoiceControls({ onLeave }) {
   };
 
   const toggleMute = () => {
-    if (!localParticipant) return;
+    if (!localParticipant || forceMuted) return;
     const newMuted = !muted;
     localParticipant.setMicrophoneEnabled(!newMuted);
     setMuted(newMuted);
@@ -79,7 +86,7 @@ export default function VoiceControls({ onLeave }) {
 
   // Push to talk — unmute while held, re-mute on release
   const handlePushToTalk = (pressed) => {
-    if (!localParticipant) return;
+    if (!localParticipant || forceMuted) return;
     if (pressed) {
       localParticipant.setMicrophoneEnabled(true);
       setMuted(false);
@@ -123,7 +130,8 @@ export default function VoiceControls({ onLeave }) {
         <button
           className={`${styles.ctrl} ${muted ? styles.off : styles.on}`}
           onClick={toggleMute}
-          title={`${muted ? 'Unmute' : 'Mute'} (${formatKey(shortcuts.toggleMute.key)})`}
+          disabled={forceMuted}
+          title={forceMuted ? 'Muted (AFK channel)' : `${muted ? 'Unmute' : 'Mute'} (${formatKey(shortcuts.toggleMute.key)})`}
         >
           {muted ? <MicOffIcon /> : <MicIcon />}
           <span>{muted ? 'Unmute' : 'Mute'}</span>
@@ -142,7 +150,8 @@ export default function VoiceControls({ onLeave }) {
 
         <button
           className={`${styles.ctrl} ${styles.ptt}`}
-          title={`Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
+          disabled={forceMuted}
+          title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
         >
           <PttIcon />
           <span>Push to Talk</span>

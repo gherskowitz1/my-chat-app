@@ -7,6 +7,11 @@ const VoiceChannel = lazy(() => import('./VoiceChannel'));
 import InviteModal from './InviteModal';
 import styles from './ChannelSidebar.module.css';
 
+// Kept as a small local copy rather than importing from VoiceChannel.jsx,
+// which is lazy-loaded specifically to avoid pulling in LiveKit's bundle
+// until someone actually opens a voice channel.
+const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
+
 export default function ChannelSidebar({ serverId, serverName, activeChannel, onChannelSelect }) {
   const { user } = useAuth();
   const { socket } = useSocket();
@@ -71,6 +76,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
 
   const textChannels = channels.filter((c) => c.type === 'text');
   const voiceChannels = channels.filter((c) => c.type === 'voice');
+  const afkChannel = voiceChannels.find((c) => normalizeChannelName(c.name) === 'takingashit');
 
   return (
     <div className={styles.sidebar}>
@@ -143,7 +149,12 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
               )}
               {activeVoiceChannel?.id === ch.id && (
                 <Suspense fallback={<div style={{padding:'8px 16px',fontSize:12,color:'var(--text-muted)'}}>Loading…</div>}>
-                  <VoiceChannel channel={ch} onLeave={() => setActiveVoiceChannel(null)} />
+                  <VoiceChannel
+                    channel={ch}
+                    onLeave={() => setActiveVoiceChannel(null)}
+                    afkChannel={afkChannel}
+                    onSwitchChannel={setActiveVoiceChannel}
+                  />
                 </Suspense>
               )}
             </div>
