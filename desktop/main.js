@@ -110,6 +110,10 @@ function createWindow() {
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isAdminHost(url)) {
+      openAdminWindow(url);
+      return { action: 'deny' };
+    }
     shell.openExternal(url);
     return { action: 'deny' };
   });
@@ -129,6 +133,50 @@ function createWindow() {
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
     `);
+  });
+}
+
+// ── Admin portal window ──────────────────────────────────────
+// The admin dashboard lives on a separate subdomain (admin.<domain>). Rather
+// than handing that off to the OS browser like other external links, open it
+// in its own in-app window.
+let adminWindow = null;
+
+function isAdminHost(rawUrl) {
+  try {
+    return new URL(rawUrl).hostname.startsWith('admin.');
+  } catch {
+    return false;
+  }
+}
+
+function openAdminWindow(url) {
+  if (adminWindow) {
+    adminWindow.focus();
+    return;
+  }
+  adminWindow = new BrowserWindow({
+    title: 'The Crows Nest — Admin',
+    width: 1200,
+    height: 800,
+    backgroundColor: '#0f1117',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+  adminWindow.setMenuBarVisibility(false);
+  adminWindow.loadURL(url).catch((err) => {
+    console.error('Failed to load admin URL:', err);
+  });
+  // Links clicked from within the admin dashboard still go to the OS browser.
+  adminWindow.webContents.setWindowOpenHandler(({ url: innerUrl }) => {
+    shell.openExternal(innerUrl);
+    return { action: 'deny' };
+  });
+  adminWindow.on('closed', () => {
+    adminWindow = null;
   });
 }
 
