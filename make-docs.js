@@ -135,7 +135,7 @@ function makeHeader(title, subtitle) {
     border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C.accent, space: 6 } },
     spacing: { after: 100 },
     children: [
-      new TextRun({ text: 'Chatter  ', font: 'Arial', size: 20, bold: true, color: C.accent }),
+      new TextRun({ text: 'The Crows Nest  ', font: 'Arial', size: 20, bold: true, color: C.accent }),
       new TextRun({ text: `— ${title}`, font: 'Arial', size: 20, color: C.muted }),
     ],
   })] });
@@ -202,15 +202,15 @@ const adminDoc = new Document({
     children: [
       // Cover
       sp(800),
-      coverTitle('Chatter'),
+      coverTitle('The Crows Nest'),
       coverSub('Administrator Guide'),
       coverSub('Complete reference for server owners and admins', 22, C.muted),
-      coverSub(`Version 1.0  •  ${month}`, 20, 'B5BAC1'),
+      coverSub(`Version 2.0  •  ${month}`, 20, 'B5BAC1'),
       sp(1200),
 
       // 1. Overview
       h1('1. Administrator Overview'),
-      body('Administrators have elevated privileges to manage every aspect of the Chatter server — from renaming channels to moderating voice rooms. This guide covers all admin capabilities introduced as of version 1.0.'),
+      body('Administrators have elevated privileges to manage every aspect of The Crows Nest — from renaming channels to moderating voice rooms. This guide covers all admin capabilities.'),
       sp(80),
 
       h2('1.1 Permission Comparison'),
@@ -245,13 +245,17 @@ const adminDoc = new Document({
       bullet('The panel opens with three tabs: Server, Channels, and Users'),
       sp(80),
       note('If the gear icon is not visible, your account may still have the "member" role. See Section 6.1 to grant yourself admin via the Railway database console.', 'warning'),
+      sp(160),
+
+      h2('1.3 Full Admin Portal'),
+      body('A shield icon above the gear icon opens the full standalone Admin Portal (a separate dashboard at the admin. subdomain) with deeper server management tools. In the desktop app it opens in its own window; in a browser it opens in a new tab.'),
       sp(200),
 
       pb(),
 
       // 2. Inviting Users
       h1('2. Inviting Users'),
-      body('Chatter uses open registration. Anyone with your server URL can create an account and join immediately — no invite codes required.'),
+      body('The Crows Nest uses open registration. Anyone with your server URL can create an account and join immediately — no invite codes required. Any member can also send a direct email invite from within the app.'),
       sp(80),
 
       h2('2.1 Server URL'),
@@ -264,14 +268,24 @@ const adminDoc = new Document({
           margins: { top: 140, bottom: 140, left: 200, right: 200 },
           width: { size: 9360, type: WidthType.DXA },
           children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [
-            new TextRun({ text: 'https://enthusiastic-peace-production-7a96.up.railway.app', font: 'Courier New', size: 22, bold: true, color: C.accent }),
+            new TextRun({ text: 'https://www.thecrowsnesttalk.com', font: 'Courier New', size: 22, bold: true, color: C.accent }),
           ]})],
         })]})],
       }),
       sp(160),
 
-      h2('2.2 How New Users Sign Up'),
-      step('Visit the server URL in any browser'),
+      h2('2.2 Sending an Email Invite'),
+      body('Any member — not just admins — can invite someone by email directly from the app:'),
+      sp(40),
+      step('Click the Invite button at the top of the channel sidebar'),
+      step('Enter the person\'s email address'),
+      step('Click Send Invite'),
+      sp(80),
+      note('The invite email links straight to the signup page with their email pre-filled. Signup stays open to anyone regardless — the invite is a convenience, not a requirement.', 'info'),
+      sp(160),
+
+      h2('2.3 How New Users Sign Up'),
+      step('Visit the server URL in any browser (or click the link from an invite email)'),
       step('Click Create Account'),
       step('Enter a username (2-32 characters), email, and password (8+ characters)'),
       step('Click Create Account — they are logged in and added to the server instantly'),
@@ -279,8 +293,8 @@ const adminDoc = new Document({
       note('New users are assigned the Member role automatically and can start chatting right away.', 'info'),
       sp(160),
 
-      h2('2.3 Desktop App'),
-      body('Share the Chatter Setup installer (.exe) with Windows users. They install it like any Windows application and get a dedicated desktop app with a shortcut in the Start menu.'),
+      h2('2.4 Desktop App'),
+      body('Point Windows users to the download link on the login page (or share The Crows Nest Setup installer .exe directly). They install it like any Windows application and get a dedicated desktop app with a shortcut in the Start menu. The app checks for updates automatically.'),
       sp(200),
 
       pb(),
@@ -466,7 +480,7 @@ const adminDoc = new Document({
       new Paragraph({
         border: { top: { style: BorderStyle.SINGLE, size: 2, color: 'DDDDDD', space: 8 } },
         spacing: { before: 160, after: 0 }, alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: 'Chatter is hosted on Railway.app  •  React • Node.js • Socket.io • PostgreSQL • LiveKit', font: 'Arial', size: 18, color: 'B5BAC1' })],
+        children: [new TextRun({ text: 'The Crows Nest is hosted on Railway.app  •  React • Node.js • Socket.io • PostgreSQL • LiveKit', font: 'Arial', size: 18, color: 'B5BAC1' })],
       }),
     ],
   }],
@@ -485,16 +499,16 @@ const userDoc = new Document({
     children: [
       // Cover
       sp(800),
-      coverTitle('Chatter'),
+      coverTitle('The Crows Nest'),
       coverSub('User Guide'),
       coverSub('Everything you need to chat, call, and connect', 22, C.muted),
-      coverSub(`Version 1.0  •  ${month}`, 20, 'B5BAC1'),
+      coverSub(`Version 2.0  •  ${month}`, 20, 'B5BAC1'),
       sp(1200),
 
       // 1. Getting Started
       h1('1. Getting Started'),
       h2('1.1 Creating Your Account'),
-      step('Open your browser and go to the Chatter server URL (your admin will share this with you)'),
+      step('Open your browser and go to The Crows Nest server URL (your admin will share this with you)'),
       step('Click Create Account'),
       step('Fill in your username (2-32 characters), email address, and a password (8+ characters)'),
       step('Click Create Account — you are logged in immediately'),
@@ -506,14 +520,24 @@ const userDoc = new Document({
       bullet([bold('Log in: '), reg('Enter your email and password on the login screen')]),
       bullet([bold('Log out: '), reg('Click the arrow icon at the very bottom of the left sidebar')]),
       sp(80),
-      note('Your session stays active for 7 days. You will be logged out automatically after that.', 'info'),
+      note('Your session stays active for 180 days. You will be logged out automatically after that.', 'info'),
+      sp(160),
+
+      h2('1.3 Inviting Friends'),
+      body('Anyone can invite someone new — you do not need to be an admin:'),
+      sp(40),
+      step('Click the Invite button at the top of the channel sidebar'),
+      step('Enter your friend\'s email address'),
+      step('Click Send Invite'),
+      sp(80),
+      note('They\'ll get an email with a direct link straight to the signup page, with their email already filled in.', 'info'),
       sp(200),
 
       pb(),
 
       // 2. Navigating the App
       h1('2. Navigating the App'),
-      body('Chatter has three main areas visible at all times:'),
+      body('The Crows Nest has three main areas visible at all times:'),
       sp(40),
       new Table({
         width: { size: 9360, type: WidthType.DXA }, columnWidths: [2400, 6960],
@@ -541,7 +565,7 @@ const userDoc = new Document({
       step('Click in the message box at the bottom of the screen'),
       step('Type your message and press Enter or click the send button'),
       sp(80),
-      note('Messages can be up to 2,000 characters. There is no file attachment feature in v1.0.', 'info'),
+      note('Messages can be up to 2,000 characters. There is no file attachment feature yet.', 'info'),
       sp(160),
 
       h2('3.2 Deleting Your Own Messages'),
@@ -600,10 +624,19 @@ const userDoc = new Document({
       bullet('You will be disconnected immediately'),
       sp(160),
 
-      h2('5.3 Muting Yourself'),
-      bullet('Click the microphone icon in the control bar at the bottom of the voice room to mute yourself'),
-      bullet('Click it again to unmute'),
-      bullet('When muted, other participants will not hear you'),
+      h2('5.3 Voice Controls'),
+      body('Below the video area is a compact row of icon buttons — hover over any of them to see its name and keyboard shortcut:'),
+      sp(40),
+      new Table({
+        width: { size: 9360, type: WidthType.DXA }, columnWidths: [2400, 1600, 5360],
+        rows: [
+          hrow(['Control', 'Shortcut', 'What It Does'], [2400, 1600, 5360]),
+          drow(['Mute', 'M', 'Toggles your microphone. When muted, others cannot hear you.'], [2400, 1600, 5360]),
+          drow(['Deafen', 'D', 'Mutes your microphone and stops you from hearing anyone else at the same time.'], [2400, 1600, 5360], true),
+          drow(['Push to Talk', 'Hold Space', 'Hold the key to transmit; release to go back to muted. Handy in noisy rooms.'], [2400, 1600, 5360]),
+          drow(['Leave', 'Esc', 'Disconnects you from the voice channel immediately.'], [2400, 1600, 5360], true),
+        ],
+      }),
       sp(160),
 
       h2('5.4 Turning on Your Camera'),
@@ -612,7 +645,18 @@ const userDoc = new Document({
       bullet('Click it again to turn off your camera'),
       sp(160),
 
-      h2('5.5 Volume Mixer'),
+      h2('5.5 Sharing Your Screen'),
+      body('You can share your screen, a specific window, or a game with everyone in the voice channel:'),
+      sp(40),
+      step('Click the screen-share icon in the control bar'),
+      step('A picker appears listing every screen and open window (including games) you can share'),
+      step('Choose one and click Share (double-click also works)'),
+      step('Click the icon again, or Stop Sharing, to end it'),
+      sp(80),
+      note('In the desktop app, sharing includes your computer\'s system audio automatically (Windows only) — so background music or game sound comes through too, not just what\'s on screen.', 'info'),
+      sp(200),
+
+      h2('5.6 Volume Mixer'),
       body('When other people are in the voice channel with you, a Volume Mixer panel appears below the room. This lets you control how loud each person sounds to you personally:'),
       sp(40),
       new Table({
@@ -657,14 +701,17 @@ const userDoc = new Document({
 
       // 7. Desktop App
       h1('7. Desktop App (Windows)'),
-      body('If your admin has provided a Chatter Setup installer, you can install Chatter as a full desktop application on your Windows PC.'),
+      body('You can install The Crows Nest as a full desktop application on your Windows PC — download it from the login page.'),
       sp(80),
 
       h2('7.1 Installing the Desktop App'),
-      step('Double-click the Chatter Setup 1.0.0.exe file your admin shared with you'),
+      step('Download the installer from the "Download Windows App" link on the login page'),
+      step('Double-click the downloaded Setup .exe file'),
       step('Click through the installer (you can change the install location if desired)'),
-      step('Once installed, Chatter appears in your Start menu and on your desktop'),
-      step('Double-click to open — it loads directly to the Chatter server'),
+      step('Once installed, The Crows Nest appears in your Start menu and on your desktop'),
+      step('Double-click to open — it loads directly to The Crows Nest'),
+      sp(80),
+      note('The app checks for updates automatically in the background and installs them the next time you restart it.', 'info'),
       sp(160),
 
       h2('7.2 Desktop vs Browser'),
@@ -697,7 +744,7 @@ const userDoc = new Document({
           drow(['Boost quiet speakers', 'Use the Volume Mixer slider past 100% to amplify quiet participants'], [3400, 5960]),
           drow(['Test your mic first', 'Use User Settings > Test Microphone before joining important calls'], [3400, 5960], true),
           drow(['DM anyone', 'You can start a DM with any registered user, not just people in your channels'], [3400, 5960]),
-          drow(['Stay signed in', 'Your login session lasts 7 days before requiring you to sign in again'], [3400, 5960], true),
+          drow(['Stay signed in', 'Your login session lasts 180 days before requiring you to sign in again'], [3400, 5960], true),
         ],
       }),
       sp(200),
@@ -732,6 +779,6 @@ const userDoc = new Document({
 
 // ─── Write both files ─────────────────────────────────────────────────────────
 Promise.all([
-  Packer.toBuffer(adminDoc).then(b => { fs.writeFileSync('Chatter-Admin-Guide.docx', b); console.log('Created: Chatter-Admin-Guide.docx'); }),
-  Packer.toBuffer(userDoc).then(b =>  { fs.writeFileSync('Chatter-User-Guide.docx', b);  console.log('Created: Chatter-User-Guide.docx'); }),
+  Packer.toBuffer(adminDoc).then(b => { fs.writeFileSync('CrowsNest-Admin-Guide.docx', b); console.log('Created: CrowsNest-Admin-Guide.docx'); }),
+  Packer.toBuffer(userDoc).then(b =>  { fs.writeFileSync('CrowsNest-User-Guide.docx', b);  console.log('Created: CrowsNest-User-Guide.docx'); }),
 ]);
