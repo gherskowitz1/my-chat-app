@@ -10,23 +10,24 @@
 }
 
 .bar {
-  display: grid;
-  grid-template-columns: auto repeat(auto-fit, minmax(96px, max-content));
+  display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
 .ctrl {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
   font-family: inherit;
@@ -35,7 +36,9 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.ctrl span { font-size: 12px; }
+/* Icon-only buttons — the label and shortcut hint are still available as a
+   native tooltip via the button's title attribute. */
+.ctrl span, .ctrl kbd { display: none; }
 
 .on {
   background: var(--bg-active);
@@ -58,6 +61,7 @@
 .leave {
   background: rgba(242,63,66,0.15);
   color: var(--red);
+  margin-left: auto;
 }
 .leave:hover { background: rgba(242,63,66,0.3); }
 
