@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
+import Avatar from './Avatar';
 import styles from './AdminPanel.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -224,9 +225,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               <div className={styles.userList}>
                 {users.map(u => (
                   <div key={u.id} className={styles.userRow}>
-                    <div className={styles.avatar} style={{ background: u.avatar_color }}>
-                      {u.username[0].toUpperCase()}
-                    </div>
+                    <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
                     <div className={styles.userInfo}>
                       <span className={styles.username}>{u.username}</span>
                       <span className={styles.email}>{u.email}</span>

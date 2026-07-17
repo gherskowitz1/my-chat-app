@@ -36,17 +36,15 @@ module.exports = function setupSocket(io) {
       if (!content?.trim()) return;
       try {
         const { rows } = await pool.query(
-          `INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3)
-           RETURNING id, channel_id, content, created_at`,
+          `WITH inserted AS (
+             INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3)
+             RETURNING id, channel_id, content, created_at, user_id
+           )
+           SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
+           FROM inserted JOIN users u ON u.id = inserted.user_id`,
           [channelId, userId, content.trim()]
         );
-        const msg = {
-          ...rows[0],
-          username,
-          avatar_color: socket.user.avatar_color,
-          user_id: userId,
-        };
-        io.to(`channel:${channelId}`).emit('message:new', msg);
+        io.to(`channel:${channelId}`).emit('message:new', rows[0]);
       } catch (err) {
         console.error('message:send error', err);
         socket.emit('error', { message: 'Failed to send message' });
@@ -83,12 +81,15 @@ module.exports = function setupSocket(io) {
         if (!check[0]) return;
 
         const { rows } = await pool.query(
-          `INSERT INTO dm_messages (conversation_id, user_id, content) VALUES ($1, $2, $3)
-           RETURNING id, conversation_id, content, created_at`,
+          `WITH inserted AS (
+             INSERT INTO dm_messages (conversation_id, user_id, content) VALUES ($1, $2, $3)
+             RETURNING id, conversation_id, content, created_at, user_id
+           )
+           SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
+           FROM inserted JOIN users u ON u.id = inserted.user_id`,
           [conversationId, userId, content.trim()]
         );
-        const msg = { ...rows[0], username, avatar_color: socket.user.avatar_color, user_id: userId };
-        io.to(`dm:${conversationId}`).emit('dm:new', msg);
+        io.to(`dm:${conversationId}`).emit('dm:new', rows[0]);
       } catch (err) {
         console.error('dm:send error', err);
       }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
+import Avatar from './Avatar';
 import styles from './MemberList.module.css';
 
 export default function MemberList({ serverId }) {
@@ -51,12 +52,13 @@ function MemberItem({ member, online }) {
   return (
     <div className={styles.member}>
       <div className={styles.avatarWrap}>
-        <div
+        <Avatar
+          url={member.avatar_url}
+          color={member.avatar_color}
+          username={member.username}
           className={styles.avatar}
-          style={{ background: member.avatar_color || '#5865F2', opacity: online ? 1 : 0.5 }}
-        >
-          {member.username?.[0]?.toUpperCase()}
-        </div>
+          style={{ opacity: online ? 1 : 0.5 }}
+        />
         <span className={`${styles.dot} ${online ? styles.online : styles.offline}`} />
       </div>
       <div className={styles.info}>

@@ -23,7 +23,8 @@ const io = new Server(server, {
 });
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json());
+// Raised from the 100kb default to fit base64-encoded avatar image uploads.
+app.use(express.json({ limit: '3mb' }));
 
 app.use('/api', routes);
 app.get('/health', (_, res) => res.json({ ok: true }));

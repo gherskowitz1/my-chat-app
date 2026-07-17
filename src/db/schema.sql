@@ -5,9 +5,12 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   avatar_color VARCHAR(7) DEFAULT '#5865F2',
+  avatar_url TEXT,
   role VARCHAR(16) DEFAULT 'member' CHECK (role IN ('admin', 'member')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (

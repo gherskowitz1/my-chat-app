@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import Avatar from '../components/Avatar';
 import styles from './AdminDashboard.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -60,9 +61,7 @@ export default function AdminDashboard() {
 
         <div className={styles.sidebarFooter}>
           <div className={styles.adminBadge}>
-            <div className={styles.dot} style={{ background: user.avatar_color }}>
-              {user.username[0].toUpperCase()}
-            </div>
+            <Avatar url={user.avatar_url} color={user.avatar_color} username={user.username} className={styles.dot} />
             <div>
               <div className={styles.adminName}>{user.username}</div>
               <div className={styles.adminRole}>Administrator</div>
@@ -118,7 +117,7 @@ function DashboardTab() {
         {stats?.recentUsers?.map(u => (
           <div key={u.id} className={styles.tableRow}>
             <span className={styles.userCell}>
-              <div className={styles.avatar} style={{ background: u.avatar_color }}>{u.username[0].toUpperCase()}</div>
+              <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
               {u.username}
             </span>
             <span>{u.email}</span>
@@ -206,7 +205,7 @@ function UsersTab() {
         {filtered.map(u => (
           <div key={u.id} className={styles.tableRow}>
             <span className={styles.userCell}>
-              <div className={styles.avatar} style={{ background: u.avatar_color }}>{u.username[0].toUpperCase()}</div>
+              <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
               {u.username}
             </span>
             <span className={styles.email}>{u.email}</span>
@@ -382,7 +381,7 @@ function MessagesTab() {
         {filtered.map(m => (
           <div key={m.id} className={styles.tableRow}>
             <span className={styles.userCell}>
-              <div className={styles.avatar} style={{ background: m.avatar_color }}>{m.username?.[0]?.toUpperCase()}</div>
+              <Avatar url={m.avatar_url} color={m.avatar_color} username={m.username} className={styles.avatar} />
               {m.username}
             </span>
             <span className={styles.channelTag}>#{m.channel_name}</span>

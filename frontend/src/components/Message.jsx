@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Avatar from './Avatar';
 import styles from './Message.module.css';
 
 function formatTime(ts) {
@@ -24,12 +25,12 @@ export default function Message({ msg, grouped, canDelete, onDelete }) {
       onMouseLeave={() => setHovered(false)}
     >
       {!grouped ? (
-        <div
+        <Avatar
+          url={msg.avatar_url}
+          color={msg.avatar_color}
+          username={msg.username}
           className={styles.avatar}
-          style={{ background: msg.avatar_color || '#5865f2' }}
-        >
-          {msg.username?.[0]?.toUpperCase()}
-        </div>
+        />
       ) : (
         <div className={styles.timeStub}>
           {hovered && <span>{formatTime(msg.created_at)}</span>}

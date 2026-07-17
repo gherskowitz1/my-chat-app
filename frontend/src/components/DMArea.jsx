@@ -3,6 +3,7 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import Message from './Message';
+import Avatar from './Avatar';
 import styles from './ChatArea.module.css';
 
 export default function DMArea({ conversation }) {
@@ -76,22 +77,24 @@ export default function DMArea({ conversation }) {
   return (
     <div className={styles.area}>
       <div className={styles.header}>
-        <div
-          style={{ width: 28, height: 28, borderRadius: '50%', background: conversation.other_avatar_color || '#5865F2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: 'white', flexShrink: 0 }}
-        >
-          {conversation.other_username?.[0]?.toUpperCase()}
-        </div>
+        <Avatar
+          url={conversation.other_avatar_url}
+          color={conversation.other_avatar_color}
+          username={conversation.other_username}
+          style={{ width: 28, height: 28, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: 'white', flexShrink: 0 }}
+        />
         <h3>{conversation.other_username}</h3>
       </div>
 
       <div className={styles.messages}>
         <div className={styles.welcomeBanner}>
-          <div
+          <Avatar
+            url={conversation.other_avatar_url}
+            color={conversation.other_avatar_color}
+            username={conversation.other_username}
             className={styles.channelIcon}
-            style={{ background: conversation.other_avatar_color || '#5865F2', color: 'white', fontSize: 32, fontWeight: 700 }}
-          >
-            {conversation.other_username?.[0]?.toUpperCase()}
-          </div>
+            style={{ color: 'white', fontSize: 32, fontWeight: 700 }}
+          />
           <h2>{conversation.other_username}</h2>
           <p>This is the beginning of your direct message history with <strong>{conversation.other_username}</strong>.</p>
         </div>

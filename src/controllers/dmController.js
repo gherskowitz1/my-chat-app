@@ -47,6 +47,8 @@ async function getMyConversations(req, res) {
          WHERE dp2.conversation_id = dc.id AND dp2.user_id != $1 LIMIT 1) AS other_username,
         (SELECT u.avatar_color FROM dm_participants dp2 JOIN users u ON u.id = dp2.user_id
          WHERE dp2.conversation_id = dc.id AND dp2.user_id != $1 LIMIT 1) AS other_avatar_color,
+        (SELECT u.avatar_url FROM dm_participants dp2 JOIN users u ON u.id = dp2.user_id
+         WHERE dp2.conversation_id = dc.id AND dp2.user_id != $1 LIMIT 1) AS other_avatar_url,
         (SELECT content FROM dm_messages WHERE conversation_id = dc.id ORDER BY created_at DESC LIMIT 1) AS last_message
        FROM dm_conversations dc
        JOIN dm_participants dp ON dp.conversation_id = dc.id
@@ -73,7 +75,7 @@ async function getDmMessages(req, res) {
     if (!check[0]) return res.status(403).json({ error: 'Forbidden' });
 
     const { rows } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color FROM dm_messages m
+      `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
        JOIN users u ON u.id = m.user_id
        WHERE m.conversation_id = $1
        ORDER BY m.created_at DESC LIMIT $2`,
@@ -88,7 +90,7 @@ async function getDmMessages(req, res) {
 async function getUsers(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, avatar_color, role FROM users WHERE id != $1 ORDER BY username',
+      'SELECT id, username, avatar_color, avatar_url, role FROM users WHERE id != $1 ORDER BY username',
       [req.user.id]
     );
     res.json(rows);

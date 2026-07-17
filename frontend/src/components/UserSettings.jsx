@@ -1,25 +1,124 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
+import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
+
+const MAX_SOURCE_FILE_BYTES = 10 * 1024 * 1024; // reject absurd uploads before we even try to resize them
+const AVATAR_MAX_DIMENSION = 256;
+
+// Downscale/compress in the browser so we never ship a multi-MB photo to the
+// server — a 256px JPEG comfortably fits well under the API's upload limit.
+function resizeImageToDataUrl(file, maxDimension = AVATAR_MAX_DIMENSION, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not read image'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDimension) {
+          height = Math.round(height * (maxDimension / width));
+          width = maxDimension;
+        } else if (height >= width && height > maxDimension) {
+          width = Math.round(width * (maxDimension / height));
+          height = maxDimension;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 const STORAGE_KEY_IN = 'chatter_audio_input';
 const STORAGE_KEY_OUT = 'chatter_audio_output';
 
 export default function UserSettings({ onClose }) {
-  const { user } = useAuth();
+  const { user, updateAvatar } = useAuth();
   const [tab, setTab] = useState('audio');
+  const [avatarError, setAvatarError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const pickAvatar = () => fileInputRef.current?.click();
+
+  const onAvatarSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file later
+    if (!file) return;
+
+    setAvatarError('');
+    if (!file.type.startsWith('image/')) {
+      setAvatarError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_SOURCE_FILE_BYTES) {
+      setAvatarError('That image is too large (max 10MB).');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      await updateAvatar(dataUrl);
+    } catch (err) {
+      setAvatarError(err.message || 'Failed to update avatar');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAvatar = async () => {
+    setAvatarError('');
+    setUploading(true);
+    try {
+      await updateAvatar(null);
+    } catch (err) {
+      setAvatarError(err.message || 'Failed to remove avatar');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.header}>
-          <div className={styles.avatarLarge} style={{ background: user?.avatar_color }}>
-            {user?.username?.[0]?.toUpperCase()}
+          <div className={styles.avatarPickerWrap}>
+            <Avatar
+              url={user?.avatar_url}
+              color={user?.avatar_color}
+              username={user?.username}
+              className={styles.avatarLarge}
+              onClick={pickAvatar}
+              title="Change profile picture"
+            />
+            {uploading && <div className={styles.avatarOverlay}>…</div>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={onAvatarSelected}
+              style={{ display: 'none' }}
+            />
           </div>
           <div>
             <div className={styles.username}>{user?.username}</div>
             <div className={styles.role}>{user?.role}</div>
+            <div className={styles.avatarActions}>
+              <button className={styles.avatarLink} onClick={pickAvatar} disabled={uploading}>Change photo</button>
+              {user?.avatar_url && (
+                <button className={styles.avatarLink} onClick={removeAvatar} disabled={uploading}>Remove</button>
+              )}
+            </div>
+            {avatarError && <div className={styles.avatarError}>{avatarError}</div>}
           </div>
           <button className={styles.closeBtn} onClick={onClose}>✕</button>
         </div>

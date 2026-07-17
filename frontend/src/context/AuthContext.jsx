@@ -73,8 +73,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  const updateAvatar = async (avatarUrl) => {
+    const updated = await api.patch('/auth/avatar', { avatarUrl });
+    setUser(updated);
+    return updated;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar }}>
       {children}
     </AuthContext.Provider>
   );

@@ -56,7 +56,7 @@ async function renameChannel(req, res) {
 async function getAllUsers(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color, created_at FROM users ORDER BY created_at ASC'
+      'SELECT id, username, email, role, avatar_color, avatar_url, created_at FROM users ORDER BY created_at ASC'
     );
     res.json(rows);
   } catch (err) {
@@ -75,7 +75,7 @@ async function updateUserRole(req, res) {
   }
   try {
     const { rows } = await pool.query(
-      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color',
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color, avatar_url',
       [role, userId]
     );
     res.json(rows[0]);
@@ -105,7 +105,7 @@ async function getStats(req, res) {
       pool.query('SELECT COUNT(*) FROM messages'),
       pool.query('SELECT COUNT(*) FROM channels'),
       pool.query('SELECT COUNT(*) FROM dm_messages'),
-      pool.query('SELECT id, username, email, role, avatar_color, created_at FROM users ORDER BY created_at DESC LIMIT 5'),
+      pool.query('SELECT id, username, email, role, avatar_color, avatar_url, created_at FROM users ORDER BY created_at DESC LIMIT 5'),
     ]);
     res.json({
       totalUsers: parseInt(users.rows[0].count),
@@ -124,7 +124,7 @@ async function getRecentMessages(req, res) {
   const limit = Math.min(parseInt(req.query.limit) || 50, 100);
   try {
     const { rows } = await pool.query(
-      `SELECT m.id, m.content, m.created_at, u.username, u.avatar_color, c.name AS channel_name
+      `SELECT m.id, m.content, m.created_at, u.username, u.avatar_color, u.avatar_url, c.name AS channel_name
        FROM messages m
        JOIN users u ON u.id = m.user_id
        JOIN channels c ON c.id = m.channel_id

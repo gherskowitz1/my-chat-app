@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
-const { signup, login, getMe } = require('../controllers/authController');
+const { signup, login, getMe, updateAvatar } = require('../controllers/authController');
 const { getChannels, createChannel, deleteChannel, getMessages } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getUsers } = require('../controllers/dmController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
@@ -19,6 +19,7 @@ router.post('/auth/login', login);
 router.get('/auth/me', authMiddleware, getMe);
 router.post('/auth/forgot-password', forgotPassword);
 router.post('/auth/reset-password', resetPassword);
+router.patch('/auth/avatar', authMiddleware, updateAvatar);
 
 // Users
 router.get('/users', authMiddleware, getUsers);

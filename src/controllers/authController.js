@@ -17,7 +17,7 @@ async function signup(req, res) {
     const color = colors[Math.floor(Math.random() * colors.length)];
 
     const { rows } = await pool.query(
-      'INSERT INTO users (username, email, password_hash, avatar_color) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, avatar_color',
+      'INSERT INTO users (username, email, password_hash, avatar_color) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role, avatar_color, avatar_url',
       [username.trim(), email.toLowerCase().trim(), hash, color]
     );
     const user = rows[0];
@@ -62,7 +62,7 @@ async function login(req, res) {
     );
     res.json({
       token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar_color: user.avatar_color },
+      user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar_color: user.avatar_color, avatar_url: user.avatar_url },
     });
   } catch (err) {
     console.error(err);
@@ -73,7 +73,7 @@ async function login(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color FROM users WHERE id = $1',
+      'SELECT id, username, email, role, avatar_color, avatar_url FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -83,4 +83,32 @@ async function getMe(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe };
+const AVATAR_DATA_URL_RE = /^data:image\/(png|jpe?g|webp|gif);base64,/;
+const MAX_AVATAR_LENGTH = 1_500_000; // ~1.1MB of raw image data once base64 overhead is accounted for
+
+async function updateAvatar(req, res) {
+  const { avatarUrl } = req.body;
+
+  // Falsy clears it back to the color+initial fallback.
+  if (avatarUrl) {
+    if (typeof avatarUrl !== 'string' || !AVATAR_DATA_URL_RE.test(avatarUrl)) {
+      return res.status(400).json({ error: 'Invalid image data' });
+    }
+    if (avatarUrl.length > MAX_AVATAR_LENGTH) {
+      return res.status(400).json({ error: 'Image is too large' });
+    }
+  }
+
+  try {
+    const { rows } = await pool.query(
+      'UPDATE users SET avatar_url = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color, avatar_url',
+      [avatarUrl || null, req.user.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { signup, login, getMe, updateAvatar };

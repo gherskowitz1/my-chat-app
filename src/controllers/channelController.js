@@ -49,11 +49,11 @@ async function getMessages(req, res) {
 
   try {
     const query = before
-      ? `SELECT m.*, u.username, u.avatar_color FROM messages m
+      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, u.username, u.avatar_color FROM messages m
+      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;

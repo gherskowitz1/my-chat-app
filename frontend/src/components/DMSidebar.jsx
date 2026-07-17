@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import Avatar from './Avatar';
 import styles from './DMSidebar.module.css';
 
 export default function DMSidebar({ activeConversation, onConversationSelect }) {
@@ -42,12 +43,12 @@ export default function DMSidebar({ activeConversation, onConversationSelect }) 
             className={`${styles.item} ${activeConversation?.id === conv.id ? styles.active : ''}`}
             onClick={() => onConversationSelect(conv)}
           >
-            <div
+            <Avatar
+              url={conv.other_avatar_url}
+              color={conv.other_avatar_color}
+              username={conv.other_username}
               className={styles.avatar}
-              style={{ background: conv.other_avatar_color || '#5865F2' }}
-            >
-              {conv.other_username?.[0]?.toUpperCase()}
-            </div>
+            />
             <div className={styles.info}>
               <span className={styles.name}>{conv.other_username}</span>
               {conv.last_message && (
@@ -69,9 +70,7 @@ export default function DMSidebar({ activeConversation, onConversationSelect }) 
             <div className={styles.userList}>
               {users.map((u) => (
                 <div key={u.id} className={styles.userItem} onClick={() => startDM(u.id)}>
-                  <div className={styles.avatar} style={{ background: u.avatar_color }}>
-                    {u.username[0].toUpperCase()}
-                  </div>
+                  <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
                   <div>
                     <span className={styles.name}>{u.username}</span>
                     {u.role === 'admin' && <span className={styles.adminBadge}>Admin</span>}
