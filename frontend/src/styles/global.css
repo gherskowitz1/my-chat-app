@@ -87,6 +87,14 @@ a { color: inherit; text-decoration: none; }
   font-size: 1rem !important;
 }
 
+/* ...and except the actual device list inside that caret's dropdown — it
+   lives in the DOM under .lk-control-bar too, so the font-size:0 rule above
+   was also collapsing every device name down to an invisible label, leaving
+   only each list item's bullet marker visible. */
+.lk-device-menu .lk-button {
+  font-size: 1rem !important;
+}
+
 /* VideoConference hardcodes its in-room text chat toggle on with no prop to
    disable it, so it's removed here instead — not used in this app. */
 .lk-chat-toggle {
