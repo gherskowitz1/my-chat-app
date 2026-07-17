@@ -46,7 +46,7 @@
 }
 
 .room {
-  height: 280px;
+  min-height: 280px;
   border-radius: var(--radius-md);
   overflow: hidden;
   flex-shrink: 0;

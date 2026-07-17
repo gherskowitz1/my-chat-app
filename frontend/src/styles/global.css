@@ -96,11 +96,14 @@ a { color: inherit; text-decoration: none; }
   flex-shrink: 0;
 }
 
+/* Its height is normally `calc(100% - control-bar-height)`, sized for a
+   single-row control bar. Once the bar wraps onto extra rows that math no
+   longer fits the space, squeezing the video tile until it overlaps the
+   wrapped buttons. Let it size to its own content instead, and let the
+   .room container (below) grow to fit everything rather than clipping it. */
 .lk-grid-layout-wrapper,
 .lk-focus-layout-wrapper {
   height: auto !important;
-  flex: 1 1 0 !important;
-  min-height: 0;
 }
 
 .sr-only {
