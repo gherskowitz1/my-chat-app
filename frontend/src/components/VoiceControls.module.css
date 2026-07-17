@@ -10,18 +10,20 @@
 }
 
 .bar {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto repeat(auto-fit, minmax(96px, max-content));
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: 6px 8px;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
-  flex-wrap: wrap;
 }
 
 .ctrl {
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 100%;
   gap: 5px;
   padding: 5px 10px;
   border-radius: var(--radius-sm);
@@ -56,7 +58,6 @@
 .leave {
   background: rgba(242,63,66,0.15);
   color: var(--red);
-  margin-left: auto;
 }
 .leave:hover { background: rgba(242,63,66,0.3); }
 

@@ -67,6 +67,18 @@ input, textarea {
 
 a { color: inherit; text-decoration: none; }
 
+/* LiveKit's default control bar centers its buttons with no wrapping, so in a
+   narrow voice channel pane the row overflows equally on both sides and our
+   container's overflow:hidden clips text off the start/end buttons (e.g.
+   "Camera" renders as "amera"). Left-align it and let it scroll horizontally
+   instead of clipping. */
+.lk-control-bar {
+  justify-content: flex-start !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
 .sr-only {
   position: absolute; width: 1px; height: 1px;
   padding: 0; margin: -1px; overflow: hidden;
