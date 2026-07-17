@@ -67,16 +67,27 @@ input, textarea {
 
 a { color: inherit; text-decoration: none; }
 
-/* LiveKit's default control bar centers its buttons with no wrapping, so in a
-   narrow voice channel pane the row overflows equally on both sides and our
-   container's overflow:hidden clips text off the start/end buttons (e.g.
-   "Camera" renders as "amera"). Left-align it and let it scroll horizontally
-   instead of clipping. */
+/* LiveKit's default control bar centers its buttons with no wrapping and a
+   hardcoded max-height sized for one row, so in a narrow voice channel pane
+   it either overflows and gets clipped by our container's overflow:hidden,
+   or is stuck behind a horizontal scrollbar. Let it wrap onto multiple rows
+   instead, and let the video grid above it flex to whatever height the
+   wrapped bar leaves behind rather than relying on LiveKit's fixed
+   single-row height calc. */
 .lk-control-bar {
   justify-content: flex-start !important;
-  flex-wrap: nowrap !important;
-  overflow-x: auto;
-  scrollbar-width: thin;
+  flex-wrap: wrap !important;
+  max-height: none !important;
+  overflow: visible !important;
+  row-gap: 6px;
+  flex-shrink: 0;
+}
+
+.lk-grid-layout-wrapper,
+.lk-focus-layout-wrapper {
+  height: auto !important;
+  flex: 1 1 0 !important;
+  min-height: 0;
 }
 
 .sr-only {
