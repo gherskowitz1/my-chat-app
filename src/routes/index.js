@@ -11,6 +11,7 @@ const {
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
 } = require('../controllers/adminController');
 const { forgotPassword, resetPassword } = require('../controllers/passwordResetController');
+const { sendInvite } = require('../controllers/inviteController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -50,5 +51,8 @@ router.get('/livekit/token/:roomName', authMiddleware, getToken);
 router.get('/livekit/rooms/:roomName/participants', authMiddleware, adminMiddleware, getParticipants);
 router.post('/livekit/rooms/:roomName/mute/:identity', authMiddleware, adminMiddleware, muteParticipant);
 router.delete('/livekit/rooms/:roomName/participants/:identity', authMiddleware, adminMiddleware, removeParticipant);
+
+// Invites
+router.post('/invite', authMiddleware, sendInvite);
 
 module.exports = router;

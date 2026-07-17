@@ -8,11 +8,36 @@
 }
 
 .header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 16px;
   border-bottom: 1px solid var(--border);
   font-weight: 700;
   font-size: 15px;
 }
+
+.header h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inviteBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.inviteBtn:hover { background: var(--accent-hover); }
 
 .channels {
   flex: 1;

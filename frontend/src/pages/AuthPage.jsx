@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styles from './AuthPage.module.css';
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
-  const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'login');
+  const [form, setForm] = useState({ username: '', email: searchParams.get('email') || '', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
