@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, Tray, Menu, Notification, nativeImage, shell, ipcMain, dialog, desktopCapturer, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
@@ -271,6 +271,96 @@ function createAppMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// ── Screen share source picker ──────────────────────────────────
+// Electron doesn't show a browser-style OS picker for getDisplayMedia() —
+// the app has to supply one itself via setDisplayMediaRequestHandler.
+let pickerWindow = null;
+let pickerResolve = null;
+let pickerSources = [];
+
+function closePicker(result) {
+  if (pickerResolve) {
+    pickerResolve(result);
+    pickerResolve = null;
+  }
+  if (pickerWindow && !pickerWindow.isDestroyed()) {
+    pickerWindow.close();
+  }
+}
+
+function openSourcePicker() {
+  if (pickerWindow) {
+    pickerWindow.focus();
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    pickerResolve = resolve;
+    pickerWindow = new BrowserWindow({
+      width: 720,
+      height: 520,
+      parent: mainWindow,
+      modal: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: 'Share Your Screen',
+      backgroundColor: '#2b2d31',
+      webPreferences: {
+        preload: path.join(__dirname, 'picker-preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+    pickerWindow.setMenuBarVisibility(false);
+    pickerWindow.loadFile(path.join(__dirname, 'picker.html'));
+    pickerWindow.on('closed', () => {
+      pickerWindow = null;
+      // If the window was closed without a selection (e.g. the user hit Esc
+      // or the close button), treat it as a cancel.
+      if (pickerResolve) {
+        pickerResolve(null);
+        pickerResolve = null;
+      }
+    });
+  });
+}
+
+ipcMain.handle('picker:get-sources', async () => {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen', 'window'],
+    thumbnailSize: { width: 300, height: 200 },
+    fetchWindowIcons: true,
+  });
+  pickerSources = sources;
+  return sources.map((s) => ({
+    id: s.id,
+    name: s.name,
+    thumbnail: s.thumbnail.isEmpty() ? null : s.thumbnail.toDataURL(),
+    appIcon: s.appIcon && !s.appIcon.isEmpty() ? s.appIcon.toDataURL() : null,
+  }));
+});
+
+ipcMain.on('picker:selected', (_, id) => closePicker(id));
+ipcMain.on('picker:cancelled', () => closePicker(null));
+
+function setupScreenSharePicker() {
+  session.defaultSession.setDisplayMediaRequestHandler((request, callback) => {
+    openSourcePicker().then((sourceId) => {
+      const source = sourceId && pickerSources.find((s) => s.id === sourceId);
+      if (!source) {
+        callback({});
+        return;
+      }
+      const streams = { video: { id: source.id, name: source.name } };
+      // System-audio loopback capture is currently Windows-only in Electron.
+      if (process.platform === 'win32' && request.audioRequested) {
+        streams.audio = 'loopback';
+      }
+      callback(streams);
+    });
+  });
+}
+
 // ── IPC ───────────────────────────────────────────────────────
 ipcMain.on('token:save', (_, token) => { store.set('authToken', token); });
 ipcMain.on('token:clear', () => { store.delete('authToken'); });
@@ -288,6 +378,7 @@ app.whenReady().then(() => {
   createWindow();
   createTray();
   createAppMenu();
+  setupScreenSharePicker();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
