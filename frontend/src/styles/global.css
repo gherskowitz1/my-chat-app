@@ -87,6 +87,12 @@ a { color: inherit; text-decoration: none; }
   font-size: 1rem !important;
 }
 
+/* VideoConference hardcodes its in-room text chat toggle on with no prop to
+   disable it, so it's removed here instead — not used in this app. */
+.lk-chat-toggle {
+  display: none !important;
+}
+
 .lk-control-bar {
   justify-content: flex-start !important;
   flex-wrap: wrap !important;
