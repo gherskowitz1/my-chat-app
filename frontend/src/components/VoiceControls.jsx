@@ -124,42 +124,44 @@ export default function VoiceControls({ onLeave, forceMuted }) {
 
       {/* Compact shortcut bar */}
       <div className={styles.bar}>
-        <span className={styles.timer} title="Time in voice channel">
-          🕐 {formatTime(elapsed)}
-        </span>
-        <button
-          className={`${styles.ctrl} ${muted ? styles.off : styles.on}`}
-          onClick={toggleMute}
-          disabled={forceMuted}
-          title={forceMuted ? 'Muted (AFK channel)' : `${muted ? 'Unmute' : 'Mute'} (${formatKey(shortcuts.toggleMute.key)})`}
-        >
-          {muted ? <MicOffIcon /> : <MicIcon />}
-          <span>{muted ? 'Unmute' : 'Mute'}</span>
-          <kbd>{formatKey(shortcuts.toggleMute.key)}</kbd>
-        </button>
+        <div className={styles.topRow}>
+          <span className={styles.timer} title="Time in voice channel">
+            🕐 {formatTime(elapsed)}
+          </span>
+          <button
+            className={`${styles.ctrl} ${muted ? styles.off : styles.on}`}
+            onClick={toggleMute}
+            disabled={forceMuted}
+            title={forceMuted ? 'Muted (AFK channel)' : `${muted ? 'Unmute' : 'Mute'} (${formatKey(shortcuts.toggleMute.key)})`}
+          >
+            {muted ? <MicOffIcon /> : <MicIcon />}
+            <span>{muted ? 'Unmute' : 'Mute'}</span>
+            <kbd>{formatKey(shortcuts.toggleMute.key)}</kbd>
+          </button>
+
+          <button
+            className={`${styles.ctrl} ${deafened ? styles.off : styles.on}`}
+            onClick={toggleDeafen}
+            title={`${deafened ? 'Undeafen' : 'Deafen'} (${formatKey(shortcuts.toggleDeafen.key)})`}
+          >
+            {deafened ? <DeafenedIcon /> : <HeadphonesIcon />}
+            <span>{deafened ? 'Undeafen' : 'Deafen'}</span>
+            <kbd>{formatKey(shortcuts.toggleDeafen.key)}</kbd>
+          </button>
+
+          <button
+            className={`${styles.ctrl} ${styles.ptt}`}
+            disabled={forceMuted}
+            title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
+          >
+            <PttIcon />
+            <span>Push to Talk</span>
+            <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
+          </button>
+        </div>
 
         <button
-          className={`${styles.ctrl} ${deafened ? styles.off : styles.on}`}
-          onClick={toggleDeafen}
-          title={`${deafened ? 'Undeafen' : 'Deafen'} (${formatKey(shortcuts.toggleDeafen.key)})`}
-        >
-          {deafened ? <DeafenedIcon /> : <HeadphonesIcon />}
-          <span>{deafened ? 'Undeafen' : 'Deafen'}</span>
-          <kbd>{formatKey(shortcuts.toggleDeafen.key)}</kbd>
-        </button>
-
-        <button
-          className={`${styles.ctrl} ${styles.ptt}`}
-          disabled={forceMuted}
-          title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
-        >
-          <PttIcon />
-          <span>Push to Talk</span>
-          <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
-        </button>
-
-        <button
-          className={`${styles.ctrl} ${styles.leave}`}
+          className={styles.leave}
           onClick={handleLeave}
           title={`Leave (${formatKey(shortcuts.leaveVoice.key)})`}
         >
