@@ -68,22 +68,20 @@ export default function ChatLayout() {
 
       <div className={styles.main}>
         {activeSection === 'server' && activeChannel ? (
-          <>
-            <ChatArea
-              channel={activeChannel}
-              onToggleMembers={() => setShowMembers((v) => !v)}
-              showMembers={showMembers}
-            />
-            {showMembers && activeChannel.type === 'text' && (
-              <MemberList serverId={DEFAULT_SERVER} />
-            )}
-          </>
+          <ChatArea
+            channel={activeChannel}
+            onToggleMembers={() => setShowMembers((v) => !v)}
+            showMembers={showMembers}
+          />
         ) : activeSection === 'dm' && activeConversation ? (
           <DMArea conversation={activeConversation} />
         ) : (
           <EmptyState section={activeSection} />
         )}
       </div>
+
+      {/* Pinned member list — visible across text channels, voice channels, and DMs alike */}
+      {showMembers && <MemberList serverId={DEFAULT_SERVER} />}
 
       {showAdmin && (
         <AdminPanel
