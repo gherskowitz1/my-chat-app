@@ -10,7 +10,8 @@
     "dist:mac": "electron-builder --mac --publish never",
     "dist:linux": "electron-builder --linux --publish never",
     "release:win": "electron-builder --win --publish always",
-    "release:mac": "electron-builder --mac --publish always"
+    "release:mac": "electron-builder --mac --publish always",
+    "release:linux": "electron-builder --linux --publish always"
   },
   "build": {
     "appId": "com.thecrowsnest.app",
