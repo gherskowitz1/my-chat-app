@@ -23,7 +23,8 @@
     "publish": {
       "provider": "github",
       "owner": "gherskowitz1",
-      "repo": "my-chat-app"
+      "repo": "my-chat-app",
+      "releaseType": "release"
     },
     "win": {
       "target": "nsis",
