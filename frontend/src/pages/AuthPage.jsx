@@ -113,6 +113,18 @@ export default function AuthPage() {
             Download Windows App
           </a>
           <p className={styles.downloadHint}>Windows 10/11 · 64-bit · ~95 MB</p>
+
+          <a
+            href="https://github.com/gherskowitz1/my-chat-app/releases/latest/download/The-Crows-Nest-Setup.AppImage"
+            className={styles.downloadBtn}
+            download
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+            Download Linux App
+          </a>
+          <p className={styles.downloadHint}>AppImage · 64-bit · ~105 MB</p>
         </div>
 
         <p className={styles.privacy}>
