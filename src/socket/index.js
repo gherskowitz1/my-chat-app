@@ -51,6 +51,23 @@ module.exports = function setupSocket(io) {
       }
     });
 
+    // Edit a message — owner only, not admins (admins can delete, not rewrite others' words)
+    socket.on('message:edit', async ({ messageId, channelId, content }) => {
+      if (!content?.trim()) return;
+      try {
+        const { rows: check } = await pool.query('SELECT user_id FROM messages WHERE id = $1', [messageId]);
+        if (!check[0] || check[0].user_id !== userId) return;
+        const { rows } = await pool.query(
+          `UPDATE messages SET content = $1, updated_at = NOW() WHERE id = $2
+           RETURNING id, channel_id, content, created_at, updated_at, user_id`,
+          [content.trim(), messageId]
+        );
+        io.to(`channel:${channelId}`).emit('message:edited', { ...rows[0], username });
+      } catch (err) {
+        console.error('message:edit error', err);
+      }
+    });
+
     // Delete a message
     socket.on('message:delete', async ({ messageId, channelId }) => {
       try {
@@ -92,6 +109,23 @@ module.exports = function setupSocket(io) {
         io.to(`dm:${conversationId}`).emit('dm:new', rows[0]);
       } catch (err) {
         console.error('dm:send error', err);
+      }
+    });
+
+    // Edit a DM — owner only
+    socket.on('dm:edit', async ({ messageId, conversationId, content }) => {
+      if (!content?.trim()) return;
+      try {
+        const { rows: check } = await pool.query('SELECT user_id FROM dm_messages WHERE id = $1', [messageId]);
+        if (!check[0] || check[0].user_id !== userId) return;
+        const { rows } = await pool.query(
+          `UPDATE dm_messages SET content = $1, updated_at = NOW() WHERE id = $2
+           RETURNING id, conversation_id, content, created_at, updated_at, user_id`,
+          [content.trim(), messageId]
+        );
+        io.to(`dm:${conversationId}`).emit('dm:edited', { ...rows[0], username });
+      } catch (err) {
+        console.error('dm:edit error', err);
       }
     });
 

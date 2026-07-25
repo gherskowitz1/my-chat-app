@@ -35,14 +35,20 @@ export default function DMArea({ conversation }) {
     const onNew = (msg) => {
       if (msg.conversation_id === conversation.id) setMessages((p) => [...p, msg]);
     };
+    const onEdited = (updated) => {
+      if (updated.conversation_id !== conversation.id) return;
+      setMessages((p) => p.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
+    };
     const onTyping = ({ userId, username, typing: t }) => {
       if (userId === user.id) return;
       setTyping((p) => t ? (p.includes(username) ? p : [...p, username]) : p.filter((u) => u !== username));
     };
     socket.on('dm:new', onNew);
+    socket.on('dm:edited', onEdited);
     socket.on('dm:typing:update', onTyping);
     return () => {
       socket.off('dm:new', onNew);
+      socket.off('dm:edited', onEdited);
       socket.off('dm:typing:update', onTyping);
     };
   }, [socket, conversation.id, user.id]);
@@ -52,7 +58,7 @@ export default function DMArea({ conversation }) {
   }, [messages]);
 
   const sendMessage = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!input.trim()) return;
     socket?.emit('dm:send', { conversationId: conversation.id, content: input.trim() });
     setInput('');
@@ -61,6 +67,8 @@ export default function DMArea({ conversation }) {
 
   const handleTyping = (e) => {
     setInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
     if (!isTypingRef.current) {
       isTypingRef.current = true;
       socket?.emit('dm:typing:start', { conversationId: conversation.id });
@@ -69,9 +77,20 @@ export default function DMArea({ conversation }) {
     typingTimerRef.current = setTimeout(stopTyping, 2000);
   };
 
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+
   const stopTyping = () => {
     isTypingRef.current = false;
     socket?.emit('dm:typing:stop', { conversationId: conversation.id });
+  };
+
+  const editMessage = (messageId, content) => {
+    socket?.emit('dm:edit', { messageId, conversationId: conversation.id, content });
   };
 
   return (
@@ -109,7 +128,9 @@ export default function DMArea({ conversation }) {
               msg={msg}
               grouped={grouped}
               canDelete={user.id === msg.user_id}
+              canEdit={user.id === msg.user_id}
               onDelete={() => {}}
+              onEdit={editMessage}
             />
           );
         })}
@@ -124,13 +145,15 @@ export default function DMArea({ conversation }) {
       )}
 
       <form onSubmit={sendMessage} className={styles.inputArea}>
-        <input
+        <textarea
           value={input}
           onChange={handleTyping}
+          onKeyDown={handleInputKeyDown}
           onBlur={stopTyping}
           placeholder={`Message ${conversation.other_username}`}
           className={styles.input}
           maxLength={2000}
+          rows={1}
         />
         <button type="submit" className={styles.sendBtn} disabled={!input.trim()}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

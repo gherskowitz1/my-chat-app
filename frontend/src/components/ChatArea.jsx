@@ -39,6 +39,10 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
     const onDeleted = ({ messageId }) => {
       setMessages((prev) => prev.filter((m) => m.id !== messageId));
     };
+    const onEdited = (updated) => {
+      if (updated.channel_id !== channel.id) return;
+      setMessages((prev) => prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
+    };
     const onTyping = ({ userId, username, typing: isTyping }) => {
       if (userId === user.id) return;
       setTyping((prev) =>
@@ -48,10 +52,12 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
 
     socket.on('message:new', onNew);
     socket.on('message:deleted', onDeleted);
+    socket.on('message:edited', onEdited);
     socket.on('typing:update', onTyping);
     return () => {
       socket.off('message:new', onNew);
       socket.off('message:deleted', onDeleted);
+      socket.off('message:edited', onEdited);
       socket.off('typing:update', onTyping);
     };
   }, [socket, channel.id, user.id]);
@@ -61,7 +67,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
   }, [messages]);
 
   const sendMessage = (e) => {
-    e.preventDefault();
+    e?.preventDefault();
     if (!input.trim()) return;
     socket?.emit('message:send', { channelId: channel.id, content: input.trim() });
     setInput('');
@@ -70,12 +76,21 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
 
   const handleTyping = (e) => {
     setInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
     if (!isTypingRef.current) {
       isTypingRef.current = true;
       socket?.emit('typing:start', { channelId: channel.id });
     }
     clearTimeout(typingTimerRef.current);
     typingTimerRef.current = setTimeout(stopTyping, 2000);
+  };
+
+  const handleInputKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   const stopTyping = () => {
@@ -86,6 +101,10 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
 
   const deleteMessage = (messageId) => {
     socket?.emit('message:delete', { messageId, channelId: channel.id });
+  };
+
+  const editMessage = (messageId, content) => {
+    socket?.emit('message:edit', { messageId, channelId: channel.id, content });
   };
 
   return (
@@ -122,7 +141,9 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
               msg={msg}
               grouped={grouped}
               canDelete={user.id === msg.user_id || user.role === 'admin'}
+              canEdit={user.id === msg.user_id}
               onDelete={deleteMessage}
+              onEdit={editMessage}
             />
           );
         })}
@@ -141,13 +162,15 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
       )}
 
       <form onSubmit={sendMessage} className={styles.inputArea}>
-        <input
+        <textarea
           value={input}
           onChange={handleTyping}
+          onKeyDown={handleInputKeyDown}
           onBlur={stopTyping}
           placeholder={`Message #${channel.name}`}
           className={styles.input}
           maxLength={2000}
+          rows={1}
         />
         <button type="submit" className={styles.sendBtn} disabled={!input.trim()}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

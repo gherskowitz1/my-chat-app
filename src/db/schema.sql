@@ -67,8 +67,11 @@ CREATE TABLE IF NOT EXISTS dm_messages (
   conversation_id UUID REFERENCES dm_conversations(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ
 );
+
+ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

@@ -73,20 +73,57 @@
   white-space: pre-wrap;
 }
 
-.deleteBtn {
+.edited {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.editWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.editInput {
+  width: 100%;
+  resize: none;
+  overflow: hidden;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 15px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.editInput:focus { box-shadow: 0 0 0 2px var(--accent); }
+
+.editHint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.actions {
   position: absolute;
   right: 16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
+  display: flex;
+  gap: 4px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.actionBtn {
+  width: 28px;
+  height: 28px;
   color: var(--text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.deleteBtn:hover { background: rgba(242,63,66,0.2); color: var(--red); border-color: var(--red); }
+.actionBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.deleteBtn:hover { background: rgba(242,63,66,0.2); color: var(--red); }
