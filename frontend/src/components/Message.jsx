@@ -1,6 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
+import { useAuth } from '../context/AuthContext';
 import styles from './Message.module.css';
+
+// Splits text on an @mention of the current user, wrapping it in a
+// highlighted span. String.split with a capturing group interleaves the
+// matched delimiters into the result, so odd indices are always the mention
+// itself — no need to re-test the (stateful, global) regex per part.
+function renderWithMentions(text, myUsername, mentionClass) {
+  if (!myUsername) return text;
+  const re = new RegExp(`(@${myUsername}\\b)`, 'gi');
+  const parts = text.split(re);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    i % 2 === 1 ? <span key={i} className={mentionClass}>{part}</span> : part
+  );
+}
 
 function formatTime(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -16,6 +31,7 @@ function formatDate(ts) {
 }
 
 export default function Message({ msg, grouped, canDelete, canEdit, onDelete, onEdit }) {
+  const { user } = useAuth();
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.content);
@@ -105,7 +121,7 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
           </div>
         ) : (
           <p className={styles.text}>
-            {msg.content}
+            {renderWithMentions(msg.content, user?.username, styles.mention)}
             {msg.updated_at && <span className={styles.edited}> (edited)</span>}
           </p>
         )}

@@ -34,11 +34,21 @@ export default function VoiceChimes() {
 
   useEffect(() => {
     if (!room) return;
-    room.on(RoomEvent.ParticipantConnected, playJoinChime);
-    room.on(RoomEvent.ParticipantDisconnected, playLeaveChime);
+
+    const onJoined = (participant) => {
+      playJoinChime();
+      window.electron?.notify('Voice Channel', `${participant.name || participant.identity} joined`);
+    };
+    const onLeft = (participant) => {
+      playLeaveChime();
+      window.electron?.notify('Voice Channel', `${participant.name || participant.identity} left`);
+    };
+
+    room.on(RoomEvent.ParticipantConnected, onJoined);
+    room.on(RoomEvent.ParticipantDisconnected, onLeft);
     return () => {
-      room.off(RoomEvent.ParticipantConnected, playJoinChime);
-      room.off(RoomEvent.ParticipantDisconnected, playLeaveChime);
+      room.off(RoomEvent.ParticipantConnected, onJoined);
+      room.off(RoomEvent.ParticipantDisconnected, onLeft);
     };
   }, [room]);
 

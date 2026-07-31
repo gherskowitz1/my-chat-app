@@ -8,11 +8,19 @@ import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
 import UserSettings from '../components/UserSettings';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
+function truncate(text, max = 120) {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 export default function ChatLayout() {
+  const { user } = useAuth();
+  const { socket } = useSocket();
   const [activeSection, setActiveSection] = useState('server');
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeConversation, setActiveConversation] = useState(null);
@@ -28,6 +36,33 @@ export default function ChatLayout() {
       .then(s => setServerName(s.name))
       .catch(() => setServerName('General Server'));
   }, []);
+
+  // Desktop notifications — no-op in a plain browser tab (window.electron is
+  // only present inside the Electron app). Skip whatever's already on screen.
+  useEffect(() => {
+    if (!socket || !window.electron?.notify) return;
+
+    const onMessageNotify = ({ channelId, channelName, username, content }) => {
+      if (activeSection === 'server' && activeChannel?.id === channelId) return;
+      const mentioned = new RegExp(`@${user.username}\\b`, 'i').test(content);
+      window.electron.notify(
+        mentioned ? `${username} mentioned you in #${channelName}` : `#${channelName}`,
+        `${username}: ${truncate(content)}`
+      );
+    };
+
+    const onDmNotify = ({ conversationId, username, content }) => {
+      if (activeSection === 'dm' && activeConversation?.id === conversationId) return;
+      window.electron.notify(username, truncate(content));
+    };
+
+    socket.on('notify:message', onMessageNotify);
+    socket.on('notify:dm', onDmNotify);
+    return () => {
+      socket.off('notify:message', onMessageNotify);
+      socket.off('notify:dm', onDmNotify);
+    };
+  }, [socket, activeSection, activeChannel, activeConversation, user.username]);
 
   const handleServerRenamed = useCallback((name) => {
     setServerName(name);

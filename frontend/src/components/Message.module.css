@@ -78,6 +78,14 @@
   color: var(--text-muted);
 }
 
+.mention {
+  background: rgba(88,101,242,0.3);
+  color: var(--text-link);
+  border-radius: 3px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+
 .editWrap {
   display: flex;
   flex-direction: column;

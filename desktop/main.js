@@ -417,7 +417,14 @@ ipcMain.on('update:check', () => checkForUpdatesManually());
 ipcMain.on('notify', (_, { title, body }) => {
   if (Notification.isSupported()) {
     const iconPath = path.join(__dirname, 'assets', 'icon.png');
-    new Notification({ title, body, ...(fs.existsSync(iconPath) ? { icon: iconPath } : {}) }).show();
+    const notification = new Notification({ title, body, ...(fs.existsSync(iconPath) ? { icon: iconPath } : {}) });
+    notification.on('click', () => {
+      if (!mainWindow) return;
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.focus();
+    });
+    notification.show();
   }
 });
 

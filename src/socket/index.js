@@ -4,6 +4,12 @@ const { pool } = require('../db');
 const onlineUsers = new Map(); // userId -> Set of socketIds
 
 module.exports = function setupSocket(io) {
+  const emitToUser = (userId, event, payload) => {
+    const sockets = onlineUsers.get(userId);
+    if (!sockets) return;
+    sockets.forEach((socketId) => io.to(socketId).emit(event, payload));
+  };
+
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token'));
@@ -45,6 +51,22 @@ module.exports = function setupSocket(io) {
           [channelId, userId, content.trim()]
         );
         io.to(`channel:${channelId}`).emit('message:new', rows[0]);
+
+        // Notify other server members directly (their socket may not have
+        // this channel's room joined if they're viewing a different one).
+        const { rows: members } = await pool.query(
+          `SELECT sm.user_id FROM server_members sm
+           JOIN channels c ON c.server_id = sm.server_id
+           WHERE c.id = $1 AND sm.user_id != $2`,
+          [channelId, userId]
+        );
+        const { rows: chRows } = await pool.query('SELECT name FROM channels WHERE id = $1', [channelId]);
+        const channelName = chRows[0]?.name || '';
+        members.forEach(({ user_id }) => {
+          emitToUser(user_id, 'notify:message', {
+            channelId, channelName, username, content: content.trim(),
+          });
+        });
       } catch (err) {
         console.error('message:send error', err);
         socket.emit('error', { message: 'Failed to send message' });
@@ -107,6 +129,14 @@ module.exports = function setupSocket(io) {
           [conversationId, userId, content.trim()]
         );
         io.to(`dm:${conversationId}`).emit('dm:new', rows[0]);
+
+        const { rows: others } = await pool.query(
+          'SELECT user_id FROM dm_participants WHERE conversation_id = $1 AND user_id != $2',
+          [conversationId, userId]
+        );
+        others.forEach(({ user_id }) => {
+          emitToUser(user_id, 'notify:dm', { conversationId, username, content: content.trim() });
+        });
       } catch (err) {
         console.error('dm:send error', err);
       }
