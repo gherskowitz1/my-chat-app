@@ -1,4 +1,4 @@
-const { AccessToken, RoomServiceClient } = require('livekit-server-sdk');
+const { AccessToken, RoomServiceClient, TrackSource } = require('livekit-server-sdk');
 
 function getRoomService() {
   const { LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL } = process.env;
@@ -41,7 +41,7 @@ async function getParticipants(req, res) {
       identity: p.identity,
       name: p.name,
       sid: p.sid,
-      isMuted: !p.tracks?.some(t => t.source === 1 && !t.muted), // source 1 = microphone
+      isMuted: !p.tracks?.some(t => t.source === TrackSource.MICROPHONE && !t.muted),
     })));
   } catch (err) {
     console.error(err);
@@ -58,7 +58,7 @@ async function muteParticipant(req, res) {
   try {
     // Get the participant's mic track SID
     const participant = await svc.getParticipant(roomName, identity);
-    const micTrack = participant.tracks?.find(t => t.source === 1); // MIC source
+    const micTrack = participant.tracks?.find(t => t.source === TrackSource.MICROPHONE);
     if (!micTrack) return res.status(404).json({ error: 'No mic track found' });
     await svc.mutePublishedTrack(roomName, identity, micTrack.sid, muted);
     res.json({ success: true, muted });
