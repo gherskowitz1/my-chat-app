@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import LinkEmbed from './LinkEmbed';
 import { extractEmbeds } from '../utils/linkEmbeds';
+import { EVERYONE_USER } from '../utils/mentions';
 import { useAuth } from '../context/AuthContext';
 import styles from './Message.module.css';
 
@@ -52,17 +53,20 @@ function renderMentions(text, users, currentUser, mentionStyles, onMentionClick)
   return parts.map((part, i) => {
     if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles.link)}</React.Fragment>;
     const uname = part.slice(1);
-    const isSelf = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
-    const matchedUser = isSelf
-      ? currentUser
-      : allUsers.find((u) => u.username.toLowerCase() === uname.toLowerCase());
+    const isEveryone = uname.toLowerCase() === EVERYONE_USER.username && allUsers.some((u) => u.id === EVERYONE_USER.id);
+    const isSelfName = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
+    const matchedUser = isEveryone
+      ? EVERYONE_USER
+      : isSelfName
+        ? currentUser
+        : allUsers.find((u) => u.username.toLowerCase() === uname.toLowerCase());
     return (
       <span
         key={i}
-        className={`${mentionStyles.mention} ${isSelf ? mentionStyles.selfMention : ''}`}
+        className={`${mentionStyles.mention} ${isEveryone || isSelfName ? mentionStyles.selfMention : ''}`}
         onClick={(e) => {
           e.stopPropagation();
-          if (matchedUser) onMentionClick?.(matchedUser, e.currentTarget.getBoundingClientRect());
+          if (matchedUser && !isEveryone) onMentionClick?.(matchedUser, e.currentTarget.getBoundingClientRect());
         }}
       >
         {part}

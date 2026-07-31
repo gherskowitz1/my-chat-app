@@ -8,6 +8,7 @@ import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
 import UserSettings from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
+import { mentionsUser } from '../utils/mentions';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -62,7 +63,7 @@ export default function ChatLayout() {
       const isViewing = activeSection === 'server' && activeChannel?.id === channelId;
       if (isViewing) return;
 
-      const mentioned = new RegExp(`@${user.username}\\b`, 'i').test(content);
+      const mentioned = mentionsUser(content, user.username);
 
       setUnreadChannels((prev) => {
         const next = new Map(prev);

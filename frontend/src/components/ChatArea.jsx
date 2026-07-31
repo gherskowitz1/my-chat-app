@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
+import { EVERYONE_USER } from '../utils/mentions';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
@@ -20,7 +21,8 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
-  const mention = useMentionAutocomplete(users);
+  const mentionCandidates = useMemo(() => [EVERYONE_USER, ...users], [users]);
+  const mention = useMentionAutocomplete(mentionCandidates);
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -183,7 +185,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
               canEdit={user.id === msg.user_id}
               onDelete={deleteMessage}
               onEdit={editMessage}
-              users={users}
+              users={mentionCandidates}
               onMentionClick={handleMentionClick}
             />
           );
