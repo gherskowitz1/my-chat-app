@@ -377,6 +377,46 @@
   text-transform: uppercase;
 }
 
+.privateBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #80848e;
+  margin-left: 6px;
+}
+
+.privateToggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #b5bac1;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.privateToggle input { margin-top: 2px; flex-shrink: 0; }
+
+.memberPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 10px;
+  border-radius: 8px;
+  background: #0f1117;
+  border: 1px solid #2a2d35;
+}
+
+.memberOption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
 /* ── Modal ── */
 .modalOverlay {
   position: fixed;

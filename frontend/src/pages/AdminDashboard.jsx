@@ -251,25 +251,45 @@ function UsersTab() {
 // ── Channels Tab ─────────────────────────────────────────────
 function ChannelsTab() {
   const [channels, setChannels] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [flash, setFlash] = useState(null);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('text');
+  const [newIsPrivate, setNewIsPrivate] = useState(false);
+  const [newMemberIds, setNewMemberIds] = useState([]);
   const [editId, setEditId] = useState(null);
   const [editName, setEditName] = useState('');
+  const [accessModal, setAccessModal] = useState(null); // channel being managed
+  const [accessDraft, setAccessDraft] = useState({ isPrivate: false, memberIds: [] });
 
   const showFlash = (msg, type = 'success') => { setFlash({ msg, type }); setTimeout(() => setFlash(null), 3000); };
 
   useEffect(() => {
     authFetch(`/servers/${DEFAULT_SERVER}/channels`).then(setChannels).catch(() => {});
+    authFetch('/admin/users').then(setAllUsers).catch(() => {});
   }, []);
+
+  const resetCreateForm = () => {
+    setCreating(false);
+    setNewName('');
+    setNewIsPrivate(false);
+    setNewMemberIds([]);
+  };
+
+  const toggleNewMember = (id) => {
+    setNewMemberIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   const create = async (e) => {
     e.preventDefault();
-    const res = await authFetch(`/servers/${DEFAULT_SERVER}/channels`, { method: 'POST', body: JSON.stringify({ name: newName, type: newType }) });
+    const res = await authFetch(`/servers/${DEFAULT_SERVER}/channels`, {
+      method: 'POST',
+      body: JSON.stringify({ name: newName, type: newType, isPrivate: newIsPrivate, memberIds: newIsPrivate ? newMemberIds : [] }),
+    });
     if (res.error) return showFlash(res.error, 'error');
     setChannels(prev => [...prev, res]);
-    setNewName(''); setCreating(false);
+    resetCreateForm();
     showFlash(`#${res.name} created`);
   };
 
@@ -288,6 +308,30 @@ function ChannelsTab() {
     showFlash(`#${ch.name} deleted`);
   };
 
+  const openAccessModal = async (ch) => {
+    const memberIds = ch.is_private ? await authFetch(`/channels/${ch.id}/members`) : [];
+    setAccessDraft({ isPrivate: !!ch.is_private, memberIds: Array.isArray(memberIds) ? memberIds : [] });
+    setAccessModal(ch);
+  };
+
+  const toggleAccessMember = (id) => {
+    setAccessDraft(prev => ({
+      ...prev,
+      memberIds: prev.memberIds.includes(id) ? prev.memberIds.filter(x => x !== id) : [...prev.memberIds, id],
+    }));
+  };
+
+  const saveAccess = async () => {
+    const res = await authFetch(`/channels/${accessModal.id}/access`, {
+      method: 'PATCH',
+      body: JSON.stringify({ isPrivate: accessDraft.isPrivate, memberIds: accessDraft.memberIds }),
+    });
+    if (res.error) return showFlash(res.error, 'error');
+    setChannels(prev => prev.map(c => c.id === accessModal.id ? { ...c, is_private: res.is_private } : c));
+    showFlash('Channel access updated');
+    setAccessModal(null);
+  };
+
   return (
     <div className={styles.content}>
       <div className={styles.contentHeader}>
@@ -301,14 +345,33 @@ function ChannelsTab() {
       {flash && <div className={`${styles.flash} ${styles[flash.type]}`}>{flash.msg}</div>}
 
       {creating && (
-        <form onSubmit={create} className={styles.createForm}>
-          <input className={styles.input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="channel-name" autoFocus required />
-          <select className={styles.select} value={newType} onChange={e => setNewType(e.target.value)}>
-            <option value="text">Text</option>
-            <option value="voice">Voice</option>
-          </select>
-          <button type="submit" className={styles.primaryBtn}>Create</button>
-          <button type="button" className={styles.cancelBtn} onClick={() => setCreating(false)}>Cancel</button>
+        <form onSubmit={create} className={styles.createForm} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <input className={styles.input} value={newName} onChange={e => setNewName(e.target.value)} placeholder="channel-name" autoFocus required style={{ maxWidth: 240 }} />
+            <select className={styles.select} value={newType} onChange={e => setNewType(e.target.value)}>
+              <option value="text">Text</option>
+              <option value="voice">Voice</option>
+            </select>
+          </div>
+          <label className={styles.privateToggle}>
+            <input type="checkbox" checked={newIsPrivate} onChange={e => setNewIsPrivate(e.target.checked)} />
+            <span>Private — hidden from everyone except the members picked below</span>
+          </label>
+          {newIsPrivate && (
+            <div className={styles.memberPicker}>
+              {allUsers.length === 0 && <p className={styles.subtitle} style={{ marginBottom: 0 }}>No other users yet.</p>}
+              {allUsers.map(u => (
+                <label key={u.id} className={styles.memberOption}>
+                  <input type="checkbox" checked={newMemberIds.includes(u.id)} onChange={() => toggleNewMember(u.id)} />
+                  <span>{u.username}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="submit" className={styles.primaryBtn}>Create</button>
+            <button type="button" className={styles.cancelBtn} onClick={resetCreateForm}>Cancel</button>
+          </div>
         </form>
       )}
 
@@ -323,7 +386,7 @@ function ChannelsTab() {
                 <input className={styles.inlineInput} value={editName} onChange={e => setEditName(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') rename(ch.id); if (e.key === 'Escape') setEditId(null); }} autoFocus />
               ) : (
-                <span>{ch.type === 'text' ? '#' : '🔊'} {ch.name}</span>
+                <span>{ch.type === 'text' ? '#' : '🔊'} {ch.name} {ch.is_private && <span className={styles.privateBadge}>🔒 Private</span>}</span>
               )}
             </span>
             <span><span className={`${styles.typeBadge} ${styles[ch.type]}`}>{ch.type}</span></span>
@@ -336,6 +399,7 @@ function ChannelsTab() {
                 </>
               ) : (
                 <>
+                  <button className={styles.actionBtn} onClick={() => openAccessModal(ch)} title="Manage access">🔒</button>
                   <button className={styles.actionBtn} onClick={() => { setEditId(ch.id); setEditName(ch.name); }} title="Rename">✏️</button>
                   <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => del(ch)} title="Delete">🗑️</button>
                 </>
@@ -344,6 +408,41 @@ function ChannelsTab() {
           </div>
         ))}
       </div>
+
+      {accessModal && (
+        <div className={styles.modalOverlay} onClick={() => setAccessModal(null)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3>Access for #{accessModal.name}</h3>
+            <label className={styles.privateToggle}>
+              <input
+                type="checkbox"
+                checked={accessDraft.isPrivate}
+                onChange={e => setAccessDraft(prev => ({ ...prev, isPrivate: e.target.checked }))}
+              />
+              <span>Private — hidden from everyone except the members picked below</span>
+            </label>
+            {accessDraft.isPrivate && (
+              <div className={styles.memberPicker}>
+                {allUsers.length === 0 && <p className={styles.subtitle} style={{ marginBottom: 0 }}>No other users yet.</p>}
+                {allUsers.map(u => (
+                  <label key={u.id} className={styles.memberOption}>
+                    <input
+                      type="checkbox"
+                      checked={accessDraft.memberIds.includes(u.id)}
+                      onChange={() => toggleAccessMember(u.id)}
+                    />
+                    <span>{u.username}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className={styles.modalActions}>
+              <button className={styles.cancelBtn} onClick={() => setAccessModal(null)}>Cancel</button>
+              <button className={styles.primaryBtn} onClick={saveAccess}>Save Access</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
