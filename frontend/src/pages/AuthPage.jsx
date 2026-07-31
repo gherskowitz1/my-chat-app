@@ -3,11 +3,32 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import styles from './AuthPage.module.css';
 
+// "Remember me" stores the raw password in localStorage so the login form
+// can pre-fill it — a deliberate tradeoff (not encrypted; anything that can
+// read this browser's localStorage, e.g. an XSS payload, could read it too)
+// chosen over the safer "remember email only" alternative.
+const REMEMBER_KEY = 'crowsnest_remembered_login';
+
+function loadRemembered() {
+  try {
+    const raw = localStorage.getItem(REMEMBER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function AuthPage() {
   const { login, signup } = useAuth();
   const [searchParams] = useSearchParams();
+  const remembered = loadRemembered();
   const [mode, setMode] = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'login');
-  const [form, setForm] = useState({ username: '', email: searchParams.get('email') || '', password: '' });
+  const [form, setForm] = useState({
+    username: '',
+    email: searchParams.get('email') || remembered?.email || '',
+    password: remembered?.password || '',
+  });
+  const [rememberMe, setRememberMe] = useState(!!remembered);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,6 +39,11 @@ export default function AuthPage() {
     try {
       if (mode === 'login') {
         await login(form.email, form.password);
+        if (rememberMe) {
+          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: form.email, password: form.password }));
+        } else {
+          localStorage.removeItem(REMEMBER_KEY);
+        }
       } else {
         await signup(form.username, form.email, form.password);
       }
@@ -84,6 +110,16 @@ export default function AuthPage() {
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
           </label>
+          {mode === 'login' && (
+            <label className={styles.rememberRow}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              <span>Remember me</span>
+            </label>
+          )}
           <button type="submit" className={styles.submit} disabled={loading}>
             {loading ? 'Loading…' : mode === 'login' ? 'Log In' : 'Create Account'}
           </button>
