@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
+import LinkEmbed from './LinkEmbed';
+import { extractEmbeds } from '../utils/linkEmbeds';
 import { useAuth } from '../context/AuthContext';
 import styles from './Message.module.css';
 
@@ -120,10 +122,15 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
             </div>
           </div>
         ) : (
-          <p className={styles.text}>
-            {renderWithMentions(msg.content, user?.username, styles.mention)}
-            {msg.updated_at && <span className={styles.edited}> (edited)</span>}
-          </p>
+          <>
+            <p className={styles.text}>
+              {renderWithMentions(msg.content, user?.username, styles.mention)}
+              {msg.updated_at && <span className={styles.edited}> (edited)</span>}
+            </p>
+            {extractEmbeds(msg.content).map((embed) => (
+              <LinkEmbed key={embed.key} embed={embed} />
+            ))}
+          </>
         )}
       </div>
 
