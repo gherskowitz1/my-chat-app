@@ -55,6 +55,7 @@
 }
 
 .dot.online { background: var(--green); }
+.dot.away { background: var(--yellow); }
 .dot.offline { background: var(--text-muted); }
 
 .info {

@@ -13,6 +13,7 @@ import { useSocket } from '../context/SocketContext';
 import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
+const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 
 function truncate(text, max = 120) {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -63,6 +64,35 @@ export default function ChatLayout() {
       socket.off('notify:dm', onDmNotify);
     };
   }, [socket, activeSection, activeChannel, activeConversation, user.username]);
+
+  // Away status — report idle/active to the server after 30 minutes with no
+  // mouse/keyboard activity anywhere in the app.
+  useEffect(() => {
+    if (!socket) return;
+    let idleTimer;
+    let isIdle = false;
+
+    const markActive = () => {
+      if (isIdle) {
+        isIdle = false;
+        socket.emit('presence:active');
+      }
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        isIdle = true;
+        socket.emit('presence:idle');
+      }, IDLE_THRESHOLD_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'wheel', 'touchstart'];
+    events.forEach((evt) => window.addEventListener(evt, markActive));
+    markActive();
+
+    return () => {
+      events.forEach((evt) => window.removeEventListener(evt, markActive));
+      clearTimeout(idleTimer);
+    };
+  }, [socket]);
 
   const handleServerRenamed = useCallback((name) => {
     setServerName(name);

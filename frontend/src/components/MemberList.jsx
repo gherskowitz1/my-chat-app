@@ -9,7 +9,7 @@ export default function MemberList({ serverId }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [members, setMembers] = useState([]);
-  const [onlineIds, setOnlineIds] = useState(new Set());
+  const [statusMap, setStatusMap] = useState(new Map()); // userId -> 'online' | 'away'
 
   useEffect(() => {
     api.get('/users').then((users) => {
@@ -19,36 +19,52 @@ export default function MemberList({ serverId }) {
 
   useEffect(() => {
     if (!socket) return;
-    const onOnline = ({ userId }) => setOnlineIds((s) => new Set([...s, userId]));
-    const onOffline = ({ userId }) => setOnlineIds((s) => { const n = new Set(s); n.delete(userId); return n; });
-    socket.on('user:online', onOnline);
-    socket.on('user:offline', onOffline);
+
+    // Snapshot of who's already online/away — without this, a client would
+    // only ever learn about users who connect *after* it does.
+    const onSnapshot = (entries) => {
+      setStatusMap(new Map(entries.map(({ userId, status }) => [userId, status])));
+    };
+    const onUpdate = ({ userId, status }) => {
+      setStatusMap((prev) => {
+        const next = new Map(prev);
+        if (status === 'offline') next.delete(userId);
+        else next.set(userId, status);
+        return next;
+      });
+    };
+
+    socket.on('presence:snapshot', onSnapshot);
+    socket.on('presence:update', onUpdate);
     return () => {
-      socket.off('user:online', onOnline);
-      socket.off('user:offline', onOffline);
+      socket.off('presence:snapshot', onSnapshot);
+      socket.off('presence:update', onUpdate);
     };
   }, [socket]);
 
-  const online = members.filter((m) => onlineIds.has(m.id) || m.id === user?.id);
-  const offline = members.filter((m) => !onlineIds.has(m.id) && m.id !== user?.id);
+  const statusOf = (id) => statusMap.get(id) || 'offline';
+
+  const online = members.filter((m) => statusOf(m.id) !== 'offline');
+  const offline = members.filter((m) => statusOf(m.id) === 'offline');
 
   return (
     <div className={styles.list}>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Online — {online.length}</div>
-        {online.map((m) => <MemberItem key={m.id} member={m} online />)}
+        {online.map((m) => <MemberItem key={m.id} member={m} status={statusOf(m.id)} />)}
       </div>
       {offline.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Offline — {offline.length}</div>
-          {offline.map((m) => <MemberItem key={m.id} member={m} online={false} />)}
+          {offline.map((m) => <MemberItem key={m.id} member={m} status="offline" />)}
         </div>
       )}
     </div>
   );
 }
 
-function MemberItem({ member, online }) {
+function MemberItem({ member, status }) {
+  const dimmed = status === 'offline';
   return (
     <div className={styles.member}>
       <div className={styles.avatarWrap}>
@@ -57,12 +73,12 @@ function MemberItem({ member, online }) {
           color={member.avatar_color}
           username={member.username}
           className={styles.avatar}
-          style={{ opacity: online ? 1 : 0.5 }}
+          style={{ opacity: dimmed ? 0.5 : 1 }}
         />
-        <span className={`${styles.dot} ${online ? styles.online : styles.offline}`} />
+        <span className={`${styles.dot} ${styles[status]}`} title={status[0].toUpperCase() + status.slice(1)} />
       </div>
       <div className={styles.info}>
-        <span className={styles.name} style={{ opacity: online ? 1 : 0.5 }}>{member.username}</span>
+        <span className={styles.name} style={{ opacity: dimmed ? 0.5 : 1 }}>{member.username}</span>
         {member.role === 'admin' && <span className={styles.badge}>Admin</span>}
       </div>
     </div>

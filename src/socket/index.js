@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
 const onlineUsers = new Map(); // userId -> Set of socketIds
+const userStatus = new Map(); // userId -> 'online' | 'away', only set while onlineUsers has them
 
 module.exports = function setupSocket(io) {
   const emitToUser = (userId, event, payload) => {
@@ -24,10 +25,17 @@ module.exports = function setupSocket(io) {
   io.on('connection', (socket) => {
     const { id: userId, username } = socket.user;
 
-    // Track online status
+    // Track online status. Always (re-)broadcast on connect, even for a 2nd
+    // tab from an already-online user — cheap, and correctly clears an
+    // existing "away" status back to "online" if a new session starts.
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
-    io.emit('user:online', { userId, username });
+    userStatus.set(userId, 'online');
+    io.emit('presence:update', { userId, username, status: 'online' });
+
+    // Tell just this socket who's already online/away, since it missed
+    // whatever presence:update events fired before it connected.
+    socket.emit('presence:snapshot', Array.from(userStatus.entries()).map(([id, status]) => ({ userId: id, status })));
 
     // Join a channel room
     socket.on('channel:join', (channelId) => {
@@ -197,13 +205,26 @@ module.exports = function setupSocket(io) {
       socket.broadcast.emit('channel:renamed', channel);
     });
 
+    // Idle/away — client reports after ~30min with no mouse/keyboard activity
+    socket.on('presence:idle', () => {
+      if (!onlineUsers.has(userId)) return;
+      userStatus.set(userId, 'away');
+      io.emit('presence:update', { userId, username, status: 'away' });
+    });
+    socket.on('presence:active', () => {
+      if (!onlineUsers.has(userId)) return;
+      userStatus.set(userId, 'online');
+      io.emit('presence:update', { userId, username, status: 'online' });
+    });
+
     socket.on('disconnect', () => {
       const sockets = onlineUsers.get(userId);
       if (sockets) {
         sockets.delete(socket.id);
         if (sockets.size === 0) {
           onlineUsers.delete(userId);
-          io.emit('user:offline', { userId });
+          userStatus.delete(userId);
+          io.emit('presence:update', { userId, username, status: 'offline' });
         }
       }
     });
