@@ -9,21 +9,48 @@ function escapeRegExp(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+const URL_RE = /(https?:\/\/[^\s]+)/g;
+
+// Wraps bare URLs in a plain-text segment with a clickable link, opened in a
+// new tab (the desktop app's main-process window-open handler redirects that
+// to the user's OS default browser instead of an in-app window). Trailing
+// sentence punctuation is peeled off so "check this out: https://x.com." or
+// "(https://x.com)" don't pull the period/paren into the URL itself.
+function linkify(text, linkClass) {
+  const segments = text.split(URL_RE);
+  if (segments.length === 1) return text;
+  return segments.map((seg, i) => {
+    if (i % 2 === 0) return seg;
+    const trailingMatch = seg.match(/[.,!?;:'")\]]+$/);
+    const trailing = trailingMatch ? trailingMatch[0] : '';
+    const url = trailing ? seg.slice(0, -trailing.length) : seg;
+    return (
+      <React.Fragment key={i}>
+        <a href={url} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={(e) => e.stopPropagation()}>
+          {url}
+        </a>
+        {trailing}
+      </React.Fragment>
+    );
+  });
+}
+
 // Splits text on any @mention of a known user, wrapping each in a clickable
-// span — highlighted more strongly if it's a mention of the current viewer.
+// span — highlighted more strongly if it's a mention of the current viewer —
+// and linkifies bare URLs in the plain-text segments in between.
 // String.split with a capturing group interleaves the matched delimiters
 // into the result, so odd indices are always the mention itself.
 function renderMentions(text, users, currentUser, mentionStyles, onMentionClick) {
   const allUsers = currentUser ? [...users, currentUser] : users;
-  if (allUsers.length === 0) return text;
+  if (allUsers.length === 0) return linkify(text, mentionStyles.link);
   const names = [...new Set(allUsers.map((u) => u.username))]
     .sort((a, b) => b.length - a.length)
     .map(escapeRegExp);
   const re = new RegExp(`(@(?:${names.join('|')})\\b)`, 'gi');
   const parts = text.split(re);
-  if (parts.length === 1) return text;
+  if (parts.length === 1) return linkify(text, mentionStyles.link);
   return parts.map((part, i) => {
-    if (i % 2 === 0) return part;
+    if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles.link)}</React.Fragment>;
     const uname = part.slice(1);
     const isSelf = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
     const matchedUser = isSelf

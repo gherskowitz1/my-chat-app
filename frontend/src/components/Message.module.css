@@ -92,6 +92,14 @@
 .selfMention { background: rgba(88,101,242,0.3); }
 .selfMention:hover { background: rgba(88,101,242,0.45); }
 
+.link {
+  color: var(--text-link);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.link:hover { text-decoration: underline; }
+
 .editWrap {
   display: flex;
   flex-direction: column;
