@@ -107,6 +107,18 @@ export default function ChatLayout() {
     setChannelRefreshKey(k => k + 1);
   }, []);
 
+  // Opens (or starts) a DM with a user — used by the profile card's Message
+  // button, reachable from a clicked @mention anywhere in the app.
+  const openDM = useCallback(async (userId) => {
+    try {
+      const conv = await api.post(`/dm/conversations/${userId}`, {});
+      const list = await api.get('/dm/conversations');
+      const full = list.find((c) => c.id === conv.id) || conv;
+      setActiveConversation(full);
+      setActiveSection('dm');
+    } catch {}
+  }, []);
+
   return (
     <div className={styles.layout}>
       <ServerSidebar
@@ -137,9 +149,10 @@ export default function ChatLayout() {
             channel={activeChannel}
             onToggleMembers={() => setShowMembers((v) => !v)}
             showMembers={showMembers}
+            onOpenDM={openDM}
           />
         ) : activeSection === 'dm' && activeConversation ? (
-          <DMArea conversation={activeConversation} />
+          <DMArea conversation={activeConversation} onOpenDM={openDM} />
         ) : (
           <EmptyState section={activeSection} />
         )}

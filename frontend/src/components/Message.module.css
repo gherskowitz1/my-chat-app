@@ -79,12 +79,18 @@
 }
 
 .mention {
-  background: rgba(88,101,242,0.3);
+  background: rgba(88,101,242,0.15);
   color: var(--text-link);
   border-radius: 3px;
   padding: 0 2px;
   font-weight: 600;
+  cursor: pointer;
 }
+
+.mention:hover { background: rgba(88,101,242,0.3); text-decoration: underline; }
+
+.selfMention { background: rgba(88,101,242,0.3); }
+.selfMention:hover { background: rgba(88,101,242,0.45); }
 
 .editWrap {
   display: flex;

@@ -5,18 +5,43 @@ import { extractEmbeds } from '../utils/linkEmbeds';
 import { useAuth } from '../context/AuthContext';
 import styles from './Message.module.css';
 
-// Splits text on an @mention of the current user, wrapping it in a
-// highlighted span. String.split with a capturing group interleaves the
-// matched delimiters into the result, so odd indices are always the mention
-// itself — no need to re-test the (stateful, global) regex per part.
-function renderWithMentions(text, myUsername, mentionClass) {
-  if (!myUsername) return text;
-  const re = new RegExp(`(@${myUsername}\\b)`, 'gi');
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Splits text on any @mention of a known user, wrapping each in a clickable
+// span — highlighted more strongly if it's a mention of the current viewer.
+// String.split with a capturing group interleaves the matched delimiters
+// into the result, so odd indices are always the mention itself.
+function renderMentions(text, users, currentUser, mentionStyles, onMentionClick) {
+  const allUsers = currentUser ? [...users, currentUser] : users;
+  if (allUsers.length === 0) return text;
+  const names = [...new Set(allUsers.map((u) => u.username))]
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp);
+  const re = new RegExp(`(@(?:${names.join('|')})\\b)`, 'gi');
   const parts = text.split(re);
   if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    i % 2 === 1 ? <span key={i} className={mentionClass}>{part}</span> : part
-  );
+  return parts.map((part, i) => {
+    if (i % 2 === 0) return part;
+    const uname = part.slice(1);
+    const isSelf = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
+    const matchedUser = isSelf
+      ? currentUser
+      : allUsers.find((u) => u.username.toLowerCase() === uname.toLowerCase());
+    return (
+      <span
+        key={i}
+        className={`${mentionStyles.mention} ${isSelf ? mentionStyles.selfMention : ''}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (matchedUser) onMentionClick?.(matchedUser, e.currentTarget.getBoundingClientRect());
+        }}
+      >
+        {part}
+      </span>
+    );
+  });
 }
 
 function formatTime(ts) {
@@ -32,7 +57,7 @@ function formatDate(ts) {
   return d.toLocaleDateString();
 }
 
-export default function Message({ msg, grouped, canDelete, canEdit, onDelete, onEdit }) {
+export default function Message({ msg, grouped, canDelete, canEdit, onDelete, onEdit, users = [], onMentionClick }) {
   const { user } = useAuth();
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -124,7 +149,7 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
         ) : (
           <>
             <p className={styles.text}>
-              {renderWithMentions(msg.content, user?.username, styles.mention)}
+              {renderMentions(msg.content, users, user, styles, onMentionClick)}
               {msg.updated_at && <span className={styles.edited}> (edited)</span>}
             </p>
             {extractEmbeds(msg.content).map((embed) => (

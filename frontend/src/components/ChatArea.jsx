@@ -5,20 +5,26 @@ import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
+import UserProfileCard from './UserProfileCard';
 import styles from './ChatArea.module.css';
 
-export default function ChatArea({ channel, onToggleMembers, showMembers }) {
+export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState([]);
   const [users, setUsers] = useState([]);
+  const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
   const mention = useMentionAutocomplete(users);
+
+  const handleMentionClick = (mentionedUser, rect) => {
+    setProfileTarget({ user: mentionedUser, rect });
+  };
 
   useEffect(() => {
     api.get('/users').then(setUsers).catch(() => {});
@@ -177,11 +183,23 @@ export default function ChatArea({ channel, onToggleMembers, showMembers }) {
               canEdit={user.id === msg.user_id}
               onDelete={deleteMessage}
               onEdit={editMessage}
+              users={users}
+              onMentionClick={handleMentionClick}
             />
           );
         })}
         <div ref={bottomRef} />
       </div>
+
+      {profileTarget && (
+        <UserProfileCard
+          user={profileTarget.user}
+          anchorRect={profileTarget.rect}
+          isSelf={profileTarget.user.id === user.id}
+          onClose={() => setProfileTarget(null)}
+          onMessage={onOpenDM}
+        />
+      )}
 
       {typing.length > 0 && (
         <div className={styles.typing}>

@@ -6,14 +6,16 @@ import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
 import Message from './Message';
 import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
+import UserProfileCard from './UserProfileCard';
 import styles from './ChatArea.module.css';
 
-export default function DMArea({ conversation }) {
+export default function DMArea({ conversation, onOpenDM }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState([]);
+  const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -23,6 +25,10 @@ export default function DMArea({ conversation }) {
     [conversation]
   );
   const mention = useMentionAutocomplete(mentionUsers);
+
+  const handleMentionClick = (mentionedUser, rect) => {
+    setProfileTarget({ user: mentionedUser, rect });
+  };
 
   const fetchMessages = useCallback(async () => {
     try {
@@ -173,11 +179,23 @@ export default function DMArea({ conversation }) {
               canEdit={user.id === msg.user_id}
               onDelete={deleteMessage}
               onEdit={editMessage}
+              users={mentionUsers}
+              onMentionClick={handleMentionClick}
             />
           );
         })}
         <div ref={bottomRef} />
       </div>
+
+      {profileTarget && (
+        <UserProfileCard
+          user={profileTarget.user}
+          anchorRect={profileTarget.rect}
+          isSelf={profileTarget.user.id === user.id}
+          onClose={() => setProfileTarget(null)}
+          onMessage={onOpenDM}
+        />
+      )}
 
       {typing.length > 0 && (
         <div className={styles.typing}>
