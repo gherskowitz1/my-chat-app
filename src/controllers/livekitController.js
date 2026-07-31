@@ -1,4 +1,5 @@
 const { AccessToken, RoomServiceClient, TrackSource } = require('livekit-server-sdk');
+const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 
 function getRoomService() {
   const { LIVEKIT_API_KEY, LIVEKIT_API_SECRET, LIVEKIT_URL } = process.env;
@@ -17,6 +18,14 @@ async function getToken(req, res) {
   }
 
   try {
+    // roomName is always a channel id (see VoiceChannel.jsx) — verify this
+    // user is actually allowed into that channel before minting a token that
+    // would otherwise let anyone with a valid login join/publish anywhere.
+    const channel = await getChannelById(roomName);
+    if (!(await canAccessChannel(channel, req.user.id, req.user.role))) {
+      return res.status(403).json({ error: 'Not authorized to join this channel' });
+    }
+
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
       identity: req.user.id,
       name: req.user.username,
@@ -31,11 +40,18 @@ async function getToken(req, res) {
   }
 }
 
-// GET /livekit/rooms/:roomName/participants
+// GET /livekit/rooms/:roomName/participants — open to any authenticated
+// user (not just admins), since it's read-only. roomName is a channel id, so
+// still gated by channel access — otherwise a non-member of a private voice
+// channel could see who's in it without being able to join.
 async function getParticipants(req, res) {
   const svc = getRoomService();
   if (!svc) return res.status(503).json({ error: 'LiveKit not configured' });
   try {
+    const channel = await getChannelById(req.params.roomName);
+    if (!(await canAccessChannel(channel, req.user.id, req.user.role))) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
     const participants = await svc.listParticipants(req.params.roomName);
     res.json(participants.map(p => ({
       identity: p.identity,

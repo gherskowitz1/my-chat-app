@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
+const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 
 const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
@@ -24,7 +25,7 @@ module.exports = function setupSocket(io) {
   });
 
   io.on('connection', (socket) => {
-    const { id: userId, username } = socket.user;
+    const { id: userId, username, role } = socket.user;
 
     // Track online status. Always (re-)broadcast on connect, even for a 2nd
     // tab from an already-online user — cheap, and correctly clears an
@@ -39,7 +40,13 @@ module.exports = function setupSocket(io) {
     socket.emit('presence:snapshot', Array.from(userStatus.entries()).map(([id, status]) => ({ userId: id, status })));
 
     // Join a channel room
-    socket.on('channel:join', (channelId) => {
+    socket.on('channel:join', async (channelId) => {
+      try {
+        const channel = await getChannelById(channelId);
+        if (!(await canAccessChannel(channel, userId, role))) return;
+      } catch {
+        return;
+      }
       socket.rooms.forEach((room) => {
         if (room.startsWith('channel:')) socket.leave(room);
       });
@@ -50,6 +57,9 @@ module.exports = function setupSocket(io) {
     socket.on('message:send', async ({ channelId, content }) => {
       if (!content?.trim()) return;
       try {
+        const channel = await getChannelById(channelId);
+        if (!(await canAccessChannel(channel, userId, role))) return;
+
         const { rows } = await pool.query(
           `WITH inserted AS (
              INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3)
@@ -61,16 +71,22 @@ module.exports = function setupSocket(io) {
         );
         io.to(`channel:${channelId}`).emit('message:new', rows[0]);
 
-        // Notify other server members directly (their socket may not have
-        // this channel's room joined if they're viewing a different one).
-        const { rows: members } = await pool.query(
-          `SELECT sm.user_id FROM server_members sm
-           JOIN channels c ON c.server_id = sm.server_id
-           WHERE c.id = $1 AND sm.user_id != $2`,
-          [channelId, userId]
-        );
-        const { rows: chRows } = await pool.query('SELECT name FROM channels WHERE id = $1', [channelId]);
-        const channelName = chRows[0]?.name || '';
+        // Notify the people who can actually see this channel directly
+        // (their socket may not have this channel's room joined if they're
+        // viewing something else) — everyone on the server for a public
+        // channel, or just its explicit allow-list for a private one.
+        const { rows: members } = channel.is_private
+          ? await pool.query(
+              'SELECT user_id FROM channel_members WHERE channel_id = $1 AND user_id != $2',
+              [channelId, userId]
+            )
+          : await pool.query(
+              `SELECT sm.user_id FROM server_members sm
+               JOIN channels c ON c.server_id = sm.server_id
+               WHERE c.id = $1 AND sm.user_id != $2`,
+              [channelId, userId]
+            );
+        const channelName = channel.name;
         members.forEach(({ user_id }) => {
           emitToUser(user_id, 'notify:message', {
             channelId, channelName, username, content: content.trim(),
@@ -195,15 +211,43 @@ module.exports = function setupSocket(io) {
       socket.to(`dm:${conversationId}`).emit('dm:typing:update', { userId, username, typing: false });
     });
 
-    // Channel events broadcast (for admin actions)
-    socket.on('channel:created', (channel) => {
-      socket.broadcast.emit('channel:created', channel);
-    });
+    // Channel events broadcast (for admin actions). Public channels go to
+    // everyone as before; a private channel only reaches its allow-list plus
+    // admins, so it doesn't flash into a non-member's sidebar in realtime
+    // even though the REST channel list would already exclude it for them.
+    const broadcastChannelEvent = async (event, channel) => {
+      if (!channel?.is_private) {
+        socket.broadcast.emit(event, channel);
+        return;
+      }
+      try {
+        const [{ rows: members }, { rows: admins }] = await Promise.all([
+          pool.query('SELECT user_id FROM channel_members WHERE channel_id = $1', [channel.id]),
+          pool.query("SELECT id FROM users WHERE role = 'admin'", []),
+        ]);
+        const targets = new Set([...members.map((m) => m.user_id), ...admins.map((a) => a.id)]);
+        targets.delete(userId);
+        targets.forEach((uid) => emitToUser(uid, event, channel));
+      } catch (err) {
+        console.error(`${event} broadcast error`, err);
+      }
+    };
+
+    socket.on('channel:created', (channel) => broadcastChannelEvent('channel:created', channel));
+    socket.on('channel:renamed', (channel) => broadcastChannelEvent('channel:renamed', channel));
     socket.on('channel:deleted', (channelId) => {
+      // The row is already gone by the time this fires, so we can't look up
+      // whether it was private — broadcasting a bare id is a negligible leak
+      // (no name/content, and non-members never had it in their state anyway).
       socket.broadcast.emit('channel:deleted', channelId);
     });
-    socket.on('channel:renamed', (channel) => {
-      socket.broadcast.emit('channel:renamed', channel);
+
+    // Fired after an admin changes a private channel's allow-list — rather
+    // than diff and target individual add/remove events (easy to get subtly
+    // wrong), just tell everyone to silently re-fetch the channel list, which
+    // is already correctly filtered per-user server-side.
+    socket.on('channel:members-updated', () => {
+      socket.broadcast.emit('channels:refresh');
     });
 
     // Idle/away — client reports after ~30min with no mouse/keyboard activity.

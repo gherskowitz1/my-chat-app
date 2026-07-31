@@ -35,7 +35,17 @@ CREATE TABLE IF NOT EXISTS channels (
   server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
   type VARCHAR(16) DEFAULT 'text' CHECK (type IN ('text', 'voice')),
+  is_private BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE channels ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
+
+-- Allow-list of users who can see/use a private channel (ignored for public ones)
+CREATE TABLE IF NOT EXISTS channel_members (
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (channel_id, user_id)
 );
 
 -- Messages

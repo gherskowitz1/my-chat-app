@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { signup, login, getMe, updateAvatar } = require('../controllers/authController');
-const { getChannels, createChannel, deleteChannel, getMessages } = require('../controllers/channelController');
+const { getChannels, createChannel, deleteChannel, getMessages, getChannelMembers, updateChannelAccess } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getUsers } = require('../controllers/dmController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const {
@@ -29,6 +29,8 @@ router.get('/servers/:serverId/channels', authMiddleware, getChannels);
 router.post('/servers/:serverId/channels', authMiddleware, adminMiddleware, createChannel);
 router.delete('/channels/:channelId', authMiddleware, adminMiddleware, deleteChannel);
 router.get('/channels/:channelId/messages', authMiddleware, getMessages);
+router.get('/channels/:channelId/members', authMiddleware, adminMiddleware, getChannelMembers);
+router.patch('/channels/:channelId/access', authMiddleware, adminMiddleware, updateChannelAccess);
 
 // DMs
 router.get('/dm/conversations', authMiddleware, getMyConversations);
@@ -49,7 +51,7 @@ router.get('/admin/messages/recent', authMiddleware, adminMiddleware, getRecentM
 
 // LiveKit
 router.get('/livekit/token/:roomName', authMiddleware, getToken);
-router.get('/livekit/rooms/:roomName/participants', authMiddleware, adminMiddleware, getParticipants);
+router.get('/livekit/rooms/:roomName/participants', authMiddleware, getParticipants);
 router.post('/livekit/rooms/:roomName/mute/:identity', authMiddleware, adminMiddleware, muteParticipant);
 router.delete('/livekit/rooms/:roomName/participants/:identity', authMiddleware, adminMiddleware, removeParticipant);
 

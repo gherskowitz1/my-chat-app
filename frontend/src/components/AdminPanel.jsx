@@ -98,6 +98,44 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
     }
   };
 
+  // ── Channel access (private allow-list) ─────────────────────
+  const [managingAccess, setManagingAccess] = useState(null); // channelId
+  const [accessDraft, setAccessDraft] = useState({ isPrivate: false, memberIds: [] });
+
+  const openAccessManager = async (channel) => {
+    try {
+      const memberIds = channel.is_private ? await get(`/channels/${channel.id}/members`) : [];
+      setAccessDraft({ isPrivate: !!channel.is_private, memberIds });
+      setManagingAccess(channel.id);
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
+  const toggleAccessMember = (userId) => {
+    setAccessDraft(prev => ({
+      ...prev,
+      memberIds: prev.memberIds.includes(userId)
+        ? prev.memberIds.filter(id => id !== userId)
+        : [...prev.memberIds, userId],
+    }));
+  };
+
+  const saveAccess = async (channelId) => {
+    try {
+      const res = await patch(`/channels/${channelId}/access`, {
+        isPrivate: accessDraft.isPrivate,
+        memberIds: accessDraft.memberIds,
+      });
+      setChannels(prev => prev.map(c => c.id === channelId ? { ...c, is_private: res.is_private } : c));
+      socket?.emit('channel:members-updated');
+      setManagingAccess(null);
+      flash('Channel access updated!');
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
   // ── User role ─────────────────────────────────────────────
   const toggleRole = async (user) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin';
@@ -180,35 +218,59 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
           {tab === 'channels' && (
             <div className={styles.section}>
               <h2>Manage Channels</h2>
-              <p className={styles.subtitle}>Rename channels by clicking the edit icon.</p>
+              <p className={styles.subtitle}>Rename channels by clicking the edit icon, or manage who can see a private one via the lock icon.</p>
 
               <div className={styles.channelGroup}>
                 <div className={styles.groupLabel}>TEXT CHANNELS</div>
                 {textChannels.map(ch => (
-                  <ChannelRow
-                    key={ch.id}
-                    channel={ch}
-                    editing={editingChannel?.id === ch.id}
-                    onEdit={() => setEditingChannel({ ...ch })}
-                    onSave={(name) => saveChannel(ch.id, name, ch.type)}
-                    onCancel={() => setEditingChannel(null)}
-                    prefix="#"
-                  />
+                  <React.Fragment key={ch.id}>
+                    <ChannelRow
+                      channel={ch}
+                      editing={editingChannel?.id === ch.id}
+                      onEdit={() => setEditingChannel({ ...ch })}
+                      onSave={(name) => saveChannel(ch.id, name, ch.type)}
+                      onCancel={() => setEditingChannel(null)}
+                      onManageAccess={() => openAccessManager(ch)}
+                      prefix="#"
+                    />
+                    {managingAccess === ch.id && (
+                      <AccessPanel
+                        users={users}
+                        draft={accessDraft}
+                        onTogglePrivate={(v) => setAccessDraft(prev => ({ ...prev, isPrivate: v }))}
+                        onToggleMember={toggleAccessMember}
+                        onSave={() => saveAccess(ch.id)}
+                        onCancel={() => setManagingAccess(null)}
+                      />
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
 
               <div className={styles.channelGroup}>
                 <div className={styles.groupLabel}>VOICE CHANNELS</div>
                 {voiceChannels.map(ch => (
-                  <ChannelRow
-                    key={ch.id}
-                    channel={ch}
-                    editing={editingChannel?.id === ch.id}
-                    onEdit={() => setEditingChannel({ ...ch })}
-                    onSave={(name) => saveChannel(ch.id, name, ch.type)}
-                    onCancel={() => setEditingChannel(null)}
-                    prefix="🔊"
-                  />
+                  <React.Fragment key={ch.id}>
+                    <ChannelRow
+                      channel={ch}
+                      editing={editingChannel?.id === ch.id}
+                      onEdit={() => setEditingChannel({ ...ch })}
+                      onSave={(name) => saveChannel(ch.id, name, ch.type)}
+                      onCancel={() => setEditingChannel(null)}
+                      onManageAccess={() => openAccessManager(ch)}
+                      prefix="🔊"
+                    />
+                    {managingAccess === ch.id && (
+                      <AccessPanel
+                        users={users}
+                        draft={accessDraft}
+                        onTogglePrivate={(v) => setAccessDraft(prev => ({ ...prev, isPrivate: v }))}
+                        onToggleMember={toggleAccessMember}
+                        onSave={() => saveAccess(ch.id)}
+                        onCancel={() => setManagingAccess(null)}
+                      />
+                    )}
+                  </React.Fragment>
                 ))}
               </div>
 
@@ -260,7 +322,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
   );
 }
 
-function ChannelRow({ channel, editing, onEdit, onSave, onCancel, prefix }) {
+function ChannelRow({ channel, editing, onEdit, onSave, onCancel, onManageAccess, prefix }) {
   const [name, setName] = useState(channel.name);
 
   useEffect(() => { setName(channel.name); }, [channel.name]);
@@ -286,9 +348,43 @@ function ChannelRow({ channel, editing, onEdit, onSave, onCancel, prefix }) {
     <div className={styles.channelRow}>
       <span className={styles.prefix}>{prefix}</span>
       <span className={styles.channelName}>{channel.name}</span>
+      {channel.is_private && <span className={styles.privateBadge}>Private</span>}
+      <button className={styles.editBtn} onClick={onManageAccess} title="Manage access">
+        <LockIcon />
+      </button>
       <button className={styles.editBtn} onClick={onEdit} title="Rename">
         <EditIcon />
       </button>
+    </div>
+  );
+}
+
+function AccessPanel({ users, draft, onTogglePrivate, onToggleMember, onSave, onCancel }) {
+  return (
+    <div className={styles.accessPanel}>
+      <label className={styles.accessPrivateToggle}>
+        <input type="checkbox" checked={draft.isPrivate} onChange={e => onTogglePrivate(e.target.checked)} />
+        <span>Private — hidden from everyone except the members picked below</span>
+      </label>
+      {draft.isPrivate && (
+        <div className={styles.accessMemberList}>
+          {users.length === 0 && <p className={styles.hint}>No other users yet.</p>}
+          {users.map(u => (
+            <label key={u.id} className={styles.accessMemberOption}>
+              <input
+                type="checkbox"
+                checked={draft.memberIds.includes(u.id)}
+                onChange={() => onToggleMember(u.id)}
+              />
+              <span>{u.username}</span>
+            </label>
+          ))}
+        </div>
+      )}
+      <div className={styles.createActions}>
+        <button type="button" className={styles.cancelSmall} onClick={onCancel}>Cancel</button>
+        <button type="button" className={styles.saveSmall} onClick={onSave}>Save Access</button>
+      </div>
     </div>
   );
 }
@@ -316,5 +412,10 @@ const EditIcon = () => (
 const TrashIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/>
+  </svg>
+);
+const LockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3v3H9V6a3 3 0 0 1 3-3z"/>
   </svg>
 );

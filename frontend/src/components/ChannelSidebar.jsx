@@ -16,10 +16,13 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [showInvite, setShowInvite] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('text');
+  const [newIsPrivate, setNewIsPrivate] = useState(false);
+  const [newMemberIds, setNewMemberIds] = useState([]);
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
 
   const fetchChannels = useCallback(async () => {
@@ -32,6 +35,10 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
   useEffect(() => { fetchChannels(); }, [fetchChannels]);
 
   useEffect(() => {
+    if (user?.role === 'admin') api.get('/users').then(setAllUsers).catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
     if (!socket) return;
     const onCreated = (ch) => setChannels((prev) => [...prev, ch]);
     const onDeleted = (id) => {
@@ -39,25 +46,46 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
       if (activeChannel?.id === id) onChannelSelect(null);
     };
     const onRenamed = (ch) => setChannels((prev) => prev.map((c) => c.id === ch.id ? { ...c, name: ch.name } : c));
+    // A private channel's allow-list changed — the REST fetch already
+    // filters correctly per-user, so just re-run it rather than trying to
+    // patch local state for an event we may or may not have visibility into.
+    const onAccessChanged = () => fetchChannels();
     socket.on('channel:created', onCreated);
     socket.on('channel:deleted', onDeleted);
     socket.on('channel:renamed', onRenamed);
+    socket.on('channels:refresh', onAccessChanged);
     return () => {
       socket.off('channel:created', onCreated);
       socket.off('channel:deleted', onDeleted);
       socket.off('channel:renamed', onRenamed);
+      socket.off('channels:refresh', onAccessChanged);
     };
-  }, [socket, activeChannel, onChannelSelect]);
+  }, [socket, activeChannel, onChannelSelect, fetchChannels]);
+
+  const toggleNewMember = (userId) => {
+    setNewMemberIds((prev) => prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]);
+  };
+
+  const resetCreateForm = () => {
+    setNewName('');
+    setNewIsPrivate(false);
+    setNewMemberIds([]);
+    setShowCreate(false);
+  };
 
   const createChannel = async (e) => {
     e.preventDefault();
     if (!newName.trim()) return;
     try {
-      const ch = await api.post(`/servers/${serverId}/channels`, { name: newName, type: newType });
+      const ch = await api.post(`/servers/${serverId}/channels`, {
+        name: newName,
+        type: newType,
+        isPrivate: newIsPrivate,
+        memberIds: newIsPrivate ? newMemberIds : [],
+      });
       setChannels((prev) => [...prev, ch]);
       socket?.emit('channel:created', ch);
-      setNewName('');
-      setShowCreate(false);
+      resetCreateForm();
     } catch (err) {
       alert(err.message);
     }
@@ -108,6 +136,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
               >
                 <span className={styles.hash}>#</span>
                 <span className={styles.name}>{ch.name}</span>
+                {ch.is_private && <LockIcon />}
                 {unread && (
                   unread.mentioned
                     ? <span className={styles.mentionBadge}>{unread.count > 99 ? '99+' : unread.count}</span>
@@ -143,6 +172,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
                   <path d="M19 10a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V21H9v2h6v-2h-2v-2.06A9 9 0 0 0 21 10h-2z"/>
                 </svg>
                 <span className={styles.name}>{ch.name}</span>
+                {ch.is_private && <LockIcon />}
                 {user?.role === 'admin' && (
                   <button className={styles.deleteBtn} onClick={(e) => deleteChannel(e, ch.id)} title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -173,7 +203,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
       {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
 
       {showCreate && user?.role === 'admin' && (
-        <div className={styles.createOverlay} onClick={() => setShowCreate(false)}>
+        <div className={styles.createOverlay} onClick={resetCreateForm}>
           <form className={styles.createForm} onSubmit={createChannel} onClick={(e) => e.stopPropagation()}>
             <h3>Create {newType === 'text' ? 'Text' : 'Voice'} Channel</h3>
             <input
@@ -183,8 +213,27 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
               placeholder={newType === 'text' ? 'new-channel' : 'Voice Chat'}
               className={styles.input}
             />
+            <label className={styles.privateToggle}>
+              <input type="checkbox" checked={newIsPrivate} onChange={(e) => setNewIsPrivate(e.target.checked)} />
+              <span>Private channel — hidden from everyone except the members you pick below</span>
+            </label>
+            {newIsPrivate && (
+              <div className={styles.memberPicker}>
+                {allUsers.length === 0 && <p className={styles.hint}>No other users yet.</p>}
+                {allUsers.map((u) => (
+                  <label key={u.id} className={styles.memberOption}>
+                    <input
+                      type="checkbox"
+                      checked={newMemberIds.includes(u.id)}
+                      onChange={() => toggleNewMember(u.id)}
+                    />
+                    <span>{u.username}</span>
+                  </label>
+                ))}
+              </div>
+            )}
             <div className={styles.createActions}>
-              <button type="button" onClick={() => setShowCreate(false)} className={styles.cancelBtn}>Cancel</button>
+              <button type="button" onClick={resetCreateForm} className={styles.cancelBtn}>Cancel</button>
               <button type="submit" className={styles.createBtn}>Create</button>
             </div>
           </form>
@@ -193,3 +242,9 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
     </div>
   );
 }
+
+const LockIcon = () => (
+  <svg className={styles.lockIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="Private channel">
+    <path d="M12 1a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm0 2a3 3 0 0 1 3 3v3H9V6a3 3 0 0 1 3-3z"/>
+  </svg>
+);
