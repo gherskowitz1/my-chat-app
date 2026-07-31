@@ -7,40 +7,14 @@ import styles from './MemberList.module.css';
 
 export default function MemberList({ serverId }) {
   const { user } = useAuth();
-  const { socket } = useSocket();
+  const { statusMap } = useSocket();
   const [members, setMembers] = useState([]);
-  const [statusMap, setStatusMap] = useState(new Map()); // userId -> 'online' | 'away'
 
   useEffect(() => {
     api.get('/users').then((users) => {
       setMembers([user, ...users.filter((u) => u.id !== user.id)]);
     }).catch(() => {});
   }, [user]);
-
-  useEffect(() => {
-    if (!socket) return;
-
-    // Snapshot of who's already online/away — without this, a client would
-    // only ever learn about users who connect *after* it does.
-    const onSnapshot = (entries) => {
-      setStatusMap(new Map(entries.map(({ userId, status }) => [userId, status])));
-    };
-    const onUpdate = ({ userId, status }) => {
-      setStatusMap((prev) => {
-        const next = new Map(prev);
-        if (status === 'offline') next.delete(userId);
-        else next.set(userId, status);
-        return next;
-      });
-    };
-
-    socket.on('presence:snapshot', onSnapshot);
-    socket.on('presence:update', onUpdate);
-    return () => {
-      socket.off('presence:snapshot', onSnapshot);
-      socket.off('presence:update', onUpdate);
-    };
-  }, [socket]);
 
   const statusOf = (id) => statusMap.get(id) || 'offline';
 

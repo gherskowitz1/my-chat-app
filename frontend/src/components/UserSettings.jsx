@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
@@ -130,10 +131,13 @@ export default function UserSettings({ onClose }) {
           <button className={`${styles.tab} ${tab === 'shortcuts' ? styles.activeTab : ''}`} onClick={() => setTab('shortcuts')}>
             ⌨️ Shortcuts
           </button>
+          <button className={`${styles.tab} ${tab === 'status' ? styles.activeTab : ''}`} onClick={() => setTab('status')}>
+            <StatusDotIcon /> Status
+          </button>
         </div>
 
         <div className={styles.body}>
-          {tab === 'audio' ? <AudioTab /> : <ShortcutsTab />}
+          {tab === 'audio' ? <AudioTab /> : tab === 'shortcuts' ? <ShortcutsTab /> : <StatusTab />}
         </div>
       </div>
     </div>
@@ -295,6 +299,53 @@ function ShortcutsTab() {
   );
 }
 
+// ── Status Tab ───────────────────────────────────────────────
+const STATUS_OPTIONS = [
+  { value: 'online', label: 'Online', desc: 'Shown as active to everyone.', color: 'var(--green)' },
+  { value: 'away', label: 'Away', desc: 'Shown as away, same as the automatic 30-minute idle status.', color: 'var(--yellow)' },
+  { value: 'offline', label: 'Offline', desc: "Appear offline to others, even though you're still connected.", color: 'var(--text-muted)' },
+];
+
+function StatusTab() {
+  const { user } = useAuth();
+  const { statusMap, setStatus } = useSocket();
+  const [pending, setPending] = useState(null);
+  const current = pending || statusMap.get(user.id) || 'online';
+
+  const choose = (value) => {
+    setStatus(value);
+    setPending(value); // reflect the choice immediately rather than waiting on the round-trip
+  };
+
+  return (
+    <section className={styles.section}>
+      <h3><StatusDotIcon /> Status</h3>
+      <p className={styles.hint} style={{ marginBottom: 12 }}>
+        Override your automatic online/away status. Resets to automatic the next time you sign in.
+      </p>
+      <div className={styles.shortcutList}>
+        {STATUS_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            className={styles.shortcutRow}
+            style={{ border: current === opt.value ? '1px solid var(--accent)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+            onClick={() => choose(opt.value)}
+          >
+            <div className={styles.shortcutInfo}>
+              <span className={styles.shortcutLabel}>
+                <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: opt.color, marginRight: 8 }} />
+                {opt.label}
+              </span>
+              <span className={styles.shortcutDesc}>{opt.desc}</span>
+            </div>
+            {current === opt.value && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 // ── Icons ────────────────────────────────────────────────────
 const MicIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -305,6 +356,11 @@ const MicIcon = () => (
 const SpeakerIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+  </svg>
+);
+const StatusDotIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="12" r="8" />
   </svg>
 );
 

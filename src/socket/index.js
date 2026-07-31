@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
 const onlineUsers = new Map(); // userId -> Set of socketIds
-const userStatus = new Map(); // userId -> 'online' | 'away', only set while onlineUsers has them
+const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
+const manualStatus = new Map(); // userId -> status the user explicitly chose, pins userStatus against automatic idle/active updates until they fully disconnect
 
 module.exports = function setupSocket(io) {
   const emitToUser = (userId, event, payload) => {
@@ -205,16 +206,28 @@ module.exports = function setupSocket(io) {
       socket.broadcast.emit('channel:renamed', channel);
     });
 
-    // Idle/away — client reports after ~30min with no mouse/keyboard activity
+    // Idle/away — client reports after ~30min with no mouse/keyboard activity.
+    // Skipped entirely once the user has set a manual status override, so
+    // automatic detection can't stomp on a status they explicitly chose.
     socket.on('presence:idle', () => {
-      if (!onlineUsers.has(userId)) return;
+      if (!onlineUsers.has(userId) || manualStatus.has(userId)) return;
       userStatus.set(userId, 'away');
       io.emit('presence:update', { userId, username, status: 'away' });
     });
     socket.on('presence:active', () => {
-      if (!onlineUsers.has(userId)) return;
+      if (!onlineUsers.has(userId) || manualStatus.has(userId)) return;
       userStatus.set(userId, 'online');
       io.emit('presence:update', { userId, username, status: 'online' });
+    });
+
+    // Manual status override — e.g. appearing offline while still fully
+    // connected. Pinned until this user's last socket disconnects, at which
+    // point automatic detection resumes on their next login.
+    socket.on('presence:setStatus', (status) => {
+      if (!['online', 'away', 'offline'].includes(status)) return;
+      manualStatus.set(userId, status);
+      userStatus.set(userId, status);
+      io.emit('presence:update', { userId, username, status });
     });
 
     socket.on('disconnect', () => {
@@ -224,6 +237,7 @@ module.exports = function setupSocket(io) {
         if (sockets.size === 0) {
           onlineUsers.delete(userId);
           userStatus.delete(userId);
+          manualStatus.delete(userId);
           io.emit('presence:update', { userId, username, status: 'offline' });
         }
       }

@@ -1,10 +1,15 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import Avatar from './Avatar';
 import styles from './ServerSidebar.module.css';
 
-export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings }) {
+const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
+
+export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings, hasUnreadDMs, hasUnreadChannels }) {
   const { user, logout } = useAuth();
+  const { statusMap } = useSocket();
+  const myStatus = statusMap.get(user?.id) || 'offline';
 
   // Opens the standalone admin dashboard (admin.<domain>) in a new tab. Inside
   // the Electron app, window.open is already redirected to the OS browser by
@@ -21,10 +26,12 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
         className={`${styles.icon} ${activeSection === 'dm' ? styles.active : ''}`}
         onClick={() => onSectionChange('dm')}
         title="Direct Messages"
+        style={{ position: 'relative' }}
       >
         <svg width="28" height="20" viewBox="0 0 28 20" fill="currentColor">
           <path d="M4 2h20a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm10 7L4.5 4H23.5L14 9zm0 2.5l-10-6.3V16h20V5.2l-10 6.3z"/>
         </svg>
+        {hasUnreadDMs && <span className={styles.navDot} />}
       </button>
 
       <div className={styles.divider} />
@@ -34,8 +41,10 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
         className={`${styles.serverBtn} ${activeSection === 'server' ? styles.active : ''}`}
         onClick={() => onSectionChange('server')}
         title="General Server"
+        style={{ position: 'relative' }}
       >
         G
+        {hasUnreadChannels && <span className={styles.navDot} />}
       </button>
 
       <div className={styles.spacer} />
@@ -72,14 +81,17 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
 
       {/* User area — click avatar for settings, separate logout button */}
       <div className={styles.userArea}>
-        <Avatar
-          url={user?.avatar_url}
-          color={user?.avatar_color}
-          username={user?.username}
-          className={styles.avatar}
-          title="User Settings"
-          onClick={onOpenSettings}
-        />
+        <div className={styles.avatarWrap}>
+          <Avatar
+            url={user?.avatar_url}
+            color={user?.avatar_color}
+            username={user?.username}
+            className={styles.avatar}
+            title="User Settings"
+            onClick={onOpenSettings}
+          />
+          <span className={styles.statusDot} style={{ background: STATUS_COLOR[myStatus] }} />
+        </div>
         <button className={styles.logoutBtn} onClick={logout} title="Log out">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17 7l-1.4 1.4 2.6 2.6H9v2h9.2l-2.6 2.6L17 17l5-5-5-5zm-6 10H5V7h6V5H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h6v-2z"/>

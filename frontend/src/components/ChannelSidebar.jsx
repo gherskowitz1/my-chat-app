@@ -12,7 +12,7 @@ import styles from './ChannelSidebar.module.css';
 // until someone actually opens a voice channel.
 const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
 
-export default function ChannelSidebar({ serverId, serverName, activeChannel, onChannelSelect }) {
+export default function ChannelSidebar({ serverId, serverName, activeChannel, onChannelSelect, unreadChannels }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -98,23 +98,31 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
               <button className={styles.addBtn} onClick={() => { setShowCreate(true); setNewType('text'); }} title="Add channel">+</button>
             )}
           </div>
-          {textChannels.map((ch) => (
-            <div
-              key={ch.id}
-              className={`${styles.channel} ${activeChannel?.id === ch.id ? styles.active : ''}`}
-              onClick={() => onChannelSelect(ch)}
-            >
-              <span className={styles.hash}>#</span>
-              <span className={styles.name}>{ch.name}</span>
-              {user?.role === 'admin' && (
-                <button className={styles.deleteBtn} onClick={(e) => deleteChannel(e, ch.id)} title="Delete">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/>
-                  </svg>
-                </button>
-              )}
-            </div>
-          ))}
+          {textChannels.map((ch) => {
+            const unread = unreadChannels?.get(ch.id);
+            return (
+              <div
+                key={ch.id}
+                className={`${styles.channel} ${activeChannel?.id === ch.id ? styles.active : ''} ${unread ? styles.unread : ''}`}
+                onClick={() => onChannelSelect(ch)}
+              >
+                <span className={styles.hash}>#</span>
+                <span className={styles.name}>{ch.name}</span>
+                {unread && (
+                  unread.mentioned
+                    ? <span className={styles.mentionBadge}>{unread.count > 99 ? '99+' : unread.count}</span>
+                    : <span className={styles.unreadDot} />
+                )}
+                {user?.role === 'admin' && (
+                  <button className={styles.deleteBtn} onClick={(e) => deleteChannel(e, ch.id)} title="Delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className={styles.section}>

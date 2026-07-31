@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import Avatar from './Avatar';
 import styles from './DMSidebar.module.css';
 
-export default function DMSidebar({ activeConversation, onConversationSelect }) {
+export default function DMSidebar({ activeConversation, onConversationSelect, unreadDMs }) {
   const [conversations, setConversations] = useState([]);
   const [users, setUsers] = useState([]);
   const [showUsers, setShowUsers] = useState(false);
@@ -37,26 +37,32 @@ export default function DMSidebar({ activeConversation, onConversationSelect }) 
       </div>
 
       <div className={styles.list}>
-        {conversations.map((conv) => (
-          <div
-            key={conv.id}
-            className={`${styles.item} ${activeConversation?.id === conv.id ? styles.active : ''}`}
-            onClick={() => onConversationSelect(conv)}
-          >
-            <Avatar
-              url={conv.other_avatar_url}
-              color={conv.other_avatar_color}
-              username={conv.other_username}
-              className={styles.avatar}
-            />
-            <div className={styles.info}>
-              <span className={styles.name}>{conv.other_username}</span>
-              {conv.last_message && (
-                <span className={styles.preview}>{conv.last_message}</span>
+        {conversations.map((conv) => {
+          const unreadCount = unreadDMs?.get(conv.id);
+          return (
+            <div
+              key={conv.id}
+              className={`${styles.item} ${activeConversation?.id === conv.id ? styles.active : ''}`}
+              onClick={() => onConversationSelect(conv)}
+            >
+              <Avatar
+                url={conv.other_avatar_url}
+                color={conv.other_avatar_color}
+                username={conv.other_username}
+                className={styles.avatar}
+              />
+              <div className={styles.info}>
+                <span className={styles.name}>{conv.other_username}</span>
+                {conv.last_message && (
+                  <span className={styles.preview}>{conv.last_message}</span>
+                )}
+              </div>
+              {!!unreadCount && (
+                <span className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {conversations.length === 0 && (
           <p className={styles.empty}>No conversations yet.<br />Click + to start one.</p>
