@@ -39,16 +39,22 @@ export default function DMArea({ conversation }) {
       if (updated.conversation_id !== conversation.id) return;
       setMessages((p) => p.map((m) => (m.id === updated.id ? { ...m, ...updated } : m)));
     };
+    const onDeleted = ({ messageId, conversationId }) => {
+      if (conversationId !== conversation.id) return;
+      setMessages((p) => p.filter((m) => m.id !== messageId));
+    };
     const onTyping = ({ userId, username, typing: t }) => {
       if (userId === user.id) return;
       setTyping((p) => t ? (p.includes(username) ? p : [...p, username]) : p.filter((u) => u !== username));
     };
     socket.on('dm:new', onNew);
     socket.on('dm:edited', onEdited);
+    socket.on('dm:deleted', onDeleted);
     socket.on('dm:typing:update', onTyping);
     return () => {
       socket.off('dm:new', onNew);
       socket.off('dm:edited', onEdited);
+      socket.off('dm:deleted', onDeleted);
       socket.off('dm:typing:update', onTyping);
     };
   }, [socket, conversation.id, user.id]);
@@ -93,6 +99,10 @@ export default function DMArea({ conversation }) {
     socket?.emit('dm:edit', { messageId, conversationId: conversation.id, content });
   };
 
+  const deleteMessage = (messageId) => {
+    socket?.emit('dm:delete', { messageId, conversationId: conversation.id });
+  };
+
   return (
     <div className={styles.area}>
       <div className={styles.header}>
@@ -129,7 +139,7 @@ export default function DMArea({ conversation }) {
               grouped={grouped}
               canDelete={user.id === msg.user_id}
               canEdit={user.id === msg.user_id}
-              onDelete={() => {}}
+              onDelete={deleteMessage}
               onEdit={editMessage}
             />
           );

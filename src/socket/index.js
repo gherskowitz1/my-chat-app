@@ -129,6 +129,19 @@ module.exports = function setupSocket(io) {
       }
     });
 
+    // Delete a DM — owner only (unlike channel messages, admins have no
+    // special delete rights over a private conversation between two users)
+    socket.on('dm:delete', async ({ messageId, conversationId }) => {
+      try {
+        const { rows } = await pool.query('SELECT user_id FROM dm_messages WHERE id = $1', [messageId]);
+        if (!rows[0] || rows[0].user_id !== userId) return;
+        await pool.query('DELETE FROM dm_messages WHERE id = $1', [messageId]);
+        io.to(`dm:${conversationId}`).emit('dm:deleted', { messageId, conversationId });
+      } catch (err) {
+        console.error('dm:delete error', err);
+      }
+    });
+
     // Typing indicators
     socket.on('typing:start', ({ channelId }) => {
       socket.to(`channel:${channelId}`).emit('typing:update', { userId, username, typing: true });
