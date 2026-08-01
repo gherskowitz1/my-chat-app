@@ -8,8 +8,6 @@ const fs = require('fs');
 const ACCENT = '5865F2';
 const DARK = '1E1F22';
 const LIGHT_BLUE = 'EEF0FF';
-const GRAY = 'F2F3F5';
-const GREEN = '23A55A';
 const RED = 'ED4245';
 const WHITE = 'FFFFFF';
 
@@ -44,14 +42,6 @@ function heading2(text) {
   });
 }
 
-function heading3(text) {
-  return new Paragraph({
-    heading: HeadingLevel.HEADING_3,
-    spacing: { before: 200, after: 80 },
-    children: [new TextRun({ text, font: 'Arial', size: 22, bold: true, color: DARK })],
-  });
-}
-
 function body(text) {
   return new Paragraph({
     spacing: { after: 120 },
@@ -59,11 +49,19 @@ function body(text) {
   });
 }
 
-function bullet(text, bold = false) {
+function bullet(text) {
   return new Paragraph({
     numbering: { reference: 'bullets', level: 0 },
     spacing: { after: 80 },
-    children: [new TextRun({ text, font: 'Arial', size: 22, bold, color: '313338' })],
+    children: [new TextRun({ text, font: 'Arial', size: 22, color: '313338' })],
+  });
+}
+
+function step(text) {
+  return new Paragraph({
+    numbering: { reference: 'steps', level: 0 },
+    spacing: { after: 80 },
+    children: [new TextRun({ text, font: 'Arial', size: 22 })],
   });
 }
 
@@ -180,11 +178,6 @@ const doc = new Document({
         run: { size: 24, bold: true, font: 'Arial', color: ACCENT },
         paragraph: { spacing: { before: 280, after: 120 }, outlineLevel: 1 },
       },
-      {
-        id: 'Heading3', name: 'Heading 3', basedOn: 'Normal', next: 'Normal', quickFormat: true,
-        run: { size: 22, bold: true, font: 'Arial', color: DARK },
-        paragraph: { spacing: { before: 200, after: 80 }, outlineLevel: 2 },
-      },
     ],
   },
   sections: [{
@@ -200,7 +193,7 @@ const doc = new Document({
           border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: ACCENT, space: 6 } },
           spacing: { after: 120 },
           children: [
-            new TextRun({ text: 'Chatter ', font: 'Arial', size: 20, bold: true, color: ACCENT }),
+            new TextRun({ text: 'The Crows Nest ', font: 'Arial', size: 20, bold: true, color: ACCENT }),
             new TextRun({ text: '— Administrator Guide', font: 'Arial', size: 20, color: '80848E' }),
           ],
         })],
@@ -227,7 +220,7 @@ const doc = new Document({
       spacer(800),
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: 'Chatter', font: 'Arial', size: 72, bold: true, color: ACCENT })],
+        children: [new TextRun({ text: 'The Crows Nest', font: 'Arial', size: 64, bold: true, color: ACCENT })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
@@ -237,46 +230,82 @@ const doc = new Document({
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 80 },
-        children: [new TextRun({ text: 'User Management, Channels & Server Administration', font: 'Arial', size: 22, color: '80848E' })],
+        children: [new TextRun({ text: 'Complete reference for server owners and admins', font: 'Arial', size: 22, color: '80848E' })],
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 0 },
-        children: [new TextRun({ text: `Version 1.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
+        children: [new TextRun({ text: `Version 3.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
       }),
       spacer(1200),
 
       // ─── SECTION 1: OVERVIEW ────────────────────────────────
       heading1('1. Administrator Overview'),
-      body('As a Chatter administrator you have elevated privileges that allow you to manage channels, moderate messages, and oversee user accounts. This guide covers everything you need to keep your server running smoothly.'),
+      body('Administrators have elevated privileges to manage every aspect of The Crows Nest — from renaming channels to moderating voice rooms to controlling who can see a private channel. This guide covers all admin capabilities.'),
       spacer(80),
 
-      heading2('1.1 Admin vs Member Permissions'),
+      heading2('1.1 Permission Comparison'),
       spacer(40),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
-        columnWidths: [3600, 2880, 2880],
+        columnWidths: [4400, 2480, 2480],
         rows: [
-          headerRow(['Action', 'Member', 'Admin'], [3600, 2880, 2880]),
-          dataRow(['Send messages', '✓ Yes', '✓ Yes'], [3600, 2880, 2880]),
-          dataRow(['Delete own messages', '✓ Yes', '✓ Yes'], [3600, 2880, 2880], true),
-          dataRow(['Delete any message', '✗ No', '✓ Yes'], [3600, 2880, 2880]),
-          dataRow(['Create channels', '✗ No', '✓ Yes'], [3600, 2880, 2880], true),
-          dataRow(['Delete channels', '✗ No', '✓ Yes'], [3600, 2880, 2880]),
-          dataRow(['Send direct messages', '✓ Yes', '✓ Yes'], [3600, 2880, 2880], true),
-          dataRow(['Join voice channels', '✓ Yes', '✓ Yes'], [3600, 2880, 2880]),
-          dataRow(['Grant admin role', '✗ No', '✓ Yes (via SQL)'], [3600, 2880, 2880], true),
+          headerRow(['Action', 'Member', 'Admin'], [4400, 2480, 2480]),
+          dataRow(['Send & receive messages', 'Yes', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Delete own messages', 'Yes', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Delete any message', 'No', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Create channels', 'No', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Delete / rename channels', 'No', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Rename server', 'No', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['See & join a private channel', 'Only if added', 'Always'], [4400, 2480, 2480]),
+          dataRow(['Manage a private channel’s member list', 'No', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Track a game for update posts (PatchBot)', 'No', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Set PatchBot’s check frequency', 'No', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Grant / revoke admin role', 'No', 'Yes (in-app)'], [4400, 2480, 2480]),
+          dataRow(['Remove users', 'No', 'Yes (in-app)'], [4400, 2480, 2480], true),
+          dataRow(['Force a password reset / set a password', 'No', 'Yes (in-app)'], [4400, 2480, 2480]),
+          dataRow(['Mute / unmute in voice', 'No', 'Yes (server-side)'], [4400, 2480, 2480], true),
+          dataRow(['Kick from voice channel', 'No', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Join voice channels', 'Yes', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Send direct messages', 'Yes', 'Yes'], [4400, 2480, 2480]),
         ],
       }),
       spacer(160),
 
+      heading2('1.2 Accessing Admin Settings'),
+      body('The Admin Settings panel is only visible to users with the admin role. To open it:'),
+      step('Log in with your admin account'),
+      step('Click the gear icon (Settings) in the bottom-left sidebar'),
+      step('The panel opens with four tabs: Server, Channels, Games, and Users'),
+      spacer(80),
+      note('If the gear icon is not visible, your account may still have the "member" role. See Section 7.2 to grant yourself admin.', 'warning'),
+      spacer(160),
+
+      heading2('1.3 Full Admin Portal'),
+      body('A shield icon above the gear icon opens the full standalone Admin Portal — a separate dashboard at the admin. subdomain with deeper server management tools. In the desktop app it opens in its own window; in a browser it opens in a new tab. It has six sections in its sidebar:'),
+      spacer(40),
+      new Table({
+        width: { size: 9360, type: WidthType.DXA },
+        columnWidths: [2400, 6960],
+        rows: [
+          headerRow(['Tab', 'What It Does'], [2400, 6960]),
+          dataRow(['Dashboard', 'Total users, messages, channels, and DMs at a glance, plus a table of recent sign-ups.'], [2400, 6960]),
+          dataRow(['Users', 'Search, promote/demote, force a password reset, set a password directly, or remove a user.'], [2400, 6960], true),
+          dataRow(['Channels', 'Create, rename, delete channels, and manage private-channel access.'], [2400, 6960]),
+          dataRow(['Games (PatchBot)', 'Pick a channel and manage which games post update notes there; set the check frequency.'], [2400, 6960], true),
+          dataRow(['Recent Messages', 'Search the last 100 messages sent across every channel.'], [2400, 6960]),
+          dataRow(['Server Settings', 'Rename the server and edit its description.'], [2400, 6960], true),
+        ],
+      }),
+      spacer(200),
+
       // ─── SECTION 2: INVITING USERS ──────────────────────────
-      heading1('2. Inviting Users to the Server'),
-      body('Chatter uses open registration — anyone with your server URL can create an account. There is no invite code system by default. Sharing the URL is all that is needed.'),
+      heading1('2. Inviting Users'),
+      body('The Crows Nest uses open registration. Anyone with your server URL can create an account and join immediately — no invite codes required. Any member can also send a direct email invite from within the app.'),
       spacer(80),
 
-      heading2('2.1 Sharing the Server URL'),
-      body('Your Chatter server is accessible at the following URL. Share this with anyone you want to invite:'),
+      heading2('2.1 Server URL'),
+      body('Share this link with anyone you want to invite:'),
       spacer(40),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
@@ -289,257 +318,254 @@ const doc = new Document({
             width: { size: 9360, type: WidthType.DXA },
             children: [new Paragraph({
               alignment: AlignmentType.CENTER,
-              children: [new TextRun({ text: 'https://enthusiastic-peace-production-7a96.up.railway.app', font: 'Courier New', size: 22, bold: true, color: ACCENT })],
+              children: [new TextRun({ text: 'https://www.thecrowsnesttalk.com', font: 'Courier New', size: 22, bold: true, color: ACCENT })],
             })],
           })],
         })],
       }),
       spacer(160),
-      body('Ways to share the link:'),
-      bullet('Email it directly to your users'),
-      bullet('Share it in a group chat (Discord, WhatsApp, Slack, etc.)'),
-      bullet('Post it in a shared document or wiki'),
-      bullet('Have users install the desktop app using the Chatter Setup installer'),
+
+      heading2('2.2 Sending an Email Invite'),
+      body('Any member — not just admins — can invite someone by email directly from the app:'),
+      step('Click the Invite button at the top of the channel sidebar'),
+      step('Enter the person’s email address'),
+      step('Click Send Invite'),
       spacer(80),
-      note('New users who sign up will automatically join the General server and can start chatting in any text channel immediately. They are assigned the Member role by default.', 'info'),
+      note('The invite email links straight to the signup page with their email pre-filled. Signup stays open to anyone regardless — the invite is a convenience, not a requirement.', 'info'),
       spacer(160),
 
-      heading2('2.2 What New Users Need to Do'),
-      body('When a new user visits the URL for the first time:'),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click “Create Account” on the login screen', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Enter a username (2–32 characters), email address, and password (8+ characters)', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click “Create Account” — they are automatically logged in and added to the server', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'They can immediately start messaging in any channel or send direct messages', font: 'Arial', size: 22 })],
-      }),
+      heading2('2.3 How New Users Sign Up'),
+      step('Visit the server URL in any browser (or click the link from an invite email)'),
+      step('Click Create Account'),
+      step('Enter a username (2–32 characters), email, and password (8+ characters)'),
+      step('Click Create Account — they are logged in and added to the server instantly'),
+      spacer(80),
+      note('New users are assigned the Member role automatically and can start chatting right away. Remember Me on the login screen keeps them signed in on that device.', 'info'),
       spacer(160),
 
-      heading2('2.3 Desktop App Installers'),
-      body('If you built a Windows desktop installer, users can install the app on their PC instead of using a browser:'),
-      bullet('Send them the file: Chatter Setup 1.0.0.exe'),
-      bullet('They double-click it, click through the installer'),
-      bullet('Chatter appears in their Start menu and creates a desktop shortcut'),
-      bullet('The app opens directly to your server — no URL needed'),
-      spacer(80),
-      note('The desktop app and browser version share the same account — users can use either interchangeably.', 'info'),
+      heading2('2.4 Desktop App'),
+      body('Point users to the download links on the login page — both Windows and Linux installers are available (share The Crows Nest Setup .exe or .AppImage directly if you prefer). They install it like any normal application and get a dedicated desktop app with a shortcut/launcher entry. The app checks for updates automatically.'),
       spacer(200),
 
-      // ─── SECTION 3: MANAGING ROLES ──────────────────────────
-      heading1('3. Managing User Roles'),
-      body('Roles are managed directly in the PostgreSQL database via Railway’s built-in query tool. There are two roles: member (default) and admin.'),
-      spacer(80),
-
-      heading2('3.1 Accessing the Database'),
-      body('To run any SQL commands:'),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Go to railway.app and open your project', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click the PostgreSQL service', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click the Data tab', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Type your SQL in the query editor and click Run', font: 'Arial', size: 22 })],
-      }),
-      spacer(160),
-
-      heading2('3.2 Grant Admin Role'),
-      body('To make a user an administrator, run this SQL (replace the email with their actual address):'),
-      spacer(60),
-      sqlBlock("UPDATE users SET role = 'admin' WHERE email = 'user@example.com';"),
-      spacer(100),
-      note('The user must log out and back in for the admin role to take effect in the app.', 'warning'),
-      spacer(160),
-
-      heading2('3.3 Revoke Admin Role'),
-      body('To demote an admin back to a regular member:'),
-      spacer(60),
-      sqlBlock("UPDATE users SET role = 'member' WHERE email = 'user@example.com';"),
-      spacer(160),
-
-      heading2('3.4 View All Users and Roles'),
-      body('To see a list of all registered users and their roles:'),
-      spacer(60),
-      sqlBlock('SELECT username, email, role, created_at FROM users ORDER BY created_at DESC;'),
-      spacer(160),
-
-      heading2('3.5 Delete a User Account'),
-      body('To permanently remove a user from the server:'),
-      spacer(60),
-      sqlBlock("DELETE FROM users WHERE email = 'user@example.com';"),
-      spacer(100),
-      note('Deleting a user removes their account but their past messages remain visible (shown with a blank username). To also delete their messages, see Section 5.', 'danger'),
+      // ─── SECTION 3: SERVER SETTINGS ─────────────────────────
+      heading1('3. Server Settings'),
+      heading2('3.1 Renaming the Server'),
+      step('Click the gear icon in the sidebar to open Admin Settings (or use Server Settings in the full Admin Portal)'),
+      step('Edit the SERVER NAME field'),
+      step('Optionally add a DESCRIPTION'),
+      step('Click Save Changes — the new name appears immediately in the sidebar for all users'),
       spacer(200),
 
       // ─── SECTION 4: CHANNEL MANAGEMENT ─────────────────────
-      heading1('4. Managing Channels'),
-      body('Admins can create and delete both text and voice channels directly from within the Chatter app — no database access required.'),
-      spacer(80),
-
+      heading1('4. Channel Management'),
       heading2('4.1 Creating a Channel'),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Log in to Chatter with your admin account', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'In the left sidebar, click the + button next to TEXT CHANNELS or VOICE CHANNELS', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Type a channel name in the dialog that appears', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click Create — the channel appears immediately for all users', font: 'Arial', size: 22 })],
-      }),
+      step('In the main sidebar, click the + button next to TEXT CHANNELS or VOICE CHANNELS (or use + New Channel in the Admin Portal)'),
+      step('Type the channel name'),
+      step('Optionally check Private channel and pick which members can see and use it (see Section 5)'),
+      step('Click Create'),
       spacer(80),
-      note('Text channel names are automatically lowercased and spaces are replaced with hyphens (e.g. “Game Night” becomes #game-night).', 'info'),
+      note('Text channel names are automatically lowercased with spaces replaced by hyphens (e.g. "Game Night" becomes #game-night). Voice channel names keep their original casing.', 'info'),
       spacer(160),
 
-      heading2('4.2 Deleting a Channel'),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Hover your mouse over the channel name in the sidebar', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Click the trash icon that appears on the right', font: 'Arial', size: 22 })],
-      }),
-      new Paragraph({
-        numbering: { reference: 'steps', level: 0 },
-        spacing: { after: 80 },
-        children: [new TextRun({ text: 'Confirm the deletion in the prompt', font: 'Arial', size: 22 })],
-      }),
-      spacer(80),
-      note('Deleting a channel permanently removes all messages in that channel. This cannot be undone.', 'danger'),
+      heading2('4.2 Renaming a Channel'),
+      step('Open Admin Settings (gear icon) or the Admin Portal’s Channels tab'),
+      step('Hover over a channel and click the pencil (edit) icon'),
+      step('Type the new name and press Enter or click Save'),
       spacer(160),
 
-      heading2('4.3 Default Channels'),
-      body('The following channels are created automatically when the server starts and cannot be deleted via the UI (they are seeded in the database):'),
+      heading2('4.3 Deleting a Channel'),
+      step('Hover over the channel name in the sidebar (or find it in the Admin Portal’s Channels tab)'),
+      step('Click the trash icon'),
+      step('Confirm deletion in the prompt'),
+      spacer(80),
+      note('Deleting a channel permanently removes all messages in it. This cannot be undone.', 'danger'),
+      spacer(160),
+
+      heading2('4.4 Default Channels'),
+      body('These channels are created when the server first starts:'),
       spacer(40),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [3000, 2000, 4360],
         rows: [
           headerRow(['Channel', 'Type', 'Purpose'], [3000, 2000, 4360]),
-          dataRow(['#general', 'Text', 'Default channel for all users'], [3000, 2000, 4360]),
+          dataRow(['#general', 'Text', 'Main conversation channel'], [3000, 2000, 4360]),
           dataRow(['#announcements', 'Text', 'Server-wide announcements'], [3000, 2000, 4360], true),
-          dataRow(['General Voice', 'Voice', 'Default voice/video room'], [3000, 2000, 4360]),
+          dataRow(['General Voice', 'Voice', 'Default voice / video room'], [3000, 2000, 4360]),
         ],
       }),
       spacer(200),
 
-      // ─── SECTION 5: MESSAGE MODERATION ──────────────────────
-      heading1('5. Message Moderation'),
+      // ─── SECTION 5: PRIVATE CHANNELS ────────────────────────
+      heading1('5. Private (Hidden) Channels'),
+      body('Any text or voice channel can be made private — hidden from everyone except the members you explicitly pick. Non-members can’t see it in their sidebar, can’t read its message history, and can’t get a voice token to join it, even by guessing its link. This is enforced on the server, not just hidden in the interface.'),
       spacer(80),
+      note('Admins can always see and join every channel, private or not — the member list only restricts regular members. This keeps management and moderation possible without needing to be added to every private channel individually.', 'info'),
+      spacer(160),
 
-      heading2('5.1 Deleting Messages in the App'),
-      body('As an admin you can delete any message from any user:'),
-      bullet('Hover over a message — a trash icon appears on the right side'),
-      bullet('Click the trash icon to permanently delete the message'),
+      heading2('5.1 Making a Channel Private at Creation'),
+      body('Check Private channel in the create-channel dialog and pick members from the checklist that appears (see Section 4.1).'),
+      spacer(160),
+
+      heading2('5.2 Changing an Existing Channel’s Access'),
+      step('Open Admin Settings (gear icon) or the Admin Portal, and go to the Channels tab'),
+      step('Click the lock icon next to the channel'),
+      step('Toggle Private on or off'),
+      step('If private, check the members who should have access'),
+      step('Click Save Access — takes effect immediately for everyone connected'),
+      spacer(80),
+      note('Changes made from the standalone Admin Portal don’t push a live update to already-connected users the way the in-app panel does — they may need to refresh to see the channel appear or disappear from their sidebar. Access itself (who can actually open or join it) is enforced correctly either way.', 'warning'),
+      spacer(200),
+
+      // ─── SECTION 6: MESSAGE MODERATION ──────────────────────
+      heading1('6. Message Moderation'),
+      heading2('6.1 Deleting Messages in the App'),
+      bullet('Hover over any message in a text channel — a trash icon appears on the right'),
+      bullet('Click it to permanently delete the message'),
       bullet('The message disappears immediately for all users in real time'),
       spacer(160),
 
-      heading2('5.2 Bulk Delete Messages via SQL'),
-      body('To delete all messages from a specific user across all channels:'),
+      heading2('6.2 Bulk Delete via Database'),
+      body('Delete all messages from a specific user:'),
       spacer(60),
-      sqlBlock("DELETE FROM messages WHERE user_id = (\n  SELECT id FROM users WHERE email = 'user@example.com'\n);"),
+      sqlBlock("DELETE FROM messages\nWHERE user_id = (SELECT id FROM users WHERE email = 'user@example.com');"),
       spacer(100),
-      body('To delete all messages in a specific channel:'),
+      body('Delete all messages in a specific channel:'),
       spacer(60),
-      sqlBlock("DELETE FROM messages WHERE channel_id = (\n  SELECT id FROM channels WHERE name = 'channel-name'\n);"),
+      sqlBlock("DELETE FROM messages\nWHERE channel_id = (SELECT id FROM channels WHERE name = 'channel-name');"),
       spacer(200),
 
-      // ─── SECTION 6: VOICE/VIDEO ─────────────────────────────
-      heading1('6. Voice & Video Management'),
-      spacer(80),
-
-      heading2('6.1 How Voice Channels Work'),
-      body('Voice channels are powered by LiveKit. Each voice channel creates a separate room that users join independently. There is no persistent connection — users join and leave rooms as needed.'),
-      spacer(80),
-      body('As an admin there is nothing special to do to manage voice channels — create and delete them the same way as text channels (see Section 4).'),
+      // ─── SECTION 7: USER MANAGEMENT ─────────────────────────
+      heading1('7. User Management'),
+      heading2('7.1 Accessing the User List'),
+      body('Open Admin Settings (gear icon) or the Admin Portal’s Users tab — every registered user is listed with their username, email, and current role.'),
       spacer(160),
 
-      heading2('6.2 LiveKit Dashboard'),
-      body('For advanced voice management (viewing active rooms, participants, recording), log in to your LiveKit project at:'),
-      spacer(40),
-      new Paragraph({
-        spacing: { after: 120 },
-        children: [new ExternalHyperlink({
-          link: 'https://cloud.livekit.io',
-          children: [new TextRun({ text: 'https://cloud.livekit.io', font: 'Arial', size: 22, color: ACCENT, underline: {} })],
-        })],
-      }),
-      body('From there you can see all active rooms, connected participants, and optionally enable recording.'),
+      heading2('7.2 Grant or Revoke Admin Role'),
+      body('Find the user and click the role button next to their name (Up Admin promotes, Down Member demotes).'),
+      spacer(80),
+      note('You cannot change your own role in the app. Changes take effect the next time that user logs in.', 'warning'),
+      spacer(100),
+      body('Alternatively, run this SQL in Railway (Postgres > Database > Console):'),
+      spacer(60),
+      sqlBlock("UPDATE users SET role = 'admin' WHERE email = 'user@example.com';\n-- To revoke:\nUPDATE users SET role = 'member' WHERE email = 'user@example.com';"),
+      spacer(160),
+
+      heading2('7.3 Remove a User'),
+      body('Click the trash icon next to a user and confirm. This removes their account; their past messages remain visible.'),
+      spacer(80),
+      note('You cannot remove your own account from the admin panel.', 'warning'),
+      spacer(160),
+
+      heading2('7.4 Force a Password Reset'),
+      body('From the Admin Portal’s Users tab, click the envelope icon next to a user to email them a password-reset link — useful if they’ve forgotten their password and can’t reach the login page’s own reset flow.'),
+      spacer(160),
+
+      heading2('7.5 Set a User’s Password Directly'),
+      body('Click the key icon next to a user in the Admin Portal’s Users tab to set a new password for them on the spot (8+ characters) — useful for getting someone back in immediately without waiting on an email.'),
+      spacer(160),
+
+      heading2('7.6 View All Users via SQL'),
+      sqlBlock('SELECT username, email, role, created_at FROM users ORDER BY created_at DESC;'),
       spacer(200),
 
-      // ─── SECTION 7: COMMON TASKS QUICK REFERENCE ───────────
-      heading1('7. Quick Reference: Common Admin Tasks'),
+      // ─── SECTION 8: VOICE ADMIN CONTROLS ────────────────────
+      heading1('8. Voice Channel Admin Controls'),
+      body('When you join a voice channel as an admin, an In Voice panel appears below the room showing all connected participants.'),
       spacer(80),
+
+      heading2('8.1 Muting and Unmuting Participants'),
+      bullet('Each participant shows a microphone icon (green = active, red = muted)'),
+      bullet('Click the mic icon to toggle their server-side mute state — this affects what everyone in the room hears, not just you'),
+      bullet('Click again to unmute them'),
+      spacer(160),
+
+      heading2('8.2 Removing a Participant from Voice'),
+      bullet('Click the remove icon next to a participant and confirm — they are immediately disconnected'),
+      bullet('They can rejoin by clicking Join Voice again'),
+      spacer(160),
+
+      heading2('8.3 Volume Mixer (All Users)'),
+      body('Visible to everyone, not just admins, when others are in the voice channel. It only changes what you personally hear — it has no effect on other participants.'),
+      spacer(200),
+
+      // ─── SECTION 9: PATCHBOT ─────────────────────────────────
+      heading1('9. PatchBot — Game Update Tracking'),
+      body('PatchBot watches Steam’s public news feed for games you choose to track and automatically posts new update / patch notes into a channel, as messages from a PatchBot account. It’s the same idea as the Discord PatchBot integration, built natively so it works here too.'),
+      spacer(80),
+
+      heading2('9.1 Tracking a Game from a Channel'),
+      step('Open any text channel and click the controller icon in its header'),
+      step('Search for the game by name (matched against Steam’s store search)'),
+      step('Click Add — it now posts new patch notes into that channel'),
+      spacer(80),
+      note('The first time a game is tracked, PatchBot just records its current latest post as a baseline rather than dumping its whole history into the channel — you’ll see new posts starting with the next real update.', 'info'),
+      spacer(160),
+
+      heading2('9.2 Managing Games Centrally from the Admin Portal'),
+      body('Both Admin Settings and the standalone Admin Portal have a Games tab: pick any text channel from the dropdown, then search/add or remove tracked games for it — without needing to open that channel yourself.'),
+      spacer(160),
+
+      heading2('9.3 Setting the Check Frequency'),
+      body('In the Games tab, the Check Frequency dropdown ranges from every 1 minute to every 24 hours. Saving takes effect on PatchBot’s next scheduled check — no server restart required.'),
+      spacer(80),
+      note('Steam’s public API doesn’t cleanly separate "patch notes" from general announcements for every game, so PatchBot posts all news items for a tracked game, not a filtered-to-just-patches subset.', 'warning'),
+      spacer(200),
+
+      // ─── SECTION 10: DASHBOARD & MESSAGES ───────────────────
+      heading1('10. Dashboard & Recent Messages'),
+      heading2('10.1 Dashboard Overview'),
+      body('The Admin Portal’s Dashboard tab shows total users, messages, channels, and direct-message conversations at a glance, plus a table of the most recent sign-ups.'),
+      spacer(160),
+
+      heading2('10.2 Searching Recent Messages'),
+      body('The Recent Messages tab lists the last 100 messages sent across every channel, with a search box to filter by message content or username — useful for moderation without digging through each channel individually.'),
+      spacer(200),
+
+      // ─── SECTION 11: QUICK REFERENCE ─────────────────────────
+      heading1('11. Quick Reference'),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [3800, 5560],
         rows: [
-          headerRow(['Task', 'How to Do It'], [3800, 5560]),
-          dataRow(['Invite a new user', 'Share the server URL — they sign up themselves'], [3800, 5560]),
-          dataRow(['Grant admin role', 'Railway → Postgres → Data tab → run UPDATE SQL'], [3800, 5560], true),
-          dataRow(['Revoke admin role', 'Railway → Postgres → Data tab → run UPDATE SQL'], [3800, 5560]),
-          dataRow(['Delete a user', 'Railway → Postgres → Data tab → run DELETE SQL'], [3800, 5560], true),
-          dataRow(['Create a channel', 'Chatter app → click + next to channel section'], [3800, 5560]),
-          dataRow(['Delete a channel', 'Chatter app → hover channel → click trash icon'], [3800, 5560], true),
-          dataRow(['Delete a message', 'Chatter app → hover message → click trash icon'], [3800, 5560]),
-          dataRow(['View all users', 'Railway → Postgres → Data tab → run SELECT SQL'], [3800, 5560], true),
-          dataRow(['Restart the server', 'Railway → backend service → Deployments → Redeploy'], [3800, 5560]),
-          dataRow(['View server logs', 'Railway → backend service → Deployments → View logs'], [3800, 5560], true),
+          headerRow(['Task', 'How'], [3800, 5560]),
+          dataRow(['Invite a user', 'Share the server URL, or click Invite in the sidebar'], [3800, 5560]),
+          dataRow(['Rename server', 'Admin Settings > Server tab > Save'], [3800, 5560], true),
+          dataRow(['Create a channel', 'Sidebar + button > name > (optional) Private > Create'], [3800, 5560]),
+          dataRow(['Rename a channel', 'Admin Settings > Channels > pencil icon'], [3800, 5560], true),
+          dataRow(['Delete a channel', 'Sidebar > hover > trash icon'], [3800, 5560]),
+          dataRow(['Make a channel private / manage access', 'Admin Settings or Admin Portal > Channels > lock icon'], [3800, 5560], true),
+          dataRow(['Track a game (PatchBot)', 'Channel header > controller icon > search > Add'], [3800, 5560]),
+          dataRow(['Set PatchBot check frequency', 'Admin Settings or Admin Portal > Games tab'], [3800, 5560], true),
+          dataRow(['Delete a message', 'Hover message > trash icon'], [3800, 5560]),
+          dataRow(['Grant / revoke admin', 'Admin Settings > Users > Up Admin / Down Member'], [3800, 5560], true),
+          dataRow(['Force a password reset', 'Admin Portal > Users > envelope icon'], [3800, 5560]),
+          dataRow(['Set a user’s password', 'Admin Portal > Users > key icon'], [3800, 5560], true),
+          dataRow(['Remove a user', 'Admin Settings > Users > trash icon'], [3800, 5560]),
+          dataRow(['Mute / kick in voice', 'In Voice panel > mic / remove icon'], [3800, 5560], true),
+          dataRow(['Search all recent messages', 'Admin Portal > Recent Messages'], [3800, 5560]),
+          dataRow(['View server logs', 'Railway > backend service > Deployments > View logs'], [3800, 5560], true),
+          dataRow(['Restart backend', 'Railway > backend service > Deployments > Redeploy'], [3800, 5560]),
         ],
       }),
       spacer(200),
 
-      // ─── SECTION 8: TROUBLESHOOTING ─────────────────────────
-      heading1('8. Troubleshooting'),
-      spacer(80),
+      // ─── SECTION 12: TROUBLESHOOTING ─────────────────────────
+      heading1('12. Troubleshooting'),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [3600, 5760],
         rows: [
           headerRow(['Problem', 'Solution'], [3600, 5760]),
-          dataRow(['User can\'t log in', 'Ask them to check their email/password. Reset via DELETE + re-signup if needed.'], [3600, 5760]),
-          dataRow(['Admin buttons not showing', 'User must log out and back in after role is granted.'], [3600, 5760], true),
-          dataRow(['Messages not appearing', 'Refresh the page. Check Railway backend logs for errors.'], [3600, 5760]),
-          dataRow(['Voice not working', 'Check LiveKit env vars in Railway backend service Variables tab.'], [3600, 5760], true),
-          dataRow(['App shows "Failed to fetch"', 'Check CLIENT_URL in backend Variables matches the frontend URL exactly.'], [3600, 5760]),
-          dataRow(['Backend is offline', 'Railway → backend service → Deployments → Redeploy latest.'], [3600, 5760], true),
+          dataRow(['Gear icon not showing', 'Log out and back in to refresh your role token'], [3600, 5760]),
+          dataRow(['Server name reverts', 'Hard refresh (Ctrl+Shift+R) after saving'], [3600, 5760], true),
+          dataRow(['User can’t log in', 'Check email/password. Reset via the Admin Portal or delete + re-signup.'], [3600, 5760]),
+          dataRow(['Private channel not hiding for someone', 'Confirm they aren’t an admin — admins always see every channel by design'], [3600, 5760], true),
+          dataRow(['PatchBot not posting', 'Confirm the game has had news recently; first-time tracking only sets a baseline, no post yet'], [3600, 5760]),
+          dataRow(['Voice not working', 'Verify LIVEKIT_* env vars in Railway backend Variables tab'], [3600, 5760], true),
+          dataRow(['CORS error in console', 'Update CLIENT_URL in backend Variables to match exact frontend URL'], [3600, 5760]),
+          dataRow(['Backend offline', 'Railway > backend > Deployments > Redeploy'], [3600, 5760], true),
+          dataRow(['Messages not appearing', 'Refresh the page; check Railway backend logs for errors'], [3600, 5760]),
         ],
       }),
       spacer(200),
@@ -549,13 +575,13 @@ const doc = new Document({
         border: { top: { style: BorderStyle.SINGLE, size: 2, color: 'DDDDDD', space: 8 } },
         spacing: { before: 160, after: 0 },
         alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: 'Chatter is hosted on Railway.app • Powered by React, Node.js, Socket.io, PostgreSQL & LiveKit', font: 'Arial', size: 18, color: 'B5BAC1' })],
+        children: [new TextRun({ text: 'The Crows Nest is hosted on Railway.app  •  React • Node.js • Socket.io • PostgreSQL • LiveKit', font: 'Arial', size: 18, color: 'B5BAC1' })],
       }),
     ],
   }],
 });
 
 Packer.toBuffer(doc).then((buffer) => {
-  fs.writeFileSync('Chatter-Admin-Guide.docx', buffer);
-  console.log('Created: Chatter-Admin-Guide.docx');
+  fs.writeFileSync('CrowsNest-Admin-Guide.docx', buffer);
+  console.log('Created: CrowsNest-Admin-Guide.docx');
 });
