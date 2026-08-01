@@ -5,7 +5,8 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const { initDb } = require('./db');
 const routes = require('./routes');
-const setupSocket = require('./socket');
+const { setupSocket } = require('./socket');
+const { startPatchBot } = require('./jobs/patchBot');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,8 +38,10 @@ const PORT = process.env.PORT || 3001;
 // then initialize the DB (Railway networking can take a few seconds on cold start).
 server.listen(PORT, () => {
   console.log(`Server running on :${PORT}`);
-  initDb().catch((err) => {
-    console.error('Failed to initialize database:', err);
-    process.exit(1);
-  });
+  initDb()
+    .then(() => startPatchBot(io))
+    .catch((err) => {
+      console.error('Failed to initialize database:', err);
+      process.exit(1);
+    });
 });

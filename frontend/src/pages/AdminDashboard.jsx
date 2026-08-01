@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Avatar from '../components/Avatar';
+import { useGameTracking } from '../hooks/useGameTracking';
 import styles from './AdminDashboard.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -43,6 +44,7 @@ export default function AdminDashboard() {
             { id: 'dashboard', label: 'Dashboard', icon: '📊' },
             { id: 'users', label: 'Users', icon: '👥' },
             { id: 'channels', label: 'Channels', icon: '💬' },
+            { id: 'games', label: 'Games (PatchBot)', icon: '🎮' },
             { id: 'messages', label: 'Recent Messages', icon: '📝' },
             { id: 'server', label: 'Server Settings', icon: '⚙️' },
           ].map(t => (
@@ -75,6 +77,7 @@ export default function AdminDashboard() {
         {tab === 'dashboard' && <DashboardTab />}
         {tab === 'users' && <UsersTab />}
         {tab === 'channels' && <ChannelsTab />}
+        {tab === 'games' && <GamesTab />}
         {tab === 'messages' && <MessagesTab />}
         {tab === 'server' && <ServerTab />}
       </main>
@@ -443,6 +446,145 @@ function ChannelsTab() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Games Tab (PatchBot) ────────────────────────────────────
+const POLL_OPTIONS = [
+  { minutes: 1, label: 'Every 1 minute' },
+  { minutes: 5, label: 'Every 5 minutes' },
+  { minutes: 15, label: 'Every 15 minutes' },
+  { minutes: 30, label: 'Every 30 minutes' },
+  { minutes: 60, label: 'Every 1 hour' },
+  { minutes: 180, label: 'Every 3 hours' },
+  { minutes: 360, label: 'Every 6 hours' },
+  { minutes: 720, label: 'Every 12 hours' },
+  { minutes: 1440, label: 'Every 24 hours' },
+];
+
+function GamesTab() {
+  const [channels, setChannels] = useState([]);
+  const [selectedChannelId, setSelectedChannelId] = useState('');
+  const [pollMinutes, setPollMinutes] = useState(180);
+  const [savingFreq, setSavingFreq] = useState(false);
+  const [flash, setFlash] = useState(null);
+
+  const showFlash = (msg, type = 'success') => { setFlash({ msg, type }); setTimeout(() => setFlash(null), 3000); };
+
+  useEffect(() => {
+    authFetch(`/servers/${DEFAULT_SERVER}/channels`).then(chs => {
+      const textChannels = (chs || []).filter(c => c.type === 'text');
+      setChannels(textChannels);
+      if (textChannels[0]) setSelectedChannelId(textChannels[0].id);
+    }).catch(() => {});
+    authFetch('/admin/patchbot/settings').then(s => {
+      if (s?.pollIntervalMinutes) setPollMinutes(s.pollIntervalMinutes);
+    }).catch(() => {});
+  }, []);
+
+  const saveFrequency = async () => {
+    setSavingFreq(true);
+    const res = await authFetch('/admin/patchbot/settings', { method: 'PATCH', body: JSON.stringify({ pollIntervalMinutes: pollMinutes }) });
+    setSavingFreq(false);
+    if (res.error) return showFlash(res.error, 'error');
+    showFlash('Check frequency updated');
+  };
+
+  const selectedChannel = channels.find(c => c.id === selectedChannelId);
+
+  return (
+    <div className={styles.content}>
+      <h1>Games <span className={styles.count}>PatchBot</span></h1>
+      <p className={styles.subtitle}>Choose which channel gets Steam patch notes for each tracked game, and how often PatchBot checks for updates.</p>
+
+      {flash && <div className={`${styles.flash} ${styles[flash.type]}`}>{flash.msg}</div>}
+
+      <h2 className={styles.sectionTitle}>Check Frequency</h2>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 28 }}>
+        <select className={styles.select} value={pollMinutes} onChange={e => setPollMinutes(Number(e.target.value))}>
+          {POLL_OPTIONS.map(o => <option key={o.minutes} value={o.minutes}>{o.label}</option>)}
+        </select>
+        <button className={styles.primaryBtn} onClick={saveFrequency} disabled={savingFreq}>
+          {savingFreq ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      <h2 className={styles.sectionTitle}>Tracked Games</h2>
+      <select
+        className={styles.select}
+        value={selectedChannelId}
+        onChange={e => setSelectedChannelId(e.target.value)}
+        style={{ marginBottom: 16, width: '100%', maxWidth: 320 }}
+      >
+        {channels.length === 0 && <option value="">No text channels</option>}
+        {channels.map(c => (
+          <option key={c.id} value={c.id}>#{c.name}{c.is_private ? ' (private)' : ''}</option>
+        ))}
+      </select>
+
+      {selectedChannel && <ChannelGameManager channel={selectedChannel} />}
+    </div>
+  );
+}
+
+function ChannelGameManager({ channel }) {
+  const { games, loading, query, setQuery, results, searching, error, addGame, removeGame, alreadyTracked } =
+    useGameTracking(channel.id, true);
+
+  return (
+    <div>
+      <input
+        className={styles.input}
+        style={{ maxWidth: 320, marginBottom: 12 }}
+        placeholder="Search for a game on Steam…"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+      />
+      {error && <div className={`${styles.flash} ${styles.error}`}>{error}</div>}
+
+      {query.trim() && (
+        <div className={styles.table} style={{ marginBottom: 16 }}>
+          {searching && <div className={styles.tableRow} style={{ gridTemplateColumns: '1fr' }}><span>Searching…</span></div>}
+          {!searching && results.length === 0 && (
+            <div className={styles.tableRow} style={{ gridTemplateColumns: '1fr' }}><span>No matches.</span></div>
+          )}
+          {!searching && results.map(r => (
+            <div key={r.appId} className={styles.tableRow} style={{ gridTemplateColumns: '2fr 1fr' }}>
+              <span className={styles.userCell}>
+                {r.iconUrl && <img src={r.iconUrl} alt="" className={styles.avatar} style={{ borderRadius: 4 }} />}
+                {r.name}
+              </span>
+              <span className={styles.actions}>
+                <button className={styles.primaryBtn} disabled={alreadyTracked(r.appId)} onClick={() => addGame(r)}>
+                  {alreadyTracked(r.appId) ? 'Tracked' : 'Add'}
+                </button>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.table}>
+        <div className={`${styles.tableRow} ${styles.tableHead}`} style={{ gridTemplateColumns: '2fr 1fr' }}>
+          <span>Game</span><span>Actions</span>
+        </div>
+        {loading && <div className={styles.tableRow} style={{ gridTemplateColumns: '1fr' }}><span>Loading…</span></div>}
+        {!loading && games.length === 0 && (
+          <div className={styles.tableRow} style={{ gridTemplateColumns: '1fr' }}><span>No games tracked in #{channel.name} yet.</span></div>
+        )}
+        {games.map(g => (
+          <div key={g.id} className={styles.tableRow} style={{ gridTemplateColumns: '2fr 1fr' }}>
+            <span className={styles.userCell}>
+              {g.icon_url && <img src={g.icon_url} alt="" className={styles.avatar} style={{ borderRadius: 4 }} />}
+              {g.name}
+            </span>
+            <span className={styles.actions}>
+              <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => removeGame(g.id)} title="Stop tracking">🗑️</button>
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -92,6 +92,35 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- PatchBot: games tracked per channel. last_posted_gid dedupes which Steam
+-- news items have already been posted so the poller never repeats itself.
+CREATE TABLE IF NOT EXISTS tracked_games (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+  steam_app_id INTEGER NOT NULL,
+  name VARCHAR(200) NOT NULL,
+  icon_url TEXT,
+  last_posted_gid VARCHAR(64),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (channel_id, steam_app_id)
+);
+
+-- A system account so patch-note posts can be a normal message row (joins
+-- against users for username/avatar like any other message). The bogus
+-- password_hash makes it impossible to log into.
+INSERT INTO users (id, username, email, password_hash, avatar_color, role)
+VALUES ('00000000-0000-0000-0000-0000000b0000', 'PatchBot', 'patchbot@system.local', '!disabled!', '#171a21', 'member')
+ON CONFLICT DO NOTHING;
+
+-- PatchBot config — single row, how often (in minutes) it checks for new
+-- Steam news across all tracked games. Read fresh by the poll loop each
+-- cycle, so a change here takes effect on the next run, no restart needed.
+CREATE TABLE IF NOT EXISTS bot_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  patch_poll_minutes INTEGER NOT NULL DEFAULT 180
+);
+INSERT INTO bot_settings (id, patch_poll_minutes) VALUES (1, 180) ON CONFLICT (id) DO NOTHING;
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

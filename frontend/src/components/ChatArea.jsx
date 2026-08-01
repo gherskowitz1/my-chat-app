@@ -7,6 +7,7 @@ import { EVERYONE_USER } from '../utils/mentions';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
+import TrackedGamesPanel from './TrackedGamesPanel';
 import styles from './ChatArea.module.css';
 
 export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM }) {
@@ -17,6 +18,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [typing, setTyping] = useState([]);
   const [users, setUsers] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
+  const [showGames, setShowGames] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const typingTimerRef = useRef(null);
@@ -155,6 +157,15 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
         <h3>{channel.name}</h3>
         <div className={styles.headerActions}>
           <button
+            className={styles.iconBtn}
+            onClick={() => setShowGames(true)}
+            title="Tracked games (PatchBot)"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M17.5 6h-11C4.57 6 3 7.57 3 9.5v5C3 16.43 4.57 18 6.5 18c1.14 0 2.16-.55 2.8-1.4l1-1.33h3.4l1 1.33c.64.85 1.66 1.4 2.8 1.4 1.93 0 3.5-1.57 3.5-3.5v-5C21 7.57 19.43 6 17.5 6zM11 12H9.5v1.5H8V12H6.5v-1.5H8V9h1.5v1.5H11V12zm4.5 1a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm2-3a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+            </svg>
+          </button>
+          <button
             className={`${styles.iconBtn} ${showMembers ? styles.active : ''}`}
             onClick={onToggleMembers}
             title="Toggle member list"
@@ -165,6 +176,8 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
           </button>
         </div>
       </div>
+
+      {showGames && <TrackedGamesPanel channel={channel} onClose={() => setShowGames(false)} />}
 
       <div className={styles.messages}>
         <div className={styles.welcomeBanner}>

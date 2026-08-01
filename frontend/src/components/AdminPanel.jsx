@@ -1,7 +1,20 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { useGameTracking } from '../hooks/useGameTracking';
 import Avatar from './Avatar';
 import styles from './AdminPanel.module.css';
+
+const POLL_OPTIONS = [
+  { minutes: 1, label: 'Every 1 minute' },
+  { minutes: 5, label: 'Every 5 minutes' },
+  { minutes: 15, label: 'Every 15 minutes' },
+  { minutes: 30, label: 'Every 30 minutes' },
+  { minutes: 60, label: 'Every 1 hour' },
+  { minutes: 180, label: 'Every 3 hours' },
+  { minutes: 360, label: 'Every 6 hours' },
+  { minutes: 720, label: 'Every 12 hours' },
+  { minutes: 1440, label: 'Every 24 hours' },
+];
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
 
@@ -167,12 +180,13 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.sidebar}>
           <div className={styles.sidebarTitle}>Admin Settings</div>
-          {['server', 'channels', 'users'].map(t => (
+          {['server', 'channels', 'games', 'users'].map(t => (
             <button key={t} className={`${styles.tabBtn} ${tab === t ? styles.active : ''}`} onClick={() => setTab(t)}>
               {t === 'server' && <ServerIcon />}
               {t === 'channels' && <ChannelIcon />}
+              {t === 'games' && <GameIcon />}
               {t === 'users' && <UsersIcon />}
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'games' ? 'Games' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
           <div className={styles.spacer} />
@@ -275,6 +289,15 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               </div>
 
               <p className={styles.hint}>To add or delete channels, use the + and trash icons in the main sidebar.</p>
+            </div>
+          )}
+
+          {/* GAMES TAB (PatchBot) */}
+          {tab === 'games' && (
+            <div className={styles.section}>
+              <h2>Games (PatchBot)</h2>
+              <p className={styles.subtitle}>Pick which channel gets Steam patch notes for each tracked game, and how often PatchBot checks for updates.</p>
+              <GamesPanel channels={channels.filter(c => c.type === 'text')} flash={flash} />
             </div>
           )}
 
@@ -389,6 +412,117 @@ function AccessPanel({ users, draft, onTogglePrivate, onToggleMember, onSave, on
   );
 }
 
+function GamesPanel({ channels, flash }) {
+  const [selectedId, setSelectedId] = useState(channels[0]?.id || '');
+  const [pollMinutes, setPollMinutes] = useState(180);
+  const [savingFreq, setSavingFreq] = useState(false);
+
+  useEffect(() => {
+    if (!selectedId && channels[0]) setSelectedId(channels[0].id);
+  }, [channels, selectedId]);
+
+  useEffect(() => {
+    get('/admin/patchbot/settings').then(s => {
+      if (s?.pollIntervalMinutes) setPollMinutes(s.pollIntervalMinutes);
+    }).catch(() => {});
+  }, []);
+
+  const saveFrequency = async () => {
+    setSavingFreq(true);
+    try {
+      await patch('/admin/patchbot/settings', { pollIntervalMinutes: pollMinutes });
+      flash('Check frequency updated');
+    } catch (err) {
+      flash(err.message, 'error');
+    } finally {
+      setSavingFreq(false);
+    }
+  };
+
+  const selectedChannel = channels.find(c => c.id === selectedId);
+
+  return (
+    <div>
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>CHECK FREQUENCY</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <select
+            value={pollMinutes}
+            onChange={e => setPollMinutes(Number(e.target.value))}
+            style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 14 }}
+          >
+            {POLL_OPTIONS.map(o => <option key={o.minutes} value={o.minutes}>{o.label}</option>)}
+          </select>
+          <button className={styles.saveSmall} onClick={saveFrequency} disabled={savingFreq}>
+            {savingFreq ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>TRACKED GAMES</div>
+        {channels.length === 0 && <p className={styles.hint}>No text channels to track games in yet.</p>}
+        {channels.length > 0 && (
+          <>
+            <select
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+              style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 14, marginBottom: 12, width: '100%', maxWidth: 320 }}
+            >
+              {channels.map(c => <option key={c.id} value={c.id}>#{c.name}{c.is_private ? ' (private)' : ''}</option>)}
+            </select>
+            {selectedChannel && <ChannelGameList channel={selectedChannel} />}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ChannelGameList({ channel }) {
+  const { games, loading, query, setQuery, results, searching, error, addGame, removeGame, alreadyTracked } =
+    useGameTracking(channel.id, true);
+
+  return (
+    <div>
+      <input
+        className={styles.channelInput}
+        style={{ width: '100%', maxWidth: 320, marginBottom: 10, padding: '8px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)' }}
+        placeholder="Search for a game on Steam…"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+      />
+      {error && <p className={styles.hint} style={{ color: 'var(--red)' }}>{error}</p>}
+
+      {query.trim() && (
+        <div style={{ marginBottom: 12 }}>
+          {searching && <p className={styles.hint}>Searching…</p>}
+          {!searching && results.length === 0 && <p className={styles.hint}>No matches.</p>}
+          {!searching && results.map(r => (
+            <div key={r.appId} className={styles.channelRow}>
+              <span className={styles.channelName}>{r.name}</span>
+              <button className={styles.saveSmall} disabled={alreadyTracked(r.appId)} onClick={() => addGame(r)}>
+                {alreadyTracked(r.appId) ? 'Tracked' : 'Add'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loading && <p className={styles.hint}>Loading…</p>}
+      {!loading && games.length === 0 && <p className={styles.hint}>No games tracked in #{channel.name} yet.</p>}
+      {games.map(g => (
+        <div key={g.id} className={styles.channelRow}>
+          <span className={styles.channelName}>{g.name}</span>
+          <button className={styles.deleteBtn} style={{ opacity: 1 }} onClick={() => removeGame(g.id)} title="Stop tracking">
+            <TrashIcon />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 const ServerIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -402,6 +536,11 @@ const ChannelIcon = () => (
 const UsersIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
     <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+  </svg>
+);
+const GameIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.5 6h-11C4.57 6 3 7.57 3 9.5v5C3 16.43 4.57 18 6.5 18c1.14 0 2.16-.55 2.8-1.4l1-1.33h3.4l1 1.33c.64.85 1.66 1.4 2.8 1.4 1.93 0 3.5-1.57 3.5-3.5v-5C21 7.57 19.43 6 17.5 6zM11 12H9.5v1.5H8V12H6.5v-1.5H8V9h1.5v1.5H11V12zm4.5 1a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm2-3a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
   </svg>
 );
 const EditIcon = () => (

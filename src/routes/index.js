@@ -12,6 +12,10 @@ const {
 } = require('../controllers/adminController');
 const { forgotPassword, resetPassword } = require('../controllers/passwordResetController');
 const { sendInvite } = require('../controllers/inviteController');
+const {
+  searchGames, getTrackedGames, trackGame, untrackGame,
+  getPatchBotSettings, updatePatchBotSettings,
+} = require('../controllers/gameController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -57,5 +61,13 @@ router.delete('/livekit/rooms/:roomName/participants/:identity', authMiddleware,
 
 // Invites
 router.post('/invite', authMiddleware, sendInvite);
+
+// PatchBot — per-channel tracked games
+router.get('/games/search', authMiddleware, adminMiddleware, searchGames);
+router.get('/channels/:channelId/games', authMiddleware, getTrackedGames);
+router.post('/channels/:channelId/games', authMiddleware, adminMiddleware, trackGame);
+router.delete('/games/:gameId', authMiddleware, adminMiddleware, untrackGame);
+router.get('/admin/patchbot/settings', authMiddleware, adminMiddleware, getPatchBotSettings);
+router.patch('/admin/patchbot/settings', authMiddleware, adminMiddleware, updatePatchBotSettings);
 
 module.exports = router;

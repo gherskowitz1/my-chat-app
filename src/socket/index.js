@@ -6,12 +6,15 @@ const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
 const manualStatus = new Map(); // userId -> status the user explicitly chose, pins userStatus against automatic idle/active updates until they fully disconnect
 
-module.exports = function setupSocket(io) {
-  const emitToUser = (userId, event, payload) => {
-    const sockets = onlineUsers.get(userId);
-    if (!sockets) return;
-    sockets.forEach((socketId) => io.to(socketId).emit(event, payload));
-  };
+// Module-level (not just inside setupSocket) so background jobs like
+// PatchBot can push a notify: event to a user's open sockets too.
+function emitToUser(io, userId, event, payload) {
+  const sockets = onlineUsers.get(userId);
+  if (!sockets) return;
+  sockets.forEach((socketId) => io.to(socketId).emit(event, payload));
+}
+
+function setupSocket(io) {
 
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -88,7 +91,7 @@ module.exports = function setupSocket(io) {
             );
         const channelName = channel.name;
         members.forEach(({ user_id }) => {
-          emitToUser(user_id, 'notify:message', {
+          emitToUser(io, user_id, 'notify:message', {
             channelId, channelName, username, content: content.trim(),
           });
         });
@@ -160,7 +163,7 @@ module.exports = function setupSocket(io) {
           [conversationId, userId]
         );
         others.forEach(({ user_id }) => {
-          emitToUser(user_id, 'notify:dm', { conversationId, username, content: content.trim() });
+          emitToUser(io, user_id, 'notify:dm', { conversationId, username, content: content.trim() });
         });
       } catch (err) {
         console.error('dm:send error', err);
@@ -227,7 +230,7 @@ module.exports = function setupSocket(io) {
         ]);
         const targets = new Set([...members.map((m) => m.user_id), ...admins.map((a) => a.id)]);
         targets.delete(userId);
-        targets.forEach((uid) => emitToUser(uid, event, channel));
+        targets.forEach((uid) => emitToUser(io, uid, event, channel));
       } catch (err) {
         console.error(`${event} broadcast error`, err);
       }
@@ -287,4 +290,6 @@ module.exports = function setupSocket(io) {
       }
     });
   });
-};
+}
+
+module.exports = { setupSocket, emitToUser };
