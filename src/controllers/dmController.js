@@ -65,6 +65,7 @@ async function getMyConversations(req, res) {
 async function getDmMessages(req, res) {
   const { conversationId } = req.params;
   const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const before = req.query.before;
 
   try {
     // Verify user is participant
@@ -74,13 +75,18 @@ async function getDmMessages(req, res) {
     );
     if (!check[0]) return res.status(403).json({ error: 'Forbidden' });
 
-    const { rows } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
-       JOIN users u ON u.id = m.user_id
-       WHERE m.conversation_id = $1
-       ORDER BY m.created_at DESC LIMIT $2`,
-      [conversationId, limit]
-    );
+    const query = before
+      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.conversation_id = $1 AND m.created_at < $2
+         ORDER BY m.created_at DESC LIMIT $3`
+      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.conversation_id = $1
+         ORDER BY m.created_at DESC LIMIT $2`;
+    const params = before ? [conversationId, before, limit] : [conversationId, limit];
+
+    const { rows } = await pool.query(query, params);
     res.json(rows.reverse());
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

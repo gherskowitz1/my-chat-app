@@ -53,6 +53,14 @@
   flex-direction: column;
 }
 
+.loadingMore {
+  text-align: center;
+  padding: 12px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
 .welcomeBanner {
   padding: 32px 16px 24px;
   border-bottom: 1px solid var(--border);

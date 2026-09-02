@@ -3,11 +3,15 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
+import { useDraft } from '../hooks/useDraft';
 import Message from './Message';
 import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import styles from './ChatArea.module.css';
+
+const PAGE_SIZE = 50;
+const LOAD_MORE_THRESHOLD_PX = 150;
 
 export default function DMArea({ conversation, onOpenDM }) {
   const { user } = useAuth();
@@ -16,15 +20,20 @@ export default function DMArea({ conversation, onOpenDM }) {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const messagesRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
+  const shouldStickToBottomRef = useRef(true);
   const mentionUsers = useMemo(
     () => [{ id: conversation.other_user_id, username: conversation.other_username, avatar_url: conversation.other_avatar_url, avatar_color: conversation.other_avatar_color }],
     [conversation]
   );
   const mention = useMentionAutocomplete(mentionUsers);
+  const { clearDraft } = useDraft(conversation.id, input, setInput);
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -32,14 +41,43 @@ export default function DMArea({ conversation, onOpenDM }) {
 
   const fetchMessages = useCallback(async () => {
     try {
-      const data = await api.get(`/dm/conversations/${conversation.id}/messages`);
+      const data = await api.get(`/dm/conversations/${conversation.id}/messages?limit=${PAGE_SIZE}`);
       setMessages(data);
+      setHasMore(data.length === PAGE_SIZE);
     } catch {}
   }, [conversation.id]);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return;
+    const container = messagesRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    setLoadingMore(true);
+    try {
+      const oldest = messages[0].created_at;
+      const data = await api.get(`/dm/conversations/${conversation.id}/messages?limit=${PAGE_SIZE}&before=${encodeURIComponent(oldest)}`);
+      if (data.length > 0) {
+        setMessages((prev) => [...data, ...prev]);
+        requestAnimationFrame(() => {
+          if (container) container.scrollTop += container.scrollHeight - prevScrollHeight;
+        });
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    } catch {} finally {
+      setLoadingMore(false);
+    }
+  }, [conversation.id, messages, hasMore, loadingMore]);
+
+  const handleMessagesScroll = (e) => {
+    const el = e.currentTarget;
+    shouldStickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (el.scrollTop < LOAD_MORE_THRESHOLD_PX) loadOlderMessages();
+  };
+
   useEffect(() => {
     setMessages([]);
+    setHasMore(true);
     setTyping([]);
+    shouldStickToBottomRef.current = true;
     fetchMessages();
     socket?.emit('dm:join', conversation.id);
   }, [conversation.id, fetchMessages, socket]);
@@ -74,7 +112,7 @@ export default function DMArea({ conversation, onOpenDM }) {
   }, [socket, conversation.id, user.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (shouldStickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const sendMessage = (e) => {
@@ -82,6 +120,8 @@ export default function DMArea({ conversation, onOpenDM }) {
     if (!input.trim()) return;
     socket?.emit('dm:send', { conversationId: conversation.id, content: input.trim() });
     setInput('');
+    clearDraft();
+    shouldStickToBottomRef.current = true;
     stopTyping();
   };
 
@@ -153,18 +193,21 @@ export default function DMArea({ conversation, onOpenDM }) {
         <h3>{conversation.other_username}</h3>
       </div>
 
-      <div className={styles.messages}>
-        <div className={styles.welcomeBanner}>
-          <Avatar
-            url={conversation.other_avatar_url}
-            color={conversation.other_avatar_color}
-            username={conversation.other_username}
-            className={styles.channelIcon}
-            style={{ color: 'white', fontSize: 32, fontWeight: 700 }}
-          />
-          <h2>{conversation.other_username}</h2>
-          <p>This is the beginning of your direct message history with <strong>{conversation.other_username}</strong>.</p>
-        </div>
+      <div className={styles.messages} ref={messagesRef} onScroll={handleMessagesScroll}>
+        {loadingMore && <div className={styles.loadingMore}>Loading earlier messages…</div>}
+        {!hasMore && (
+          <div className={styles.welcomeBanner}>
+            <Avatar
+              url={conversation.other_avatar_url}
+              color={conversation.other_avatar_color}
+              username={conversation.other_username}
+              className={styles.channelIcon}
+              style={{ color: 'white', fontSize: 32, fontWeight: 700 }}
+            />
+            <h2>{conversation.other_username}</h2>
+            <p>This is the beginning of your direct message history with <strong>{conversation.other_username}</strong>.</p>
+          </div>
+        )}
 
         {messages.map((msg, i) => {
           const prev = messages[i - 1];

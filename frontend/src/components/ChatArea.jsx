@@ -3,12 +3,16 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
+import { useDraft } from '../hooks/useDraft';
 import { EVERYONE_USER } from '../utils/mentions';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import TrackedGamesPanel from './TrackedGamesPanel';
 import styles from './ChatArea.module.css';
+
+const PAGE_SIZE = 50;
+const LOAD_MORE_THRESHOLD_PX = 150;
 
 export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM }) {
   const { user } = useAuth();
@@ -19,12 +23,17 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [users, setUsers] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
   const [showGames, setShowGames] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const messagesRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
+  const shouldStickToBottomRef = useRef(true);
   const mentionCandidates = useMemo(() => [EVERYONE_USER, ...users], [users]);
   const mention = useMentionAutocomplete(mentionCandidates);
+  const { clearDraft } = useDraft(channel.id, input, setInput);
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -36,14 +45,46 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
 
   const fetchMessages = useCallback(async () => {
     try {
-      const data = await api.get(`/channels/${channel.id}/messages?limit=50`);
+      const data = await api.get(`/channels/${channel.id}/messages?limit=${PAGE_SIZE}`);
       setMessages(data);
+      setHasMore(data.length === PAGE_SIZE);
     } catch {}
   }, [channel.id]);
 
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return;
+    const container = messagesRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    setLoadingMore(true);
+    try {
+      const oldest = messages[0].created_at;
+      const data = await api.get(`/channels/${channel.id}/messages?limit=${PAGE_SIZE}&before=${encodeURIComponent(oldest)}`);
+      if (data.length > 0) {
+        setMessages((prev) => [...data, ...prev]);
+        // Keep the same messages in view instead of jumping to the top —
+        // prepending content above the scroll position pushes everything
+        // down, so compensate by the exact height that was just added.
+        requestAnimationFrame(() => {
+          if (container) container.scrollTop += container.scrollHeight - prevScrollHeight;
+        });
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    } catch {} finally {
+      setLoadingMore(false);
+    }
+  }, [channel.id, messages, hasMore, loadingMore]);
+
+  const handleMessagesScroll = (e) => {
+    const el = e.currentTarget;
+    shouldStickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (el.scrollTop < LOAD_MORE_THRESHOLD_PX) loadOlderMessages();
+  };
+
   useEffect(() => {
     setMessages([]);
+    setHasMore(true);
     setTyping([]);
+    shouldStickToBottomRef.current = true;
     fetchMessages();
     socket?.emit('channel:join', channel.id);
   }, [channel.id, fetchMessages, socket]);
@@ -82,7 +123,10 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   }, [socket, channel.id, user.id]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Only auto-scroll when the user was already at the bottom — otherwise
+    // this would yank their position every time older messages load in from
+    // scrolling up, or a new message arrives while they're reading back.
+    if (shouldStickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const sendMessage = (e) => {
@@ -90,6 +134,8 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     if (!input.trim()) return;
     socket?.emit('message:send', { channelId: channel.id, content: input.trim() });
     setInput('');
+    clearDraft();
+    shouldStickToBottomRef.current = true;
     stopTyping();
   };
 
@@ -179,12 +225,15 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
 
       {showGames && <TrackedGamesPanel channel={channel} onClose={() => setShowGames(false)} />}
 
-      <div className={styles.messages}>
-        <div className={styles.welcomeBanner}>
-          <div className={styles.channelIcon}>#</div>
-          <h2>Welcome to #{channel.name}!</h2>
-          <p>This is the start of the #{channel.name} channel.</p>
-        </div>
+      <div className={styles.messages} ref={messagesRef} onScroll={handleMessagesScroll}>
+        {loadingMore && <div className={styles.loadingMore}>Loading earlier messages…</div>}
+        {!hasMore && (
+          <div className={styles.welcomeBanner}>
+            <div className={styles.channelIcon}>#</div>
+            <h2>Welcome to #{channel.name}!</h2>
+            <p>This is the start of the #{channel.name} channel.</p>
+          </div>
+        )}
         {messages.map((msg, i) => {
           const prev = messages[i - 1];
           const grouped = prev && prev.user_id === msg.user_id &&
