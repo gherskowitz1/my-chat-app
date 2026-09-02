@@ -1,0 +1,17 @@
+{
+  "name": "The Crows Nest",
+  "short_name": "Crows Nest",
+  "description": "A Discord-like chat app for text, voice, and screen sharing.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#313338",
+  "theme_color": "#2b2d31",
+  "icons": [
+    {
+      "src": "/pwa-icon.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    }
+  ]
+}

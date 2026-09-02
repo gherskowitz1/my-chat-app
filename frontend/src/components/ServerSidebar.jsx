@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { usePwaInstall } from '../hooks/usePwaInstall';
 import Avatar from './Avatar';
 import styles from './ServerSidebar.module.css';
 
@@ -9,6 +10,7 @@ const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: '
 export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
+  const { canInstall, promptInstall } = usePwaInstall();
   const myStatus = statusMap.get(user?.id) || 'offline';
 
   // Opens the standalone admin dashboard (admin.<domain>) in a new tab. Inside
@@ -63,6 +65,15 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
         </svg>
         {pendingFriendRequests > 0 && <span className={styles.navDot} />}
       </button>
+
+      {/* Install as an app — only shown when the browser says it's installable */}
+      {canInstall && (
+        <button className={styles.iconBtn} onClick={promptInstall} title="Install App">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2a1 1 0 0 1 1 1v10.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42l3.3 3.3V3a1 1 0 0 1 1-1zM5 20a1 1 0 0 1 1-1h12a1 1 0 1 1 0 2H6a1 1 0 0 1-1-1z"/>
+          </svg>
+        </button>
+      )}
 
       {/* User guide — visible to everyone */}
       <a

@@ -4,6 +4,14 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles/global.css';
 
+// Registered unconditionally (not just when the user opts into push) so the
+// offline shell and installability work regardless of notification prefs.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
