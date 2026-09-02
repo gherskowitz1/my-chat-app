@@ -16,6 +16,7 @@ const {
   searchGames, getTrackedGames, trackGame, untrackGame,
   getPatchBotSettings, updatePatchBotSettings,
 } = require('../controllers/gameController');
+const { getPinnedMessages, pinMessage, unpinMessage } = require('../controllers/pinController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -35,6 +36,9 @@ router.delete('/channels/:channelId', authMiddleware, adminMiddleware, deleteCha
 router.get('/channels/:channelId/messages', authMiddleware, getMessages);
 router.get('/channels/:channelId/members', authMiddleware, adminMiddleware, getChannelMembers);
 router.patch('/channels/:channelId/access', authMiddleware, adminMiddleware, updateChannelAccess);
+router.get('/channels/:channelId/pins', authMiddleware, getPinnedMessages);
+router.post('/channels/:channelId/pins/:messageId', authMiddleware, adminMiddleware, pinMessage);
+router.delete('/channels/:channelId/pins/:messageId', authMiddleware, adminMiddleware, unpinMessage);
 
 // DMs
 router.get('/dm/conversations', authMiddleware, getMyConversations);

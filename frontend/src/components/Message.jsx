@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import LinkEmbed from './LinkEmbed';
+import EmojiPicker from './EmojiPicker';
 import { extractEmbeds } from '../utils/linkEmbeds';
 import { EVERYONE_USER } from '../utils/mentions';
 import { useAuth } from '../context/AuthContext';
@@ -88,12 +89,18 @@ function formatDate(ts) {
   return d.toLocaleDateString();
 }
 
-export default function Message({ msg, grouped, canDelete, canEdit, onDelete, onEdit, users = [], onMentionClick }) {
+export default function Message({
+  msg, grouped, canDelete, canEdit, onDelete, onEdit, users = [], onMentionClick,
+  allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage,
+}) {
   const { user } = useAuth();
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.content);
+  const [pickerAnchor, setPickerAnchor] = useState(null);
   const textareaRef = useRef(null);
+
+  const replyToMsg = msg.reply_to_id ? allMessages.find((m) => m.id === msg.reply_to_id) : null;
 
   useEffect(() => {
     if (!editing) return;
@@ -137,7 +144,8 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
 
   return (
     <div
-      className={`${styles.message} ${grouped ? styles.grouped : ''}`}
+      id={`msg-${msg.id}`}
+      className={`${styles.message} ${grouped ? styles.grouped : ''} ${isPinned ? styles.pinnedMessage : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -159,7 +167,26 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
           <div className={styles.meta}>
             <span className={styles.username}>{msg.username}</span>
             <span className={styles.timestamp}>{formatDate(msg.created_at)}</span>
+            {isPinned && <span className={styles.pinnedTag}>📌 Pinned</span>}
           </div>
+        )}
+
+        {!editing && msg.reply_to_id && (
+          <button
+            type="button"
+            className={styles.replyPreview}
+            onClick={() => onJumpToMessage?.(msg.reply_to_id)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+            {replyToMsg ? (
+              <>
+                <span className={styles.replyAuthor}>{replyToMsg.username}</span>
+                <span className={styles.replySnippet}>{replyToMsg.content.slice(0, 80)}</span>
+              </>
+            ) : (
+              <span className={styles.replySnippet}>Replying to a message</span>
+            )}
+          </button>
         )}
 
         {editing ? (
@@ -186,12 +213,48 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
             {extractEmbeds(msg.content).map((embed) => (
               <LinkEmbed key={embed.key} embed={embed} />
             ))}
+            {msg.reactions?.length > 0 && (
+              <div className={styles.reactions}>
+                {msg.reactions.map((r) => {
+                  const mine = r.userIds.includes(user.id);
+                  return (
+                    <button
+                      key={r.emoji}
+                      type="button"
+                      className={`${styles.reactionPill} ${mine ? styles.reactionMine : ''}`}
+                      onClick={() => onReact?.(msg.id, r.emoji)}
+                      title={mine ? 'Remove your reaction' : 'React'}
+                    >
+                      <span>{r.emoji}</span>
+                      <span className={styles.reactionCount}>{r.userIds.length}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>
 
-      {hovered && !editing && (canEdit || canDelete) && (
+      {hovered && !editing && (
         <div className={styles.actions}>
+          <button
+            className={styles.actionBtn}
+            onClick={(e) => setPickerAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Add reaction"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm3.5-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
+            </svg>
+          </button>
+          <button className={styles.actionBtn} onClick={() => onReply?.(msg)} title="Reply">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
+          </button>
+          {canPin && (
+            isPinned
+              ? <button className={styles.actionBtn} onClick={() => onUnpin?.(msg.id)} title="Unpin message">📌</button>
+              : <button className={styles.actionBtn} onClick={() => onPin?.(msg.id)} title="Pin message">📌</button>
+          )}
           {canEdit && (
             <button className={styles.actionBtn} onClick={startEdit} title="Edit message">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -207,6 +270,14 @@ export default function Message({ msg, grouped, canDelete, canEdit, onDelete, on
             </button>
           )}
         </div>
+      )}
+
+      {pickerAnchor && (
+        <EmojiPicker
+          anchorRect={pickerAnchor}
+          onClose={() => setPickerAnchor(null)}
+          onSelect={(emoji) => { onReact?.(msg.id, emoji); setPickerAnchor(null); }}
+        />
       )}
     </div>
   );

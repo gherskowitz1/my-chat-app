@@ -128,6 +128,29 @@
   flex-shrink: 0;
 }
 
+.replyBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  background: var(--bg-tertiary);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.replyBar strong { color: var(--text-primary); }
+
+.replyBar button {
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.replyBar button:hover { color: var(--text-primary); background: var(--bg-hover); }
+
 .inputArea {
   display: flex;
   align-items: center;

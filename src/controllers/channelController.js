@@ -107,12 +107,22 @@ async function getMessages(req, res) {
       return res.status(403).json({ error: 'Not authorized to view this channel' });
     }
 
+    const reactionsSubquery = `(
+      SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json)
+      FROM (
+        SELECT emoji, array_agg(user_id) AS user_ids
+        FROM message_reactions
+        WHERE message_id = m.id
+        GROUP BY emoji
+      ) t
+    ) AS reactions`;
+
     const query = before
-      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM messages m
+      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM messages m
+      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;

@@ -9,6 +9,7 @@ import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import styles from './ChatArea.module.css';
+import messageStyles from './Message.module.css';
 
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
@@ -20,6 +21,7 @@ export default function DMArea({ conversation, onOpenDM }) {
   const [input, setInput] = useState('');
   const [typing, setTyping] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
+  const [replyingTo, setReplyingTo] = useState(null); // { id, username, content }
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const bottomRef = useRef(null);
@@ -37,6 +39,14 @@ export default function DMArea({ conversation, onOpenDM }) {
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
+  };
+
+  const scrollToMessage = (messageId) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add(messageStyles.highlightFlash);
+    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
   };
 
   const fetchMessages = useCallback(async () => {
@@ -77,6 +87,7 @@ export default function DMArea({ conversation, onOpenDM }) {
     setMessages([]);
     setHasMore(true);
     setTyping([]);
+    setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     fetchMessages();
     socket?.emit('dm:join', conversation.id);
@@ -99,15 +110,22 @@ export default function DMArea({ conversation, onOpenDM }) {
       if (userId === user.id) return;
       setTyping((p) => t ? (p.includes(username) ? p : [...p, username]) : p.filter((u) => u !== username));
     };
+    const onReactions = ({ messageId, conversationId, reactions }) => {
+      if (conversationId !== conversation.id) return;
+      setMessages((p) => p.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    };
+
     socket.on('dm:new', onNew);
     socket.on('dm:edited', onEdited);
     socket.on('dm:deleted', onDeleted);
     socket.on('dm:typing:update', onTyping);
+    socket.on('dm:reactions', onReactions);
     return () => {
       socket.off('dm:new', onNew);
       socket.off('dm:edited', onEdited);
       socket.off('dm:deleted', onDeleted);
       socket.off('dm:typing:update', onTyping);
+      socket.off('dm:reactions', onReactions);
     };
   }, [socket, conversation.id, user.id]);
 
@@ -118,9 +136,10 @@ export default function DMArea({ conversation, onOpenDM }) {
   const sendMessage = (e) => {
     e?.preventDefault();
     if (!input.trim()) return;
-    socket?.emit('dm:send', { conversationId: conversation.id, content: input.trim() });
+    socket?.emit('dm:send', { conversationId: conversation.id, content: input.trim(), replyToId: replyingTo?.id });
     setInput('');
     clearDraft();
+    setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
   };
@@ -181,6 +200,15 @@ export default function DMArea({ conversation, onOpenDM }) {
     socket?.emit('dm:delete', { messageId, conversationId: conversation.id });
   };
 
+  const reactToMessage = (messageId, emoji) => {
+    socket?.emit('dm:react', { messageId, conversationId: conversation.id, emoji });
+  };
+
+  const startReply = (msg) => {
+    setReplyingTo({ id: msg.id, username: msg.username, content: msg.content });
+    inputRef.current?.focus();
+  };
+
   return (
     <div className={styles.area}>
       <div className={styles.header}>
@@ -224,6 +252,10 @@ export default function DMArea({ conversation, onOpenDM }) {
               onEdit={editMessage}
               users={mentionUsers}
               onMentionClick={handleMentionClick}
+              allMessages={messages}
+              onReply={startReply}
+              onReact={reactToMessage}
+              onJumpToMessage={scrollToMessage}
             />
           );
         })}
@@ -248,6 +280,12 @@ export default function DMArea({ conversation, onOpenDM }) {
       )}
 
       <div className={styles.inputWrapper}>
+        {replyingTo && (
+          <div className={styles.replyBar}>
+            <span>Replying to <strong>{replyingTo.username}</strong> — {replyingTo.content.slice(0, 60)}</span>
+            <button type="button" onClick={() => setReplyingTo(null)} title="Cancel reply">✕</button>
+          </div>
+        )}
         {mention.isOpen && (
           <MentionDropdown
             suggestions={mention.suggestions}

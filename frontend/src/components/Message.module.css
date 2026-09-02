@@ -13,6 +13,17 @@
   padding-bottom: 2px;
 }
 
+.pinnedMessage {
+  background: rgba(240, 178, 50, 0.06);
+  border-left: 2px solid var(--yellow);
+}
+
+.pinnedTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yellow);
+}
+
 .avatar {
   width: 40px;
   height: 40px;
@@ -76,6 +87,77 @@
 .edited {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+.replyPreview {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+  color: var(--text-muted);
+  font-size: 13px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.replyPreview svg { flex-shrink: 0; transform: scaleX(-1); }
+
+.replyAuthor {
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.replySnippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.replyPreview:hover .replySnippet,
+.replyPreview:hover .replyAuthor {
+  text-decoration: underline;
+}
+
+.reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.reactionPill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  font-size: 13px;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.reactionPill:hover { background: var(--bg-hover); }
+
+.reactionMine {
+  background: rgba(88,101,242,0.15);
+  border-color: var(--accent);
+}
+
+.reactionCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.highlightFlash {
+  animation: highlightFlash 1.5s ease-out;
+}
+
+@keyframes highlightFlash {
+  0% { background: rgba(240, 178, 50, 0.35); }
+  100% { background: transparent; }
 }
 
 .mention {

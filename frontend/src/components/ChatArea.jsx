@@ -9,7 +9,9 @@ import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import TrackedGamesPanel from './TrackedGamesPanel';
+import PinnedMessagesPanel from './PinnedMessagesPanel';
 import styles from './ChatArea.module.css';
+import messageStyles from './Message.module.css';
 
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
@@ -23,6 +25,9 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [users, setUsers] = useState([]);
   const [profileTarget, setProfileTarget] = useState(null); // { user, rect }
   const [showGames, setShowGames] = useState(false);
+  const [showPins, setShowPins] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState(new Set());
+  const [replyingTo, setReplyingTo] = useState(null); // { id, username, content }
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const bottomRef = useRef(null);
@@ -34,6 +39,16 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const mentionCandidates = useMemo(() => [EVERYONE_USER, ...users], [users]);
   const mention = useMentionAutocomplete(mentionCandidates);
   const { clearDraft } = useDraft(channel.id, input, setInput);
+
+  const isAdmin = user?.role === 'admin';
+
+  const scrollToMessage = (messageId) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add(messageStyles.highlightFlash);
+    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
+  };
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -84,10 +99,17 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     setMessages([]);
     setHasMore(true);
     setTyping([]);
+    setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     fetchMessages();
     socket?.emit('channel:join', channel.id);
   }, [channel.id, fetchMessages, socket]);
+
+  useEffect(() => {
+    api.get(`/channels/${channel.id}/pins`)
+      .then((pins) => setPinnedIds(new Set(pins.map((p) => p.id))))
+      .catch(() => {});
+  }, [channel.id]);
 
   useEffect(() => {
     if (!socket) return;
@@ -110,15 +132,38 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       );
     };
 
+    const onReactions = ({ messageId, channelId, reactions }) => {
+      if (channelId !== channel.id) return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
+    };
+    const onPinned = ({ channelId, messageId }) => {
+      if (channelId !== channel.id) return;
+      setPinnedIds((prev) => new Set(prev).add(messageId));
+    };
+    const onUnpinned = ({ channelId, messageId }) => {
+      if (channelId !== channel.id) return;
+      setPinnedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+    };
+
     socket.on('message:new', onNew);
     socket.on('message:deleted', onDeleted);
     socket.on('message:edited', onEdited);
     socket.on('typing:update', onTyping);
+    socket.on('message:reactions', onReactions);
+    socket.on('message:pinned', onPinned);
+    socket.on('message:unpinned', onUnpinned);
     return () => {
       socket.off('message:new', onNew);
       socket.off('message:deleted', onDeleted);
       socket.off('message:edited', onEdited);
       socket.off('typing:update', onTyping);
+      socket.off('message:reactions', onReactions);
+      socket.off('message:pinned', onPinned);
+      socket.off('message:unpinned', onUnpinned);
     };
   }, [socket, channel.id, user.id]);
 
@@ -132,9 +177,10 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const sendMessage = (e) => {
     e?.preventDefault();
     if (!input.trim()) return;
-    socket?.emit('message:send', { channelId: channel.id, content: input.trim() });
+    socket?.emit('message:send', { channelId: channel.id, content: input.trim(), replyToId: replyingTo?.id });
     setInput('');
     clearDraft();
+    setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
   };
@@ -196,12 +242,48 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     socket?.emit('message:edit', { messageId, channelId: channel.id, content });
   };
 
+  const reactToMessage = (messageId, emoji) => {
+    socket?.emit('message:react', { messageId, channelId: channel.id, emoji });
+  };
+
+  const startReply = (msg) => {
+    setReplyingTo({ id: msg.id, username: msg.username, content: msg.content });
+    inputRef.current?.focus();
+  };
+
+  const pinMessage = async (messageId) => {
+    try {
+      await api.post(`/channels/${channel.id}/pins/${messageId}`, {});
+      setPinnedIds((prev) => new Set(prev).add(messageId));
+      socket?.emit('message:pinned', { channelId: channel.id, messageId });
+    } catch {}
+  };
+
+  const unpinMessage = async (messageId) => {
+    try {
+      await api.delete(`/channels/${channel.id}/pins/${messageId}`);
+      setPinnedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(messageId);
+        return next;
+      });
+      socket?.emit('message:unpinned', { channelId: channel.id, messageId });
+    } catch {}
+  };
+
   return (
     <div className={styles.area}>
       <div className={styles.header}>
         <span className={styles.hash}>#</span>
         <h3>{channel.name}</h3>
         <div className={styles.headerActions}>
+          <button
+            className={styles.iconBtn}
+            onClick={() => setShowPins(true)}
+            title="Pinned messages"
+          >
+            📌
+          </button>
           <button
             className={styles.iconBtn}
             onClick={() => setShowGames(true)}
@@ -224,6 +306,13 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       </div>
 
       {showGames && <TrackedGamesPanel channel={channel} onClose={() => setShowGames(false)} />}
+      {showPins && (
+        <PinnedMessagesPanel
+          channel={channel}
+          onClose={() => setShowPins(false)}
+          onJump={scrollToMessage}
+        />
+      )}
 
       <div className={styles.messages} ref={messagesRef} onScroll={handleMessagesScroll}>
         {loadingMore && <div className={styles.loadingMore}>Loading earlier messages…</div>}
@@ -249,6 +338,14 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
               onEdit={editMessage}
               users={mentionCandidates}
               onMentionClick={handleMentionClick}
+              allMessages={messages}
+              isPinned={pinnedIds.has(msg.id)}
+              canPin={isAdmin}
+              onPin={pinMessage}
+              onUnpin={unpinMessage}
+              onReply={startReply}
+              onReact={reactToMessage}
+              onJumpToMessage={scrollToMessage}
             />
           );
         })}
@@ -277,6 +374,12 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       )}
 
       <div className={styles.inputWrapper}>
+        {replyingTo && (
+          <div className={styles.replyBar}>
+            <span>Replying to <strong>{replyingTo.username}</strong> — {replyingTo.content.slice(0, 60)}</span>
+            <button type="button" onClick={() => setReplyingTo(null)} title="Cancel reply">✕</button>
+          </div>
+        )}
         {mention.isOpen && (
           <MentionDropdown
             suggestions={mention.suggestions}

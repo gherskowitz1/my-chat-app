@@ -59,8 +59,30 @@ CREATE TABLE IF NOT EXISTS messages (
   channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
+  reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ
+);
+
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS message_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  emoji VARCHAR(32) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (message_id, user_id, emoji)
+);
+
+-- Per-channel pinned messages
+CREATE TABLE IF NOT EXISTS pinned_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  pinned_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (channel_id, message_id)
 );
 
 -- Direct message conversations
@@ -82,11 +104,22 @@ CREATE TABLE IF NOT EXISTS dm_messages (
   conversation_id UUID REFERENCES dm_conversations(id) ON DELETE CASCADE,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   content TEXT NOT NULL,
+  reply_to_id UUID REFERENCES dm_messages(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ
 );
 
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
+ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES dm_messages(id) ON DELETE SET NULL;
+
+CREATE TABLE IF NOT EXISTS dm_message_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID REFERENCES dm_messages(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  emoji VARCHAR(32) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (message_id, user_id, emoji)
+);
 
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (

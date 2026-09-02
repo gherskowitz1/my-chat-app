@@ -75,12 +75,22 @@ async function getDmMessages(req, res) {
     );
     if (!check[0]) return res.status(403).json({ error: 'Forbidden' });
 
+    const reactionsSubquery = `(
+      SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json)
+      FROM (
+        SELECT emoji, array_agg(user_id) AS user_ids
+        FROM dm_message_reactions
+        WHERE message_id = m.id
+        GROUP BY emoji
+      ) t
+    ) AS reactions`;
+
     const query = before
-      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
+      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM dm_messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.conversation_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url FROM dm_messages m
+      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM dm_messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.conversation_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;

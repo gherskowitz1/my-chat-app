@@ -57,7 +57,7 @@ function setupSocket(io) {
     });
 
     // Send message to a channel
-    socket.on('message:send', async ({ channelId, content }) => {
+    socket.on('message:send', async ({ channelId, content, replyToId }) => {
       if (!content?.trim()) return;
       try {
         const channel = await getChannelById(channelId);
@@ -65,14 +65,15 @@ function setupSocket(io) {
 
         const { rows } = await pool.query(
           `WITH inserted AS (
-             INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3)
-             RETURNING id, channel_id, content, created_at, user_id
+             INSERT INTO messages (channel_id, user_id, content, reply_to_id) VALUES ($1, $2, $3, $4)
+             RETURNING id, channel_id, content, reply_to_id, created_at, user_id
            )
            SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
            FROM inserted JOIN users u ON u.id = inserted.user_id`,
-          [channelId, userId, content.trim()]
+          [channelId, userId, content.trim(), replyToId || null]
         );
-        io.to(`channel:${channelId}`).emit('message:new', rows[0]);
+        const newMessage = { ...rows[0], reactions: [] };
+        io.to(`channel:${channelId}`).emit('message:new', newMessage);
 
         // Notify the people who can actually see this channel directly
         // (their socket may not have this channel's room joined if they're
@@ -131,13 +132,60 @@ function setupSocket(io) {
       }
     });
 
+    // Toggle a reaction — re-emits the message's full reaction summary so
+    // every client (including the one that just clicked) stays in sync.
+    socket.on('message:react', async ({ messageId, channelId, emoji }) => {
+      if (!emoji) return;
+      try {
+        const channel = await getChannelById(channelId);
+        if (!(await canAccessChannel(channel, userId, role))) return;
+
+        const { rows: existing } = await pool.query(
+          'SELECT 1 FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+          [messageId, userId, emoji]
+        );
+        if (existing[0]) {
+          await pool.query(
+            'DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+            [messageId, userId, emoji]
+          );
+        } else {
+          await pool.query(
+            'INSERT INTO message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+            [messageId, userId, emoji]
+          );
+        }
+
+        const { rows: summary } = await pool.query(
+          `SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json) AS reactions
+           FROM (
+             SELECT emoji, array_agg(user_id) AS user_ids
+             FROM message_reactions WHERE message_id = $1 GROUP BY emoji
+           ) t`,
+          [messageId]
+        );
+        io.to(`channel:${channelId}`).emit('message:reactions', { messageId, channelId, reactions: summary[0].reactions });
+      } catch (err) {
+        console.error('message:react error', err);
+      }
+    });
+
+    // Pin/unpin relay — the REST endpoints (admin-only) are the actual
+    // source of truth; this just tells other connected clients to refresh.
+    socket.on('message:pinned', ({ channelId, messageId }) => {
+      socket.to(`channel:${channelId}`).emit('message:pinned', { channelId, messageId });
+    });
+    socket.on('message:unpinned', ({ channelId, messageId }) => {
+      socket.to(`channel:${channelId}`).emit('message:unpinned', { channelId, messageId });
+    });
+
     // Join DM room
     socket.on('dm:join', (conversationId) => {
       socket.join(`dm:${conversationId}`);
     });
 
     // Send DM
-    socket.on('dm:send', async ({ conversationId, content }) => {
+    socket.on('dm:send', async ({ conversationId, content, replyToId }) => {
       if (!content?.trim()) return;
       try {
         // Verify participant
@@ -149,14 +197,15 @@ function setupSocket(io) {
 
         const { rows } = await pool.query(
           `WITH inserted AS (
-             INSERT INTO dm_messages (conversation_id, user_id, content) VALUES ($1, $2, $3)
-             RETURNING id, conversation_id, content, created_at, user_id
+             INSERT INTO dm_messages (conversation_id, user_id, content, reply_to_id) VALUES ($1, $2, $3, $4)
+             RETURNING id, conversation_id, content, reply_to_id, created_at, user_id
            )
            SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
            FROM inserted JOIN users u ON u.id = inserted.user_id`,
-          [conversationId, userId, content.trim()]
+          [conversationId, userId, content.trim(), replyToId || null]
         );
-        io.to(`dm:${conversationId}`).emit('dm:new', rows[0]);
+        const newMessage = { ...rows[0], reactions: [] };
+        io.to(`dm:${conversationId}`).emit('dm:new', newMessage);
 
         const { rows: others } = await pool.query(
           'SELECT user_id FROM dm_participants WHERE conversation_id = $1 AND user_id != $2',
@@ -197,6 +246,46 @@ function setupSocket(io) {
         io.to(`dm:${conversationId}`).emit('dm:deleted', { messageId, conversationId });
       } catch (err) {
         console.error('dm:delete error', err);
+      }
+    });
+
+    // Toggle a reaction on a DM message
+    socket.on('dm:react', async ({ messageId, conversationId, emoji }) => {
+      if (!emoji) return;
+      try {
+        const { rows: check } = await pool.query(
+          'SELECT 1 FROM dm_participants WHERE conversation_id = $1 AND user_id = $2',
+          [conversationId, userId]
+        );
+        if (!check[0]) return;
+
+        const { rows: existing } = await pool.query(
+          'SELECT 1 FROM dm_message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+          [messageId, userId, emoji]
+        );
+        if (existing[0]) {
+          await pool.query(
+            'DELETE FROM dm_message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3',
+            [messageId, userId, emoji]
+          );
+        } else {
+          await pool.query(
+            'INSERT INTO dm_message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+            [messageId, userId, emoji]
+          );
+        }
+
+        const { rows: summary } = await pool.query(
+          `SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json) AS reactions
+           FROM (
+             SELECT emoji, array_agg(user_id) AS user_ids
+             FROM dm_message_reactions WHERE message_id = $1 GROUP BY emoji
+           ) t`,
+          [messageId]
+        );
+        io.to(`dm:${conversationId}`).emit('dm:reactions', { messageId, conversationId, reactions: summary[0].reactions });
+      } catch (err) {
+        console.error('dm:react error', err);
       }
     });
 
