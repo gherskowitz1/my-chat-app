@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
 const { signup, login, getMe, updateAvatar } = require('../controllers/authController');
-const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess } = require('../controllers/channelController');
-const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers } = require('../controllers/dmController');
+const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments } = require('../controllers/channelController');
+const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments } = require('../controllers/dmController');
+const { getAttachment } = require('../controllers/attachmentController');
 const { searchMessages } = require('../controllers/searchController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const {
@@ -39,6 +40,7 @@ router.get('/servers/:serverId/channels', authMiddleware, getChannels);
 router.post('/servers/:serverId/channels', authMiddleware, adminMiddleware, createChannel);
 router.delete('/channels/:channelId', authMiddleware, adminMiddleware, deleteChannel);
 router.get('/channels/:channelId/messages', authMiddleware, getMessages);
+router.post('/channels/:channelId/messages', authMiddleware, sendMessageWithAttachments);
 router.get('/channels/:channelId/messages/around/:messageId', authMiddleware, getMessagesAround);
 router.get('/channels/:channelId/members', authMiddleware, adminMiddleware, getChannelMembers);
 router.patch('/channels/:channelId/access', authMiddleware, adminMiddleware, updateChannelAccess);
@@ -50,7 +52,12 @@ router.delete('/channels/:channelId/pins/:messageId', authMiddleware, adminMiddl
 router.get('/dm/conversations', authMiddleware, getMyConversations);
 router.post('/dm/conversations/:targetUserId', authMiddleware, getOrCreateConversation);
 router.get('/dm/conversations/:conversationId/messages', authMiddleware, getDmMessages);
+router.post('/dm/conversations/:conversationId/messages', authMiddleware, sendDmMessageWithAttachments);
 router.get('/dm/conversations/:conversationId/messages/around/:messageId', authMiddleware, getDmMessagesAround);
+
+// Attachments — served by a plain <img>/<a> URL, which can't carry an
+// Authorization header, so this route accepts the token as a query param too.
+router.get('/attachments/:attachmentId', authFromHeaderOrQuery, getAttachment);
 
 // Search
 router.get('/search', authMiddleware, searchMessages);

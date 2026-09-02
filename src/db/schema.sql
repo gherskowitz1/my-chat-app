@@ -228,6 +228,26 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Message attachments — kept in their own table (not a column on
+-- messages/dm_messages) specifically so the ordinary message-list queries
+-- never pull attachment bytes: they join in lightweight metadata only, and
+-- the actual file is fetched separately, on demand, via GET /attachments/:id.
+CREATE TABLE IF NOT EXISTS message_attachments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
+  dm_message_id UUID REFERENCES dm_messages(id) ON DELETE CASCADE,
+  uploaded_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  filename VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(127) NOT NULL,
+  size_bytes INTEGER NOT NULL,
+  width INTEGER,
+  height INTEGER,
+  data TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_message_attachments_message ON message_attachments (message_id);
+CREATE INDEX IF NOT EXISTS idx_message_attachments_dm_message ON message_attachments (dm_message_id);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

@@ -6,6 +6,7 @@ import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
 import { useDraft } from '../hooks/useDraft';
 import { EVERYONE_USER } from '../utils/mentions';
 import { addPending, removePending, getPendingFor, newClientId, reconcileMessage } from '../utils/outbox';
+import { prepareAttachment, totalStagedBytes, MAX_TOTAL_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_MESSAGE, isImageMime, formatBytes } from '../utils/attachments';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
@@ -52,11 +53,15 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [showPins, setShowPins] = useState(false);
   const [pinnedIds, setPinnedIds] = useState(new Set());
   const [replyingTo, setReplyingTo] = useState(null); // { id, username, content }
+  const [stagedAttachments, setStagedAttachments] = useState([]);
+  const [attachmentError, setAttachmentError] = useState('');
+  const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewingHistorical, setViewingHistorical] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const messagesRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -268,10 +273,51 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     if (shouldStickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const stageFiles = async (files) => {
+    setAttachmentError('');
+    const incoming = Array.from(files);
+    if (stagedAttachments.length + incoming.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+      setAttachmentError(`You can attach at most ${MAX_ATTACHMENTS_PER_MESSAGE} files per message.`);
+      return;
+    }
+    try {
+      const prepared = await Promise.all(incoming.map(prepareAttachment));
+      const next = [...stagedAttachments, ...prepared];
+      if (totalStagedBytes(next) > MAX_TOTAL_ATTACHMENT_BYTES) {
+        setAttachmentError('Attachments are too large — 8MB max per message, combined.');
+        return;
+      }
+      setStagedAttachments(next);
+    } catch (err) {
+      setAttachmentError(err.message || 'Could not attach that file.');
+    }
+  };
+
+  const removeStagedAttachment = (index) => {
+    setStagedAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleFileInputChange = (e) => {
+    if (e.target.files?.length) stageFiles(e.target.files);
+    e.target.value = '';
+  };
+
+  const handlePaste = (e) => {
+    const files = Array.from(e.clipboardData?.items || [])
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    if (files.length > 0) {
+      e.preventDefault();
+      stageFiles(files);
+    }
+  };
+
   const sendMessage = (e) => {
     e?.preventDefault();
     const content = input.trim();
-    if (!content) return;
+    if (!content && stagedAttachments.length === 0) return;
+    if (stagedAttachments.length > 0) return sendWithAttachments(content);
 
     const entry = {
       clientId: newClientId(),
@@ -298,6 +344,66 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
+  };
+
+  // Attachment sends go over REST (see channelController.js's
+  // sendMessageWithAttachments) rather than the message:send socket event
+  // and its offline outbox — an 8MB upload isn't something to silently
+  // retry forever in the background the way a text message is. A failure
+  // here just restores the composer so the user can see what happened and
+  // try again themselves.
+  const sendWithAttachments = async (content) => {
+    if (sending) return;
+    const attachmentsToSend = stagedAttachments;
+    const replyToId = replyingTo?.id || null;
+    const clientId = newClientId();
+
+    const optimistic = {
+      id: clientId,
+      client_id: clientId,
+      channel_id: channel.id,
+      user_id: user.id,
+      username: user.username,
+      avatar_color: user.avatar_color,
+      avatar_url: user.avatar_url,
+      content,
+      reply_to_id: replyToId,
+      created_at: new Date().toISOString(),
+      reactions: [],
+      pending: true,
+      attachments: attachmentsToSend.map((a, i) => ({
+        id: `pending-${clientId}-${i}`,
+        filename: a.filename,
+        mimeType: a.mimeType,
+        sizeBytes: Math.ceil((a.data.length * 3) / 4),
+        width: a.width,
+        height: a.height,
+        localPreviewUrl: a.data,
+      })),
+    };
+
+    setMessages((prev) => [...prev, optimistic]);
+    setInput('');
+    setStagedAttachments([]);
+    clearDraft();
+    setReplyingTo(null);
+    shouldStickToBottomRef.current = true;
+    stopTyping();
+    setSending(true);
+
+    try {
+      const saved = await api.post(`/channels/${channel.id}/messages`, {
+        content, replyToId, clientId, attachments: attachmentsToSend,
+      });
+      setMessages((prev) => reconcileMessage(prev, saved));
+    } catch (err) {
+      setMessages((prev) => prev.filter((m) => m.client_id !== clientId));
+      setInput(content);
+      setStagedAttachments(attachmentsToSend);
+      setAttachmentError(err.message || 'Failed to send attachment.');
+    } finally {
+      setSending(false);
+    }
   };
 
   const retryMessage = (msg) => {
@@ -534,19 +640,40 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
             onSelect={selectMention}
           />
         )}
+        {attachmentError && <div className={styles.attachmentError}>{attachmentError}</div>}
+        {stagedAttachments.length > 0 && (
+          <div className={styles.stagedAttachments}>
+            {stagedAttachments.map((a, i) => (
+              <div key={i} className={styles.stagedAttachment}>
+                {isImageMime(a.mimeType)
+                  ? <img src={a.data} alt={a.filename} className={styles.stagedThumb} />
+                  : <span className={styles.stagedFileIcon}>📄</span>}
+                <span className={styles.stagedName} title={a.filename}>{a.filename}</span>
+                <button type="button" onClick={() => removeStagedAttachment(i)} title="Remove">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
         <form onSubmit={sendMessage} className={styles.inputArea}>
           <textarea
             ref={inputRef}
             value={input}
             onChange={handleTyping}
             onKeyDown={handleInputKeyDown}
+            onPaste={handlePaste}
             onBlur={() => { stopTyping(); mention.close(); }}
             placeholder={`Message #${channel.name}`}
             className={styles.input}
             maxLength={2000}
             rows={1}
           />
-          <button type="submit" className={styles.sendBtn} disabled={!input.trim()}>
+          <button type="button" className={styles.attachBtn} onClick={() => fileInputRef.current?.click()} title="Attach a file">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z"/>
+            </svg>
+          </button>
+          <input ref={fileInputRef} type="file" multiple hidden onChange={handleFileInputChange} />
+          <button type="submit" className={styles.sendBtn} disabled={!input.trim() && stagedAttachments.length === 0}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
             </svg>

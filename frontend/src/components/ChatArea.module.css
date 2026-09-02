@@ -267,3 +267,71 @@
 
 .sendBtn:hover:not(:disabled) { background: var(--accent-hover); }
 .sendBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.attachBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s, background 0.15s;
+}
+.attachBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.attachmentError {
+  padding: 6px 12px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  background: rgba(242, 63, 66, 0.1);
+  border: 1px solid rgba(242, 63, 66, 0.3);
+  color: var(--red);
+  font-size: 12px;
+}
+
+.stagedAttachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 4px;
+}
+
+.stagedAttachment {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  max-width: 200px;
+}
+
+.stagedThumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.stagedFileIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.stagedName {
+  font-size: 12px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stagedAttachment button {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding: 2px;
+}
+.stagedAttachment button:hover { color: var(--red); }

@@ -139,6 +139,99 @@
   text-decoration: underline;
 }
 
+.attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.attachmentImageBtn {
+  display: block;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-width: 360px;
+  max-height: 300px;
+}
+
+.attachmentImage {
+  display: block;
+  max-width: 360px;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  border-radius: var(--radius-md);
+  cursor: zoom-in;
+}
+
+.attachmentFile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  max-width: 320px;
+  transition: background 0.1s;
+}
+.attachmentFile:hover { background: var(--bg-hover); }
+
+.attachmentFileIcon { font-size: 22px; flex-shrink: 0; }
+
+.attachmentFileInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.attachmentFileName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentFileSize {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  cursor: zoom-out;
+}
+
+.lightboxImage {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: var(--radius-sm);
+  cursor: default;
+}
+
+.lightboxClose {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightboxClose:hover { background: rgba(255, 255, 255, 0.2); }
+
 .reactions {
   display: flex;
   flex-wrap: wrap;

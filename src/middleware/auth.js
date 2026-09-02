@@ -19,4 +19,22 @@ function adminMiddleware(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, adminMiddleware };
+// For endpoints loaded via a plain <img src>/<a href> (attachments), which
+// can't carry an Authorization header — accepts the token as a query
+// param instead, falling back to the header for any other caller. Scoped to
+// just those routes rather than folded into authMiddleware, since a token
+// in the URL shows up in server logs and browser history and shouldn't be
+// accepted more broadly than it needs to be.
+function authFromHeaderOrQuery(req, res, next) {
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+}
+
+module.exports = { authMiddleware, adminMiddleware, authFromHeaderOrQuery };

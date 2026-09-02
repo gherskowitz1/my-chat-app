@@ -5,6 +5,7 @@ import EmojiPicker from './EmojiPicker';
 import { extractEmbeds } from '../utils/linkEmbeds';
 import { EVERYONE_USER } from '../utils/mentions';
 import { EMOJI_TOKEN_RE, customEmojiName } from '../utils/customEmoji';
+import { attachmentUrl, isImageMime, formatBytes } from '../utils/attachments';
 import { useAuth } from '../context/AuthContext';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
 import styles from './Message.module.css';
@@ -162,6 +163,7 @@ export default function Message({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.content);
   const [pickerAnchor, setPickerAnchor] = useState(null);
+  const [lightboxSrc, setLightboxSrc] = useState(null);
   const textareaRef = useRef(null);
 
   const replyToMsg = msg.reply_to_id ? allMessages.find((m) => m.id === msg.reply_to_id) : null;
@@ -274,10 +276,45 @@ export default function Message({
           </div>
         ) : (
           <>
-            <p className={styles.text}>
-              {renderMentions(msg.content, users, user, styles, onMentionClick, emojiByName)}
-              {msg.updated_at && <span className={styles.edited}> (edited)</span>}
-            </p>
+            {msg.content && (
+              <p className={styles.text}>
+                {renderMentions(msg.content, users, user, styles, onMentionClick, emojiByName)}
+                {msg.updated_at && <span className={styles.edited}> (edited)</span>}
+              </p>
+            )}
+            {msg.attachments?.length > 0 && (
+              <div className={styles.attachments}>
+                {msg.attachments.map((a) => {
+                  const src = a.localPreviewUrl || attachmentUrl(a.id);
+                  return isImageMime(a.mimeType) ? (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className={styles.attachmentImageBtn}
+                      onClick={(e) => { e.stopPropagation(); setLightboxSrc(src); }}
+                    >
+                      <img src={src} alt={a.filename} className={styles.attachmentImage} loading="lazy" />
+                    </button>
+                  ) : (
+                    <a
+                      key={a.id}
+                      href={src}
+                      download={a.filename}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={styles.attachmentFile}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className={styles.attachmentFileIcon}>📄</span>
+                      <span className={styles.attachmentFileInfo}>
+                        <span className={styles.attachmentFileName}>{a.filename}</span>
+                        <span className={styles.attachmentFileSize}>{formatBytes(a.sizeBytes)}</span>
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
             {extractEmbeds(msg.content).map((embed) => (
               <LinkEmbed key={embed.key} embed={embed} />
             ))}
@@ -347,6 +384,13 @@ export default function Message({
           onClose={() => setPickerAnchor(null)}
           onSelect={(emoji) => { onReact?.(msg.id, emoji); setPickerAnchor(null); }}
         />
+      )}
+
+      {lightboxSrc && (
+        <div className={styles.lightbox} onClick={(e) => { e.stopPropagation(); setLightboxSrc(null); }}>
+          <img src={lightboxSrc} alt="" className={styles.lightboxImage} onClick={(e) => e.stopPropagation()} />
+          <button type="button" className={styles.lightboxClose} onClick={() => setLightboxSrc(null)}>✕</button>
+        </div>
       )}
     </div>
   );

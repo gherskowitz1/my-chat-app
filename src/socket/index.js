@@ -455,4 +455,10 @@ function setupSocket(io) {
   });
 }
 
-module.exports = { setupSocket, emitToUser };
+// Lets REST controllers (attachment sends bypass the socket handlers
+// entirely) check presence without reaching into the private onlineUsers map.
+function isOnline(userId) {
+  return onlineUsers.has(userId);
+}
+
+module.exports = { setupSocket, emitToUser, isOnline };
