@@ -6,7 +6,7 @@ import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
 
-export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, hasUnreadDMs, hasUnreadChannels }) {
+export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
   const myStatus = statusMap.get(user?.id) || 'offline';
@@ -54,6 +54,14 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
         </svg>
+      </button>
+
+      {/* Friends — visible to everyone */}
+      <button className={styles.iconBtn} onClick={onOpenFriends} title="Friends" style={{ position: 'relative' }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+        </svg>
+        {pendingFriendRequests > 0 && <span className={styles.navDot} />}
       </button>
 
       {/* User guide — visible to everyone */}

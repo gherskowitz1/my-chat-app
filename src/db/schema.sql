@@ -170,6 +170,18 @@ CREATE TABLE IF NOT EXISTS bot_settings (
 );
 INSERT INTO bot_settings (id, patch_poll_minutes) VALUES (1, 180) ON CONFLICT (id) DO NOTHING;
 
+-- Friendships — one row per pair, direction preserved via requester/addressee
+-- so a pending request can be told apart from an accepted friendship.
+-- Purely additive: DMs remain open to anyone regardless of friend status.
+CREATE TABLE IF NOT EXISTS friendships (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  requester_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  addressee_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (requester_id, addressee_id)
+);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

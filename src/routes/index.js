@@ -18,6 +18,7 @@ const {
   getPatchBotSettings, updatePatchBotSettings,
 } = require('../controllers/gameController');
 const { getPinnedMessages, pinMessage, unpinMessage } = require('../controllers/pinController');
+const { getFriends, sendRequest, acceptRequest, declineRequest, removeFriend } = require('../controllers/friendController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -50,6 +51,13 @@ router.get('/dm/conversations/:conversationId/messages/around/:messageId', authM
 
 // Search
 router.get('/search', authMiddleware, searchMessages);
+
+// Friends — additive only, does not gate DMs
+router.get('/friends', authMiddleware, getFriends);
+router.post('/friends/request/:userId', authMiddleware, sendRequest);
+router.post('/friends/accept/:userId', authMiddleware, acceptRequest);
+router.post('/friends/decline/:userId', authMiddleware, declineRequest);
+router.delete('/friends/:userId', authMiddleware, removeFriend);
 
 // Admin
 router.get('/servers/:serverId', authMiddleware, getServer);

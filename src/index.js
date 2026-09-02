@@ -22,6 +22,9 @@ const allowedOrigins = process.env.CLIENT_URL
 const io = new Server(server, {
   cors: { origin: allowedOrigins, credentials: true },
 });
+// Lets REST controllers (e.g. friend requests) push a live socket event to a
+// specific user without needing their own reference threaded through.
+app.set('io', io);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 // Raised from the 100kb default to fit base64-encoded avatar image uploads.

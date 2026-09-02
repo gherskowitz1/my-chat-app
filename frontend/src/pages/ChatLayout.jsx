@@ -10,6 +10,7 @@ import UserSettings from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
 import WhatsNewModal from '../components/WhatsNewModal';
 import SearchPanel from '../components/SearchPanel';
+import FriendsPanel from '../components/FriendsPanel';
 import { mentionsUser } from '../utils/mentions';
 import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
@@ -42,6 +43,8 @@ export default function ChatLayout() {
   const [toasts, setToasts] = useState([]);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [pendingJump, setPendingJump] = useState(null); // { type: 'channel'|'dm', targetId, messageId }
   const toastIdRef = useRef(0);
 
@@ -79,6 +82,27 @@ export default function ChatLayout() {
       })
       .catch(() => setServerName('General Server'));
   }, []);
+
+  useEffect(() => {
+    api.get('/friends').then((d) => setPendingFriendRequests(d.incoming.length)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onFriendRequest = ({ username }) => {
+      setPendingFriendRequests((n) => n + 1);
+      pushToast({ title: 'Friend Request', body: `${username} wants to be friends`, onClick: () => setShowFriends(true) });
+    };
+    const onFriendAccepted = ({ username }) => {
+      pushToast({ title: 'Friend Request Accepted', body: `${username} accepted your friend request`, onClick: () => setShowFriends(true) });
+    };
+    socket.on('friend:request', onFriendRequest);
+    socket.on('friend:accepted', onFriendAccepted);
+    return () => {
+      socket.off('friend:request', onFriendRequest);
+      socket.off('friend:accepted', onFriendAccepted);
+    };
+  }, [socket, pushToast]);
 
   // Unread badges, in-app toasts, and (inside the Electron app only) desktop
   // notifications — all driven by the same notify:message/notify:dm events
@@ -265,8 +289,10 @@ export default function ChatLayout() {
         onOpenAdmin={() => setShowAdmin(true)}
         onOpenSettings={() => setShowSettings(true)}
         onOpenSearch={() => setShowSearch(true)}
+        onOpenFriends={() => setShowFriends(true)}
         hasUnreadDMs={unreadDMs.size > 0}
         hasUnreadChannels={unreadChannels.size > 0}
+        pendingFriendRequests={pendingFriendRequests}
       />
 
       {activeSection === 'server' ? (
@@ -334,6 +360,19 @@ export default function ChatLayout() {
           onClose={() => setShowSearch(false)}
           onJumpToChannel={jumpToChannelResult}
           onJumpToDm={jumpToDmResult}
+        />
+      )}
+
+      {showFriends && (
+        <FriendsPanel
+          onClose={() => {
+            setShowFriends(false);
+            // Accept/decline happens inside the panel — resync the badge
+            // count now that it's closing rather than threading a callback
+            // through every action.
+            api.get('/friends').then((d) => setPendingFriendRequests(d.incoming.length)).catch(() => {});
+          }}
+          onOpenDM={openDM}
         />
       )}
     </div>
