@@ -182,6 +182,17 @@ CREATE TABLE IF NOT EXISTS friendships (
   UNIQUE (requester_id, addressee_id)
 );
 
+-- Custom server emoji, usable inline as :name: and as message reactions
+CREATE TABLE IF NOT EXISTS custom_emoji (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
+  name VARCHAR(32) NOT NULL,
+  image_data TEXT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (server_id, name)
+);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { CustomEmojiProvider } from './context/CustomEmojiContext';
 import AuthPage from './pages/AuthPage';
 import ChatLayout from './pages/ChatLayout';
 import PrivacyPage from './pages/PrivacyPage';
@@ -28,7 +29,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/*" element={
           user?.role === 'admin'
-            ? <AdminDashboard />
+            ? <CustomEmojiProvider><AdminDashboard /></CustomEmojiProvider>
             : user
               ? <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#f2f3f5',background:'#0f1117',flexDirection:'column',gap:16}}>
                   <p>Admin access required.</p>
@@ -47,7 +48,7 @@ function AppRoutes() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/*" element={user ? <SocketProvider><ChatLayout /></SocketProvider> : <Navigate to="/auth" replace />} />
+      <Route path="/*" element={user ? <SocketProvider><CustomEmojiProvider><ChatLayout /></CustomEmojiProvider></SocketProvider> : <Navigate to="/auth" replace />} />
     </Routes>
   );
 }

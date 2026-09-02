@@ -19,6 +19,7 @@ const {
 } = require('../controllers/gameController');
 const { getPinnedMessages, pinMessage, unpinMessage } = require('../controllers/pinController');
 const { getFriends, sendRequest, acceptRequest, declineRequest, removeFriend } = require('../controllers/friendController');
+const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -51,6 +52,11 @@ router.get('/dm/conversations/:conversationId/messages/around/:messageId', authM
 
 // Search
 router.get('/search', authMiddleware, searchMessages);
+
+// Custom server emoji — anyone can view/use, only admins can manage
+router.get('/servers/:serverId/emoji', authMiddleware, getEmoji);
+router.post('/servers/:serverId/emoji', authMiddleware, adminMiddleware, createEmoji);
+router.delete('/servers/:serverId/emoji/:emojiId', authMiddleware, adminMiddleware, deleteEmoji);
 
 // Friends — additive only, does not gate DMs
 router.get('/friends', authMiddleware, getFriends);

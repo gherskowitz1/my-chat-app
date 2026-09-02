@@ -3,41 +3,12 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
+import { resizeImageToDataUrl } from '../utils/imageResize';
 import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
 
 const MAX_SOURCE_FILE_BYTES = 10 * 1024 * 1024; // reject absurd uploads before we even try to resize them
 const AVATAR_MAX_DIMENSION = 256;
-
-// Downscale/compress in the browser so we never ship a multi-MB photo to the
-// server — a 256px JPEG comfortably fits well under the API's upload limit.
-function resizeImageToDataUrl(file, maxDimension = AVATAR_MAX_DIMENSION, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Could not read file'));
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = () => reject(new Error('Could not read image'));
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > height && width > maxDimension) {
-          height = Math.round(height * (maxDimension / width));
-          width = maxDimension;
-        } else if (height >= width && height > maxDimension) {
-          width = Math.round(width * (maxDimension / height));
-          height = maxDimension;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 const STORAGE_KEY_IN = 'chatter_audio_input';
 const STORAGE_KEY_OUT = 'chatter_audio_output';
@@ -70,7 +41,7 @@ export default function UserSettings({ onClose }) {
 
     setUploading(true);
     try {
-      const dataUrl = await resizeImageToDataUrl(file);
+      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: AVATAR_MAX_DIMENSION, quality: 0.85 });
       await updateAvatar(dataUrl);
     } catch (err) {
       setAvatarError(err.message || 'Failed to update avatar');

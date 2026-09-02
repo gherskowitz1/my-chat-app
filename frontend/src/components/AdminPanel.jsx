@@ -1,6 +1,8 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useSocket } from '../context/SocketContext';
 import { useGameTracking } from '../hooks/useGameTracking';
+import { useCustomEmoji } from '../context/CustomEmojiContext';
+import { resizeImageToDataUrl } from '../utils/imageResize';
 import Avatar from './Avatar';
 import styles from './AdminPanel.module.css';
 
@@ -22,6 +24,18 @@ async function patch(path, body) {
   const token = localStorage.getItem('token');
   const res = await fetch(`${BASE}${path}`, {
     method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
+}
+
+async function post(path, body) {
+  const token = localStorage.getItem('token');
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(body),
   });
@@ -185,11 +199,12 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.sidebar}>
           <div className={styles.sidebarTitle}>Admin Settings</div>
-          {['server', 'channels', 'games', 'users'].map(t => (
+          {['server', 'channels', 'games', 'emoji', 'users'].map(t => (
             <button key={t} className={`${styles.tabBtn} ${tab === t ? styles.active : ''}`} onClick={() => setTab(t)}>
               {t === 'server' && <ServerIcon />}
               {t === 'channels' && <ChannelIcon />}
               {t === 'games' && <GameIcon />}
+              {t === 'emoji' && <span>😀</span>}
               {t === 'users' && <UsersIcon />}
               {t === 'games' ? 'Games' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -321,6 +336,15 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               <h2>Games (PatchBot)</h2>
               <p className={styles.subtitle}>Pick which channel gets Steam patch notes for each tracked game, and how often PatchBot checks for updates.</p>
               <GamesPanel channels={channels.filter(c => c.type === 'text')} flash={flash} />
+            </div>
+          )}
+
+          {/* EMOJI TAB */}
+          {tab === 'emoji' && (
+            <div className={styles.section}>
+              <h2>Custom Emoji</h2>
+              <p className={styles.subtitle}>Upload images to use as :name: emoji in messages and as reactions.</p>
+              <EmojiTab flash={flash} />
             </div>
           )}
 
@@ -542,6 +566,102 @@ function ChannelGameList({ channel }) {
           </button>
         </div>
       ))}
+    </div>
+  );
+}
+
+const MAX_EMOJI_SOURCE_BYTES = 10 * 1024 * 1024;
+const EMOJI_MAX_DIMENSION = 96;
+const EMOJI_NAME_RE = /^[a-zA-Z0-9_]{2,30}$/;
+
+function EmojiTab({ flash }) {
+  const { emoji, refresh } = useCustomEmoji();
+  const [name, setName] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+
+    if (!EMOJI_NAME_RE.test(name)) {
+      setError('Enter a name first (2-30 letters, numbers, or underscores).');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file.');
+      return;
+    }
+    if (file.size > MAX_EMOJI_SOURCE_BYTES) {
+      setError('That image is too large (max 10MB).');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const imageData = await resizeImageToDataUrl(file, { maxDimension: EMOJI_MAX_DIMENSION, quality: 0.9, mimeType: 'image/png' });
+      await post(`/servers/${DEFAULT_SERVER}/emoji`, { name: name.trim(), imageData });
+      setName('');
+      refresh();
+      flash(`Added :${name.trim().toLowerCase()}:`);
+    } catch (err) {
+      setError(err.message || 'Failed to upload emoji');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeEmoji = async (e) => {
+    if (!confirm(`Delete :${e.name}:? This removes it from any messages/reactions still using it.`)) return;
+    try {
+      await del(`/servers/${DEFAULT_SERVER}/emoji/${e.id}`);
+      refresh();
+      flash(`Removed :${e.name}:`);
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>ADD EMOJI</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className={styles.channelInput}
+            style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', width: 180 }}
+            placeholder="name (no colons)"
+            value={name}
+            onChange={(ev) => setName(ev.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+            maxLength={30}
+          />
+          <button type="button" className={styles.saveSmall} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? 'Uploading…' : 'Choose Image'}
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFile} />
+        </div>
+        {error && <p className={styles.hint} style={{ color: 'var(--red)' }}>{error}</p>}
+        <p className={styles.hint}>{emoji.length} / 200 emoji used.</p>
+      </div>
+
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>SERVER EMOJI</div>
+        {emoji.length === 0 && <p className={styles.hint}>No custom emoji yet.</p>}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          {emoji.map((e) => (
+            <div key={e.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 72 }}>
+              <img src={e.image_data} alt={`:${e.name}:`} width={36} height={36} style={{ objectFit: 'contain' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-secondary)', wordBreak: 'break-all', textAlign: 'center' }}>:{e.name}:</span>
+              <button className={styles.deleteBtn} style={{ opacity: 1 }} onClick={() => removeEmoji(e)} title="Delete emoji">
+                <TrashIcon />
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

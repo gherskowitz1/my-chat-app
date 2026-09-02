@@ -4,7 +4,9 @@ import LinkEmbed from './LinkEmbed';
 import EmojiPicker from './EmojiPicker';
 import { extractEmbeds } from '../utils/linkEmbeds';
 import { EVERYONE_USER } from '../utils/mentions';
+import { EMOJI_TOKEN_RE, customEmojiName } from '../utils/customEmoji';
 import { useAuth } from '../context/AuthContext';
+import { useCustomEmoji } from '../context/CustomEmojiContext';
 import styles from './Message.module.css';
 
 function escapeRegExp(s) {
@@ -21,7 +23,30 @@ const URL_RE = /(https?:\/\/[^\s]+)/g;
 // snake_case_identifiers and file_names don't get parsed as italic/bold.
 const MARKDOWN_RE = /(```[\s\S]*?```)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|((?<!\w)__[^_\n]+?__(?!\w))|(~~[^~\n]+?~~)|(\*[^*\n]+?\*)|((?<!\w)_[^_\n]+?_(?!\w))/g;
 
-function parseMarkdown(text, keyPrefix, mdStyles) {
+// Replaces recognized :name: tokens in plain text with inline <img> elements
+// for the server's custom emoji; unrecognized tokens are left as literal text
+// (so ":shrug:" with no matching upload just reads as typed).
+function renderCustomEmoji(text, keyPrefix, emojiByName) {
+  if (!emojiByName || emojiByName.size === 0 || !text.includes(':')) return [text];
+  const segments = text.split(EMOJI_TOKEN_RE);
+  if (segments.length === 1) return [text];
+  return segments.map((seg, i) => {
+    if (i % 2 === 0) return seg;
+    const found = emojiByName.get(seg.toLowerCase());
+    if (!found) return `:${seg}:`;
+    return (
+      <img
+        key={`${keyPrefix}-emj${i}`}
+        src={found.image_data}
+        alt={`:${seg}:`}
+        title={`:${seg}:`}
+        className={styles.customEmoji}
+      />
+    );
+  });
+}
+
+function parseMarkdown(text, keyPrefix, mdStyles, emojiByName) {
   if (!text) return text;
   let m;
   let lastIndex = 0;
@@ -29,7 +54,7 @@ function parseMarkdown(text, keyPrefix, mdStyles) {
   const parts = [];
   MARKDOWN_RE.lastIndex = 0;
   while ((m = MARKDOWN_RE.exec(text))) {
-    if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index));
+    if (m.index > lastIndex) parts.push(...renderCustomEmoji(text.slice(lastIndex, m.index), `${keyPrefix}-pre${key}`, emojiByName));
     const matched = m[0];
     const k = `${keyPrefix}-md${key++}`;
     if (matched.startsWith('```')) {
@@ -46,7 +71,7 @@ function parseMarkdown(text, keyPrefix, mdStyles) {
     }
     lastIndex = MARKDOWN_RE.lastIndex;
   }
-  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  if (lastIndex < text.length) parts.push(...renderCustomEmoji(text.slice(lastIndex), `${keyPrefix}-tail`, emojiByName));
   return parts.length > 0 ? parts : text;
 }
 
@@ -56,11 +81,11 @@ function parseMarkdown(text, keyPrefix, mdStyles) {
 // sentence punctuation is peeled off so "check this out: https://x.com." or
 // "(https://x.com)" don't pull the period/paren into the URL itself. The
 // plain (non-URL) text in between still gets markdown formatting applied.
-function linkify(text, mdStyles) {
+function linkify(text, mdStyles, emojiByName) {
   const segments = text.split(URL_RE);
-  if (segments.length === 1) return parseMarkdown(text, 'lf', mdStyles);
+  if (segments.length === 1) return parseMarkdown(text, 'lf', mdStyles, emojiByName);
   return segments.map((seg, i) => {
-    if (i % 2 === 0) return <React.Fragment key={i}>{parseMarkdown(seg, `lf${i}`, mdStyles)}</React.Fragment>;
+    if (i % 2 === 0) return <React.Fragment key={i}>{parseMarkdown(seg, `lf${i}`, mdStyles, emojiByName)}</React.Fragment>;
     const trailingMatch = seg.match(/[.,!?;:'")\]]+$/);
     const trailing = trailingMatch ? trailingMatch[0] : '';
     const url = trailing ? seg.slice(0, -trailing.length) : seg;
@@ -80,17 +105,17 @@ function linkify(text, mdStyles) {
 // and linkifies bare URLs in the plain-text segments in between.
 // String.split with a capturing group interleaves the matched delimiters
 // into the result, so odd indices are always the mention itself.
-function renderMentions(text, users, currentUser, mentionStyles, onMentionClick) {
+function renderMentions(text, users, currentUser, mentionStyles, onMentionClick, emojiByName) {
   const allUsers = currentUser ? [...users, currentUser] : users;
-  if (allUsers.length === 0) return linkify(text, mentionStyles);
+  if (allUsers.length === 0) return linkify(text, mentionStyles, emojiByName);
   const names = [...new Set(allUsers.map((u) => u.username))]
     .sort((a, b) => b.length - a.length)
     .map(escapeRegExp);
   const re = new RegExp(`(@(?:${names.join('|')})\\b)`, 'gi');
   const parts = text.split(re);
-  if (parts.length === 1) return linkify(text, mentionStyles);
+  if (parts.length === 1) return linkify(text, mentionStyles, emojiByName);
   return parts.map((part, i) => {
-    if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles)}</React.Fragment>;
+    if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles, emojiByName)}</React.Fragment>;
     const uname = part.slice(1);
     const isEveryone = uname.toLowerCase() === EVERYONE_USER.username && allUsers.some((u) => u.id === EVERYONE_USER.id);
     const isSelfName = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
@@ -132,6 +157,7 @@ export default function Message({
   allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage,
 }) {
   const { user } = useAuth();
+  const { emojiByName } = useCustomEmoji();
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.content);
@@ -245,7 +271,7 @@ export default function Message({
         ) : (
           <>
             <p className={styles.text}>
-              {renderMentions(msg.content, users, user, styles, onMentionClick)}
+              {renderMentions(msg.content, users, user, styles, onMentionClick, emojiByName)}
               {msg.updated_at && <span className={styles.edited}> (edited)</span>}
             </p>
             {extractEmbeds(msg.content).map((embed) => (
@@ -255,6 +281,7 @@ export default function Message({
               <div className={styles.reactions}>
                 {msg.reactions.map((r) => {
                   const mine = r.userIds.includes(user.id);
+                  const custom = emojiByName.get(customEmojiName(r.emoji));
                   return (
                     <button
                       key={r.emoji}
@@ -263,7 +290,7 @@ export default function Message({
                       onClick={() => onReact?.(msg.id, r.emoji)}
                       title={mine ? 'Remove your reaction' : 'React'}
                     >
-                      <span>{r.emoji}</span>
+                      {custom ? <img src={custom.image_data} alt={r.emoji} className={styles.reactionEmojiImg} /> : <span>{r.emoji}</span>}
                       <span className={styles.reactionCount}>{r.userIds.length}</span>
                     </button>
                   );

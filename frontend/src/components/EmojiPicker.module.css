@@ -23,3 +23,16 @@
 }
 
 .emojiBtn:hover { background: var(--bg-hover); }
+
+.divider {
+  grid-column: 1 / -1;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.customEmojiImg {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}

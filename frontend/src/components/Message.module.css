@@ -151,6 +151,20 @@
   color: var(--text-secondary);
 }
 
+.reactionEmojiImg {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+}
+
+.customEmoji {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin: -2px 1px;
+}
+
 .highlightFlash {
   animation: highlightFlash 1.5s ease-out;
 }
