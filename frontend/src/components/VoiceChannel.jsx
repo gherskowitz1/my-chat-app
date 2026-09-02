@@ -3,8 +3,9 @@ import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
+  useTracks,
 } from '@livekit/components-react';
-import { DefaultReconnectPolicy } from 'livekit-client';
+import { DefaultReconnectPolicy, Track } from 'livekit-client';
 import '@livekit/components-styles';
 import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
@@ -13,11 +14,26 @@ import VolumeMixer from './VolumeMixer';
 import VoiceControls from './VoiceControls';
 import VoiceChimes from './VoiceChimes';
 import VoiceReliability from './VoiceReliability';
+import ScreenShareWindow from './ScreenShareWindow';
 import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
 const INACTIVITY_LIMIT_MS = 4 * 60 * 60 * 1000; // 4 hours
 export const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
+
+// VideoConference's grid still owns *starting* a share (its own Share Screen
+// button — no need to reinvent that getDisplayMedia flow), but once one is
+// live, ScreenShareWindow's floating window takes over showing it instead
+// of a grid tile.
+function VideoArea() {
+  const screenShares = useTracks([Track.Source.ScreenShare]);
+  if (screenShares.length > 0) return null;
+  return (
+    <div className={styles.room}>
+      <VideoConference />
+    </div>
+  );
+}
 
 // Delays (ms) between LiveKit's own reconnect attempts after a dropped
 // connection, summing to ~15s before it gives up and fires onDisconnected —
@@ -143,9 +159,8 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
         <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
         <VoiceChimes />
         <VoiceReliability />
-        <div className={styles.room}>
-          <VideoConference />
-        </div>
+        <VideoArea />
+        <ScreenShareWindow />
         <VolumeMixer />
         <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
       </LiveKitRoom>
