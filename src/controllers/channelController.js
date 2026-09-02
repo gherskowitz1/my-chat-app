@@ -1,6 +1,16 @@
 const { pool } = require('../db');
 const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 
+const REACTIONS_SUBQUERY = `(
+  SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json)
+  FROM (
+    SELECT emoji, array_agg(user_id) AS user_ids
+    FROM message_reactions
+    WHERE message_id = m.id
+    GROUP BY emoji
+  ) t
+) AS reactions`;
+
 async function getChannels(req, res) {
   const { serverId } = req.params;
   const { id: userId, role } = req.user;
@@ -107,22 +117,12 @@ async function getMessages(req, res) {
       return res.status(403).json({ error: 'Not authorized to view this channel' });
     }
 
-    const reactionsSubquery = `(
-      SELECT COALESCE(json_agg(json_build_object('emoji', t.emoji, 'userIds', t.user_ids)), '[]'::json)
-      FROM (
-        SELECT emoji, array_agg(user_id) AS user_ids
-        FROM message_reactions
-        WHERE message_id = m.id
-        GROUP BY emoji
-      ) t
-    ) AS reactions`;
-
     const query = before
-      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM messages m
+      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY} FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${reactionsSubquery} FROM messages m
+      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY} FROM messages m
          JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;
@@ -135,4 +135,49 @@ async function getMessages(req, res) {
   }
 }
 
-module.exports = { getChannels, createChannel, deleteChannel, getMessages, getChannelMembers, updateChannelAccess };
+// Loads a window of messages centered on a specific one — used when jumping
+// to a search result (or an old reply/pin) that isn't in the currently
+// loaded page. hasMoreAfter tells the client whether it's now viewing a
+// "historical" window with newer messages beyond it it hasn't loaded.
+async function getMessagesAround(req, res) {
+  const { channelId, messageId } = req.params;
+  const { id: userId, role } = req.user;
+  try {
+    const channel = await getChannelById(channelId);
+    if (!(await canAccessChannel(channel, userId, role))) {
+      return res.status(403).json({ error: 'Not authorized to view this channel' });
+    }
+
+    const { rows: targetRows } = await pool.query(
+      'SELECT created_at FROM messages WHERE id = $1 AND channel_id = $2',
+      [messageId, channelId]
+    );
+    if (!targetRows[0]) return res.status(404).json({ error: 'Message not found' });
+    const targetTime = targetRows[0].created_at;
+
+    const { rows: before } = await pool.query(
+      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY} FROM messages m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.channel_id = $1 AND m.created_at <= $2
+       ORDER BY m.created_at DESC LIMIT 26`,
+      [channelId, targetTime]
+    );
+    const { rows: after } = await pool.query(
+      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY} FROM messages m
+       JOIN users u ON u.id = m.user_id
+       WHERE m.channel_id = $1 AND m.created_at > $2
+       ORDER BY m.created_at ASC LIMIT 25`,
+      [channelId, targetTime]
+    );
+
+    res.json({
+      messages: [...before.reverse(), ...after],
+      hasMoreBefore: before.length === 26,
+      hasMoreAfter: after.length === 25,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess };

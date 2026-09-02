@@ -14,7 +14,7 @@ import messageStyles from './Message.module.css';
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
 
-export default function DMArea({ conversation, onOpenDM }) {
+export default function DMArea({ conversation, onOpenDM, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -24,6 +24,7 @@ export default function DMArea({ conversation, onOpenDM }) {
   const [replyingTo, setReplyingTo] = useState(null); // { id, username, content }
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [viewingHistorical, setViewingHistorical] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const messagesRef = useRef(null);
@@ -39,14 +40,6 @@ export default function DMArea({ conversation, onOpenDM }) {
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
-  };
-
-  const scrollToMessage = (messageId) => {
-    const el = document.getElementById(`msg-${messageId}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add(messageStyles.highlightFlash);
-    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
   };
 
   const fetchMessages = useCallback(async () => {
@@ -77,6 +70,34 @@ export default function DMArea({ conversation, onOpenDM }) {
     }
   }, [conversation.id, messages, hasMore, loadingMore]);
 
+  const flashMessage = (messageId) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add(messageStyles.highlightFlash);
+    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
+    return true;
+  };
+
+  const scrollToMessage = async (messageId) => {
+    if (flashMessage(messageId)) return;
+    try {
+      const data = await api.get(`/dm/conversations/${conversation.id}/messages/around/${messageId}`);
+      setMessages(data.messages);
+      setHasMore(data.hasMoreBefore);
+      setViewingHistorical(data.hasMoreAfter);
+      shouldStickToBottomRef.current = false;
+      requestAnimationFrame(() => setTimeout(() => flashMessage(messageId), 60));
+    } catch {}
+  };
+
+  const jumpToPresent = async () => {
+    setViewingHistorical(false);
+    shouldStickToBottomRef.current = true;
+    await fetchMessages();
+    bottomRef.current?.scrollIntoView();
+  };
+
   const handleMessagesScroll = (e) => {
     const el = e.currentTarget;
     shouldStickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -88,15 +109,22 @@ export default function DMArea({ conversation, onOpenDM }) {
     setHasMore(true);
     setTyping([]);
     setReplyingTo(null);
+    setViewingHistorical(false);
     shouldStickToBottomRef.current = true;
-    fetchMessages();
     socket?.emit('dm:join', conversation.id);
-  }, [conversation.id, fetchMessages, socket]);
+
+    if (jumpToMessageId) {
+      scrollToMessage(jumpToMessageId);
+      onJumpHandled?.();
+    } else {
+      fetchMessages();
+    }
+  }, [conversation.id, jumpToMessageId, fetchMessages, socket]);
 
   useEffect(() => {
     if (!socket) return;
     const onNew = (msg) => {
-      if (msg.conversation_id === conversation.id) setMessages((p) => [...p, msg]);
+      if (msg.conversation_id === conversation.id && !viewingHistorical) setMessages((p) => [...p, msg]);
     };
     const onEdited = (updated) => {
       if (updated.conversation_id !== conversation.id) return;
@@ -127,7 +155,7 @@ export default function DMArea({ conversation, onOpenDM }) {
       socket.off('dm:typing:update', onTyping);
       socket.off('dm:reactions', onReactions);
     };
-  }, [socket, conversation.id, user.id]);
+  }, [socket, conversation.id, user.id, viewingHistorical]);
 
   useEffect(() => {
     if (shouldStickToBottomRef.current) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -220,6 +248,12 @@ export default function DMArea({ conversation, onOpenDM }) {
         />
         <h3>{conversation.other_username}</h3>
       </div>
+
+      {viewingHistorical && (
+        <button type="button" className={styles.jumpToPresentBar} onClick={jumpToPresent}>
+          Viewing an older point in the conversation — Jump to Present ↓
+        </button>
+      )}
 
       <div className={styles.messages} ref={messagesRef} onScroll={handleMessagesScroll}>
         {loadingMore && <div className={styles.loadingMore}>Loading earlier messages…</div>}

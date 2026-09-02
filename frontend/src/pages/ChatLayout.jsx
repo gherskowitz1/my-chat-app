@@ -9,6 +9,7 @@ import AdminPanel from '../components/AdminPanel';
 import UserSettings from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
 import WhatsNewModal from '../components/WhatsNewModal';
+import SearchPanel from '../components/SearchPanel';
 import { mentionsUser } from '../utils/mentions';
 import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
@@ -40,6 +41,8 @@ export default function ChatLayout() {
   const [unreadDMs, setUnreadDMs] = useState(new Map()); // conversationId -> count
   const [toasts, setToasts] = useState([]);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [pendingJump, setPendingJump] = useState(null); // { type: 'channel'|'dm', targetId, messageId }
   const toastIdRef = useRef(0);
 
   // Show the changelog once to a returning user whose last-seen version is
@@ -236,6 +239,24 @@ export default function ChatLayout() {
     }
   }, []);
 
+  // Search result click — switch to the right channel/DM, then hand it a
+  // pending jump target; ChatArea/DMArea resolve it (scrolling directly if
+  // already loaded, or fetching a window of history centered on it).
+  const jumpToChannelResult = (result) => {
+    selectChannel({ id: result.channel_id, name: result.channel_name });
+    setActiveSection('server');
+    setPendingJump({ type: 'channel', targetId: result.channel_id, messageId: result.id });
+    setShowSearch(false);
+  };
+
+  const jumpToDmResult = async (result) => {
+    await openDMByConversationId(result.conversation_id);
+    setPendingJump({ type: 'dm', targetId: result.conversation_id, messageId: result.id });
+    setShowSearch(false);
+  };
+
+  const clearPendingJump = useCallback(() => setPendingJump(null), []);
+
   return (
     <div className={styles.layout}>
       <ServerSidebar
@@ -243,6 +264,7 @@ export default function ChatLayout() {
         onSectionChange={setActiveSection}
         onOpenAdmin={() => setShowAdmin(true)}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenSearch={() => setShowSearch(true)}
         hasUnreadDMs={unreadDMs.size > 0}
         hasUnreadChannels={unreadChannels.size > 0}
       />
@@ -273,9 +295,16 @@ export default function ChatLayout() {
             onToggleMembers={() => setShowMembers((v) => !v)}
             showMembers={showMembers}
             onOpenDM={openDM}
+            jumpToMessageId={pendingJump?.type === 'channel' && pendingJump.targetId === activeChannel.id ? pendingJump.messageId : null}
+            onJumpHandled={clearPendingJump}
           />
         ) : activeSection === 'dm' && activeConversation ? (
-          <DMArea conversation={activeConversation} onOpenDM={openDM} />
+          <DMArea
+            conversation={activeConversation}
+            onOpenDM={openDM}
+            jumpToMessageId={pendingJump?.type === 'dm' && pendingJump.targetId === activeConversation.id ? pendingJump.messageId : null}
+            onJumpHandled={clearPendingJump}
+          />
         ) : (
           <EmptyState section={activeSection} />
         )}
@@ -299,6 +328,14 @@ export default function ChatLayout() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       {showWhatsNew && <WhatsNewModal onClose={dismissWhatsNew} />}
+
+      {showSearch && (
+        <SearchPanel
+          onClose={() => setShowSearch(false)}
+          onJumpToChannel={jumpToChannelResult}
+          onJumpToDm={jumpToDmResult}
+        />
+      )}
     </div>
   );
 }

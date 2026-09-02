@@ -66,6 +66,13 @@ CREATE TABLE IF NOT EXISTS messages (
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL;
 
+-- Full-text search — a generated column keeps the tsvector in sync with
+-- content automatically (no trigger needed), and the GIN index makes
+-- @@ lookups fast even as message history grows.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS content_tsv tsvector
+  GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+CREATE INDEX IF NOT EXISTS idx_messages_content_tsv ON messages USING GIN (content_tsv);
+
 CREATE TABLE IF NOT EXISTS message_reactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   message_id UUID REFERENCES messages(id) ON DELETE CASCADE,
@@ -111,6 +118,10 @@ CREATE TABLE IF NOT EXISTS dm_messages (
 
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES dm_messages(id) ON DELETE SET NULL;
+
+ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS content_tsv tsvector
+  GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;
+CREATE INDEX IF NOT EXISTS idx_dm_messages_content_tsv ON dm_messages USING GIN (content_tsv);
 
 CREATE TABLE IF NOT EXISTS dm_message_reactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

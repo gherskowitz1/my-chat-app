@@ -16,7 +16,7 @@ import messageStyles from './Message.module.css';
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
 
-export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM }) {
+export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -30,6 +30,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [replyingTo, setReplyingTo] = useState(null); // { id, username, content }
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [viewingHistorical, setViewingHistorical] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const messagesRef = useRef(null);
@@ -41,14 +42,6 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const { clearDraft } = useDraft(channel.id, input, setInput);
 
   const isAdmin = user?.role === 'admin';
-
-  const scrollToMessage = (messageId) => {
-    const el = document.getElementById(`msg-${messageId}`);
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add(messageStyles.highlightFlash);
-    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
-  };
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -89,6 +82,37 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     }
   }, [channel.id, messages, hasMore, loadingMore]);
 
+  const flashMessage = (messageId) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return false;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add(messageStyles.highlightFlash);
+    setTimeout(() => el.classList.remove(messageStyles.highlightFlash), 1500);
+    return true;
+  };
+
+  // Jumps to a message — scrolls to it directly if it's already loaded,
+  // otherwise fetches a window of history centered on it (e.g. an old
+  // search result or reply-quote target far outside the current page).
+  const scrollToMessage = async (messageId) => {
+    if (flashMessage(messageId)) return;
+    try {
+      const data = await api.get(`/channels/${channel.id}/messages/around/${messageId}`);
+      setMessages(data.messages);
+      setHasMore(data.hasMoreBefore);
+      setViewingHistorical(data.hasMoreAfter);
+      shouldStickToBottomRef.current = false;
+      requestAnimationFrame(() => setTimeout(() => flashMessage(messageId), 60));
+    } catch {}
+  };
+
+  const jumpToPresent = async () => {
+    setViewingHistorical(false);
+    shouldStickToBottomRef.current = true;
+    await fetchMessages();
+    bottomRef.current?.scrollIntoView();
+  };
+
   const handleMessagesScroll = (e) => {
     const el = e.currentTarget;
     shouldStickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -100,10 +124,22 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     setHasMore(true);
     setTyping([]);
     setReplyingTo(null);
+    setViewingHistorical(false);
     shouldStickToBottomRef.current = true;
-    fetchMessages();
     socket?.emit('channel:join', channel.id);
-  }, [channel.id, fetchMessages, socket]);
+
+    // A search/reply/pin jump can target either a channel switch or a new
+    // target within the channel already open — both funnel through here
+    // (keyed on jumpToMessageId too) so there's only ever one thing loading
+    // messages for a given trigger, instead of this effect's normal fetch
+    // racing a separate jump-effect's historical fetch over who sets state last.
+    if (jumpToMessageId) {
+      scrollToMessage(jumpToMessageId);
+      onJumpHandled?.();
+    } else {
+      fetchMessages();
+    }
+  }, [channel.id, jumpToMessageId, fetchMessages, socket]);
 
   useEffect(() => {
     api.get(`/channels/${channel.id}/pins`)
@@ -114,7 +150,10 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   useEffect(() => {
     if (!socket) return;
     const onNew = (msg) => {
-      if (msg.channel_id === channel.id) {
+      // Viewing an old window jumped to from search/reply/pin — appending a
+      // live message here would tack it onto the end with a time gap in
+      // between; let "Jump to Present" bring the user back to it instead.
+      if (msg.channel_id === channel.id && !viewingHistorical) {
         setMessages((prev) => [...prev, msg]);
       }
     };
@@ -165,7 +204,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       socket.off('message:pinned', onPinned);
       socket.off('message:unpinned', onUnpinned);
     };
-  }, [socket, channel.id, user.id]);
+  }, [socket, channel.id, user.id, viewingHistorical]);
 
   useEffect(() => {
     // Only auto-scroll when the user was already at the bottom — otherwise
@@ -312,6 +351,12 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
           onClose={() => setShowPins(false)}
           onJump={scrollToMessage}
         />
+      )}
+
+      {viewingHistorical && (
+        <button type="button" className={styles.jumpToPresentBar} onClick={jumpToPresent}>
+          Viewing an older point in the conversation — Jump to Present ↓
+        </button>
       )}
 
       <div className={styles.messages} ref={messagesRef} onScroll={handleMessagesScroll}>
