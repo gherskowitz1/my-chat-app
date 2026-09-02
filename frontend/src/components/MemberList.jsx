@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Avatar from './Avatar';
 import styles from './MemberList.module.css';
 
-export default function MemberList({ serverId }) {
+export default function MemberList({ serverId, onClose }) {
   const { user } = useAuth();
   const { statusMap } = useSocket();
   const [members, setMembers] = useState([]);
@@ -23,6 +23,7 @@ export default function MemberList({ serverId }) {
 
   return (
     <div className={styles.list}>
+      <button className={styles.closeBtn} onClick={onClose} title="Close member list">✕</button>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Online — {online.length}</div>
         {online.map((m) => <MemberItem key={m.id} member={m} status={statusOf(m.id)} />)}

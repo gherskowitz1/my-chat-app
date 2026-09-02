@@ -25,6 +25,23 @@
   .layout:not(.chatOpen) .main { display: none; }
 }
 
+.membersBackdrop {
+  display: none;
+}
+
+/* Dims the screen behind the member-list overlay on mobile and closes it on
+   tap, same as any other mobile drawer — sits just behind MemberList's own
+   z-index (50) from MemberList.module.css. */
+@media (max-width: 768px) {
+  .membersBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 49;
+  }
+}
+
 .empty {
   flex: 1;
   display: flex;

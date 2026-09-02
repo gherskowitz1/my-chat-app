@@ -32,7 +32,10 @@ export default function ChatLayout() {
   const [activeSection, setActiveSection] = useState('server');
   const [activeChannel, setActiveChannel] = useState(null);
   const [activeConversation, setActiveConversation] = useState(null);
-  const [showMembers, setShowMembers] = useState(true);
+  // Defaults open on desktop (there's room for it) but closed on a phone —
+  // otherwise it'd immediately overlay the chat (and the very button that
+  // closes it) the first time you open any channel.
+  const [showMembers, setShowMembers] = useState(() => window.innerWidth > 768);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [serverName, setServerName] = useState('');
@@ -349,8 +352,16 @@ export default function ChatLayout() {
         )}
       </div>
 
-      {/* Pinned member list — visible across text channels, voice channels, and DMs alike */}
-      {showMembers && <MemberList serverId={DEFAULT_SERVER} />}
+      {/* Pinned member list — visible across text channels, voice channels, and DMs alike.
+          On mobile it's an overlay (see MemberList.module.css), so it needs its own
+          backdrop and close control rather than relying on the header toggle button,
+          which the overlay would otherwise cover. */}
+      {showMembers && (
+        <>
+          <div className={styles.membersBackdrop} onClick={() => setShowMembers(false)} />
+          <MemberList serverId={DEFAULT_SERVER} onClose={() => setShowMembers(false)} />
+        </>
+      )}
 
       {showAdmin && (
         <AdminPanel
