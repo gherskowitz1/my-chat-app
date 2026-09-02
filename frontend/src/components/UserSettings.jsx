@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { resizeImageToDataUrl } from '../utils/imageResize';
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
+import { playTestChime } from '../utils/testChime';
 import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
 
@@ -138,6 +139,7 @@ function AudioTab() {
   const [noiseSuppression, setNoiseSuppression] = useState(localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false');
   const [bitrateCap, setBitrateCap] = useState(localStorage.getItem(STORAGE_KEY_BITRATE) || '');
   const [testing, setTesting] = useState(false);
+  const [testingOutput, setTestingOutput] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -174,6 +176,14 @@ function AudioTab() {
     } catch { setTesting(false); }
   };
 
+  const testOutput = async () => {
+    setTestingOutput(true);
+    try {
+      await playTestChime(selectedOutput);
+    } catch { /* ignore — just no chime */ }
+    setTimeout(() => setTestingOutput(false), 700);
+  };
+
   if (permissionError) {
     return (
       <div className={styles.permError}>
@@ -202,6 +212,9 @@ function AudioTab() {
           <option value="">System Default</option>
           {outputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0,8)}`}</option>)}
         </select>
+        <button className={styles.testBtn} onClick={testOutput} disabled={testingOutput}>
+          {testingOutput ? <><span className={styles.pulse} /> Playing…</> : <><SpeakerIcon /> Test Speaker</>}
+        </button>
         {outputs.length === 0 && <p className={styles.hint}>Output device selection requires Chrome or Edge.</p>}
       </section>
 

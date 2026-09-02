@@ -2,8 +2,8 @@ const { pool } = require('../db');
 
 const NAME_RE = /^[a-zA-Z0-9_ -]{2,32}$/;
 const AUDIO_DATA_URL_RE = /^data:audio\/(mpeg|mp3|wav|wave|x-wav|ogg|webm|mp4|x-m4a|aac);base64,/;
-const MAX_AUDIO_LENGTH = 2_000_000; // ~1.5MB of raw audio — plenty for a few-second clip
-const MAX_SOUNDS_PER_SERVER = 100;
+const MAX_AUDIO_LENGTH = 7_000_000; // ~5MB of raw audio once base64 overhead is accounted for
+const MAX_SOUNDS_PER_SERVER = 500;
 
 async function getSounds(req, res) {
   const { serverId } = req.params;

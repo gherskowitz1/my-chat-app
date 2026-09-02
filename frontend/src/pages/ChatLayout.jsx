@@ -39,6 +39,7 @@ export default function ChatLayout() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [serverName, setServerName] = useState('');
+  const [serverIcon, setServerIcon] = useState(null);
   const [categoryLabels, setCategoryLabels] = useState({ text: 'TEXT CHANNELS', voice: 'VOICE CHANNELS' });
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
   const [unreadChannels, setUnreadChannels] = useState(new Map()); // channelId -> { count, mentioned }
@@ -81,6 +82,7 @@ export default function ChatLayout() {
     api.get(`/servers/${DEFAULT_SERVER}`)
       .then(s => {
         setServerName(s.name);
+        setServerIcon(s.icon_url);
         setCategoryLabels({ text: s.text_category_label, voice: s.voice_category_label });
       })
       .catch(() => setServerName('General Server'));
@@ -202,6 +204,7 @@ export default function ChatLayout() {
 
   const handleServerRenamed = useCallback((updatedServer) => {
     setServerName(updatedServer.name);
+    setServerIcon(updatedServer.icon_url);
     setCategoryLabels({ text: updatedServer.text_category_label, voice: updatedServer.voice_category_label });
   }, []);
 
@@ -296,6 +299,8 @@ export default function ChatLayout() {
   return (
     <div className={`${styles.layout} ${mobileChatOpen ? styles.chatOpen : ''}`}>
       <ServerSidebar
+        serverName={serverName}
+        serverIcon={serverIcon}
         activeSection={activeSection}
         onSectionChange={setActiveSection}
         onOpenAdmin={() => setShowAdmin(true)}

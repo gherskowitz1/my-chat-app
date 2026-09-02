@@ -3,8 +3,8 @@
   bottom: 90px;
   left: 8px;
   right: 8px;
-  max-width: 320px;
-  max-height: 280px;
+  max-width: 340px;
+  max-height: 320px;
   overflow-y: auto;
   padding: 10px;
   background: var(--bg-tertiary);
@@ -20,20 +20,28 @@
   margin-bottom: 8px;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.soundRow {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 
 .soundBtn {
+  flex: 1;
+  min-width: 0;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
   background: var(--bg-active);
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 600;
-  text-align: center;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -47,4 +55,25 @@
   background: rgba(88,101,242,0.25);
   color: var(--accent);
   opacity: 1 !important;
+}
+
+.previewBtn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.1s;
+}
+.previewBtn:hover:not(:disabled) { background: var(--bg-hover); }
+.previewBtn:disabled { opacity: 0.5; cursor: default; }
+
+.volumeSlider {
+  flex-shrink: 0;
+  width: 56px;
+  accent-color: var(--accent);
 }

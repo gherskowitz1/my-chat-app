@@ -7,7 +7,7 @@ const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessage
 const { searchMessages } = require('../controllers/searchController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const {
-  updateServer, getServer, renameChannel,
+  updateServer, getServer, renameChannel, setServerOwner,
   getAllUsers, updateUserRole, deleteUser,
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
 } = require('../controllers/adminController');
@@ -80,6 +80,7 @@ router.delete('/friends/:userId', authMiddleware, removeFriend);
 // Admin
 router.get('/servers/:serverId', authMiddleware, getServer);
 router.patch('/servers/:serverId', authMiddleware, adminMiddleware, updateServer);
+router.patch('/servers/:serverId/owner', authMiddleware, adminMiddleware, setServerOwner);
 router.patch('/channels/:channelId', authMiddleware, adminMiddleware, renameChannel);
 router.get('/admin/stats', authMiddleware, adminMiddleware, getStats);
 router.get('/admin/users', authMiddleware, adminMiddleware, getAllUsers);

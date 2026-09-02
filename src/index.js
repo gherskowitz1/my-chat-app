@@ -30,8 +30,9 @@ const io = new Server(server, {
 app.set('io', io);
 
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-// Raised from the 100kb default to fit base64-encoded avatar image uploads.
-app.use(express.json({ limit: '3mb' }));
+// Raised from the 100kb default to fit base64-encoded uploads — soundboard
+// clips are the largest (up to ~5MB raw, ~7MB once base64-encoded).
+app.use(express.json({ limit: '8mb' }));
 
 app.use('/api', routes);
 app.get('/health', (_, res) => res.json({ ok: true }));

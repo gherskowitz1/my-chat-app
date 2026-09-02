@@ -53,11 +53,11 @@ export default function VolumeMixer() {
               <input
                 type="range"
                 min="0"
-                max="150"
+                max="200"
                 value={vol}
                 onChange={e => handleVolume(p, e.target.value)}
                 className={styles.slider}
-                style={{ '--pct': `${Math.min(vol, 100)}%` }}
+                style={{ '--pct': `${(vol / 200) * 100}%` }}
               />
               <span className={styles.pct}>{vol}%</span>
             </div>

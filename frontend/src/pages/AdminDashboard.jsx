@@ -144,6 +144,7 @@ function DashboardTab() {
 function UsersTab() {
   const { user: me } = useAuth();
   const [users, setUsers] = useState([]);
+  const [server, setServer] = useState(null);
   const [search, setSearch] = useState('');
   const [flash, setFlash] = useState(null);
   const [resetModal, setResetModal] = useState(null); // user to reset
@@ -156,7 +157,18 @@ function UsersTab() {
 
   useEffect(() => {
     authFetch('/admin/users').then(setUsers).catch(() => {});
+    authFetch(`/servers/${DEFAULT_SERVER}`).then(setServer).catch(() => {});
   }, []);
+
+  const makeOwner = async (u) => {
+    const verb = server?.owner_id ? 'Transfer ownership to' : 'Make';
+    if (!confirm(`${verb} ${u.username}${server?.owner_id ? '' : ' the server owner'}?`)) return;
+    const res = await authFetch(`/servers/${DEFAULT_SERVER}/owner`, { method: 'PATCH', body: JSON.stringify({ userId: u.id }) });
+    if (res.error) return showFlash(res.error, 'error');
+    setServer(s => ({ ...s, owner_id: u.id }));
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, role: 'admin' } : x));
+    showFlash(`${u.username} is now the server owner`);
+  };
 
   const filtered = users.filter(u =>
     u.username.toLowerCase().includes(search.toLowerCase()) ||
@@ -212,27 +224,36 @@ function UsersTab() {
         <div className={`${styles.tableRow} ${styles.tableHead}`}>
           <span>User</span><span>Email</span><span>Role</span><span>Joined</span><span>Actions</span>
         </div>
-        {filtered.map(u => (
-          <div key={u.id} className={styles.tableRow}>
-            <span className={styles.userCell}>
-              <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
-              {u.username}
-            </span>
-            <span className={styles.email}>{u.email}</span>
-            <span><RoleBadge role={u.role} /></span>
-            <span>{new Date(u.created_at).toLocaleDateString()}</span>
-            <span className={styles.actions}>
-              <button className={styles.actionBtn} onClick={() => sendReset(u)} title="Send password reset email">📧</button>
-              <button className={styles.actionBtn} onClick={() => { setResetModal(u); setNewPassword(''); }} title="Set password directly">🔑</button>
-              <button className={styles.actionBtn} onClick={() => toggleRole(u)} title={u.role === 'admin' ? 'Revoke admin' : 'Make admin'}>
-                {u.role === 'admin' ? '⬇️' : '⬆️'}
-              </button>
-              {u.id !== me.id && (
-                <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => deleteUser(u)} title="Delete user">🗑️</button>
-              )}
-            </span>
-          </div>
-        ))}
+        {filtered.map(u => {
+          const isOwner = u.id === server?.owner_id;
+          const canManageOwner = !server?.owner_id || server?.owner_id === me.id;
+          return (
+            <div key={u.id} className={styles.tableRow}>
+              <span className={styles.userCell}>
+                <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
+                {u.username}{isOwner && ' 👑'}
+              </span>
+              <span className={styles.email}>{u.email}</span>
+              <span><RoleBadge role={u.role} /></span>
+              <span>{new Date(u.created_at).toLocaleDateString()}</span>
+              <span className={styles.actions}>
+                <button className={styles.actionBtn} onClick={() => sendReset(u)} title="Send password reset email">📧</button>
+                <button className={styles.actionBtn} onClick={() => { setResetModal(u); setNewPassword(''); }} title="Set password directly">🔑</button>
+                {!isOwner && canManageOwner && (
+                  <button className={styles.actionBtn} onClick={() => makeOwner(u)} title={server?.owner_id ? 'Transfer ownership' : 'Make server owner'}>👑</button>
+                )}
+                {!isOwner && (
+                  <button className={styles.actionBtn} onClick={() => toggleRole(u)} title={u.role === 'admin' ? 'Revoke admin' : 'Make admin'}>
+                    {u.role === 'admin' ? '⬇️' : '⬆️'}
+                  </button>
+                )}
+                {u.id !== me.id && !isOwner && (
+                  <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => deleteUser(u)} title="Delete user">🗑️</button>
+                )}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {resetModal && (
@@ -680,7 +701,7 @@ function EmojiTab() {
 }
 
 // ── Soundboard Tab ───────────────────────────────────────────
-const MAX_SOUND_SOURCE_BYTES = 1.5 * 1024 * 1024;
+const MAX_SOUND_SOURCE_BYTES = 5 * 1024 * 1024;
 const SOUND_NAME_RE = /^[a-zA-Z0-9_ -]{2,32}$/;
 
 function SoundboardTab() {
@@ -704,7 +725,7 @@ function SoundboardTab() {
     if (!file) return;
     if (!SOUND_NAME_RE.test(name.trim())) return showFlash('Enter a name first (2-32 characters).', 'error');
     if (!file.type.startsWith('audio/')) return showFlash('Please choose an audio file.', 'error');
-    if (file.size > MAX_SOUND_SOURCE_BYTES) return showFlash('That clip is too large (max 1.5MB) — keep clips short.', 'error');
+    if (file.size > MAX_SOUND_SOURCE_BYTES) return showFlash('That clip is too large (max 5MB).', 'error');
 
     setUploading(true);
     try {
@@ -750,7 +771,7 @@ function SoundboardTab() {
         </button>
         <input ref={fileInputRef} type="file" accept="audio/*" hidden onChange={handleFile} />
       </div>
-      <p className={styles.subtitle}>{sounds.length} / 100 sounds used.</p>
+      <p className={styles.subtitle}>{sounds.length} / 500 sounds used.</p>
 
       <h2 className={styles.sectionTitle}>Server Sounds</h2>
       {sounds.length === 0 && <p className={styles.subtitle}>No sounds yet.</p>}
@@ -819,10 +840,30 @@ function ServerTab() {
   const [server, setServer] = useState(null);
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState(null);
+  const [iconUploading, setIconUploading] = useState(false);
+  const iconInputRef = useRef(null);
 
   useEffect(() => {
     authFetch(`/servers/${DEFAULT_SERVER}`).then(setServer).catch(() => {});
   }, []);
+
+  const onIconSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return setFlash({ msg: 'Please choose an image file.', type: 'error' });
+    if (file.size > 10 * 1024 * 1024) return setFlash({ msg: 'That image is too large (max 10MB).', type: 'error' });
+
+    setIconUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: 256, quality: 0.85 });
+      setServer(s => ({ ...s, icon_url: dataUrl }));
+    } catch (err) {
+      setFlash({ msg: err.message || 'Failed to process image', type: 'error' });
+    } finally {
+      setIconUploading(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -834,6 +875,7 @@ function ServerTab() {
         description: server.description,
         textCategoryLabel: server.text_category_label,
         voiceCategoryLabel: server.voice_category_label,
+        iconUrl: server.icon_url,
       }),
     });
     setSaving(false);
@@ -853,6 +895,23 @@ function ServerTab() {
       {flash && <div className={`${styles.flash} ${styles[flash.type]}`}>{flash.msg}</div>}
 
       <form onSubmit={save} className={styles.settingsForm}>
+        <label className={styles.field}>
+          <span>SERVER ICON</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-tertiary, #1e1f22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {server.icon_url
+                ? <img src={server.icon_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : <span style={{ fontSize: 22, fontWeight: 700 }}>{(server.name || 'S').trim().charAt(0).toUpperCase()}</span>}
+            </div>
+            <button type="button" className={styles.primaryBtn} onClick={() => iconInputRef.current?.click()} disabled={iconUploading}>
+              {iconUploading ? 'Uploading…' : 'Change Icon'}
+            </button>
+            {server.icon_url && (
+              <button type="button" className={styles.cancelBtn} onClick={() => setServer(s => ({ ...s, icon_url: null }))}>Remove</button>
+            )}
+            <input ref={iconInputRef} type="file" accept="image/*" hidden onChange={onIconSelected} />
+          </div>
+        </label>
         <label className={styles.field}>
           <span>SERVER NAME</span>
           <input className={styles.input} value={server.name} onChange={e => setServer(s => ({ ...s, name: e.target.value }))} required maxLength={100} />

@@ -37,6 +37,10 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
 
   const roomOptions = useMemo(() => ({
     reconnectPolicy: new DefaultReconnectPolicy(RECONNECT_RETRY_DELAYS),
+    // Routes remote audio through a GainNode instead of the audio element's
+    // own (spec-clamped to 1.0) volume — without this, the volume mixer's
+    // slider silently does nothing past 100%.
+    webAudioMix: true,
     ...(audioPrefs?.bitrateCap ? { publishDefaults: { audioPreset: { maxBitrate: audioPrefs.bitrateCap } } } : {}),
   }), [audioPrefs?.bitrateCap]);
 

@@ -7,13 +7,20 @@ import voiceStyles from './VoiceControls.module.css';
 import styles from './Soundboard.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
+const VOLUME_KEY_PREFIX = 'crowsnest_sound_volume_';
 
-// Publishing the clip's own captured audio stream means every other
-// participant's existing <RoomAudioRenderer/> just picks it up like any
-// other remote track (it already renders Track.Source.Unknown tracks) — no
-// signaling of our own needed. The clicking user hears it through the normal
-// <audio> element playback, which doubles as the capture source.
-const CAN_CAPTURE = typeof window !== 'undefined' && !!window.HTMLMediaElement?.prototype?.captureStream;
+// Routing playback through a Web Audio graph (rather than relying on
+// <audio>.volume, which some browsers don't reflect into captureStream())
+// means the per-clip volume slider reliably affects both what you hear
+// locally and what gets published for everyone else.
+const AudioCtor = typeof window !== 'undefined' ? (window.AudioContext || window.webkitAudioContext) : null;
+const CAN_CAPTURE = typeof window !== 'undefined' && !!window.MediaStream && !!AudioCtor;
+
+function getStoredVolume(soundId) {
+  const raw = localStorage.getItem(VOLUME_KEY_PREFIX + soundId);
+  const n = raw != null ? Number(raw) : 100;
+  return Number.isFinite(n) ? Math.min(Math.max(n, 0), 100) : 100;
+}
 
 export default function Soundboard() {
   const room = useRoomContext();
@@ -21,10 +28,14 @@ export default function Soundboard() {
   const [sounds, setSounds] = useState([]);
   const [open, setOpen] = useState(false);
   const [playingId, setPlayingId] = useState(null);
+  const [previewingId, setPreviewingId] = useState(null);
+  const [volumes, setVolumes] = useState({}); // soundId -> 0-100, lazily filled from localStorage
   const btnRef = useRef(null);
   const popoverRef = useRef(null);
   const audioRef = useRef(null);
+  const audioContextRef = useRef(null);
   const publishedTrackRef = useRef(null);
+  const previewAudioRef = useRef(null);
 
   const load = () => api.get(`/servers/${DEFAULT_SERVER}/sounds`).then(setSounds).catch(() => {});
 
@@ -45,6 +56,13 @@ export default function Soundboard() {
     return () => document.removeEventListener('mousedown', onDocMouseDown);
   }, [open]);
 
+  const volumeOf = (soundId) => volumes[soundId] ?? getStoredVolume(soundId);
+
+  const setVolume = (soundId, value) => {
+    setVolumes((v) => ({ ...v, [soundId]: value }));
+    localStorage.setItem(VOLUME_KEY_PREFIX + soundId, String(value));
+  };
+
   const cleanupPublishedTrack = async () => {
     const track = publishedTrackRef.current;
     publishedTrackRef.current = null;
@@ -54,6 +72,10 @@ export default function Soundboard() {
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+    }
+    if (audioContextRef.current) {
+      try { audioContextRef.current.close(); } catch { /* already closed */ }
+      audioContextRef.current = null;
     }
   };
 
@@ -71,20 +93,49 @@ export default function Soundboard() {
     audio.onended = finish;
     audio.onerror = finish;
 
+    const vol = volumeOf(sound.id) / 100;
+
     try {
-      await audio.play();
       if (CAN_CAPTURE && room?.localParticipant) {
-        const stream = audio.captureStream();
-        const [track] = stream.getAudioTracks();
+        const ctx = new AudioCtor();
+        const source = ctx.createMediaElementSource(audio);
+        const gain = ctx.createGain();
+        gain.gain.value = vol;
+        const destination = ctx.createMediaStreamDestination();
+        source.connect(gain);
+        gain.connect(destination);
+        gain.connect(ctx.destination); // still audible locally through the normal output
+        audioContextRef.current = ctx;
+
+        await audio.play();
+
+        const [track] = destination.stream.getAudioTracks();
         if (track) {
           publishedTrackRef.current = track;
           await room.localParticipant.publishTrack(track, { source: Track.Source.Unknown, name: `sfx-${sound.name}` });
         }
+      } else {
+        audio.volume = vol;
+        await audio.play();
       }
     } catch (err) {
       console.error('soundboard play error', err);
       finish();
     }
+  };
+
+  // Local-only preview — no LiveKit involved, so it works even outside a
+  // voice channel and never gets published for anyone else to hear.
+  const preview = (sound) => {
+    if (previewingId) return;
+    setPreviewingId(sound.id);
+    const audio = new Audio(sound.audio_data);
+    audio.volume = volumeOf(sound.id) / 100;
+    previewAudioRef.current = audio;
+    const finish = () => { previewAudioRef.current = null; setPreviewingId(null); };
+    audio.onended = finish;
+    audio.onerror = finish;
+    audio.play().catch(finish);
   };
 
   if (sounds.length === 0) return null;
@@ -105,18 +156,37 @@ export default function Soundboard() {
       {open && (
         <div ref={popoverRef} className={styles.popover}>
           {!CAN_CAPTURE && <p className={styles.hint}>Your browser can't broadcast soundboard clips to others — they'll only play for you.</p>}
-          <div className={styles.grid}>
+          <div className={styles.list}>
             {sounds.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                className={`${styles.soundBtn} ${playingId === s.id ? styles.playing : ''}`}
-                onClick={() => play(s)}
-                disabled={!!playingId}
-                title={s.name}
-              >
-                {s.name}
-              </button>
+              <div key={s.id} className={styles.soundRow}>
+                <button
+                  type="button"
+                  className={`${styles.soundBtn} ${playingId === s.id ? styles.playing : ''}`}
+                  onClick={() => play(s)}
+                  disabled={!!playingId}
+                  title={`Play "${s.name}" for everyone`}
+                >
+                  {s.name}
+                </button>
+                <button
+                  type="button"
+                  className={styles.previewBtn}
+                  onClick={() => preview(s)}
+                  disabled={!!previewingId}
+                  title="Preview (only you hear this)"
+                >
+                  {previewingId === s.id ? '…' : '👂'}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={volumeOf(s.id)}
+                  onChange={(e) => setVolume(s.id, Number(e.target.value))}
+                  className={styles.volumeSlider}
+                  title={`Volume: ${volumeOf(s.id)}%`}
+                />
+              </div>
             ))}
           </div>
         </div>

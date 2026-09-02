@@ -7,7 +7,7 @@ import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
 
-export default function ServerSidebar({ activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
+export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
   const { canInstall, promptInstall } = usePwaInstall();
@@ -42,10 +42,14 @@ export default function ServerSidebar({ activeSection, onSectionChange, onOpenAd
       <button
         className={`${styles.serverBtn} ${activeSection === 'server' ? styles.active : ''}`}
         onClick={() => onSectionChange('server')}
-        title="General Server"
+        title={serverName || 'Server'}
         style={{ position: 'relative' }}
       >
-        G
+        {serverIcon ? (
+          <img src={serverIcon} alt="" className={styles.serverIconImg} />
+        ) : (
+          (serverName || 'G').trim().charAt(0).toUpperCase()
+        )}
         {hasUnreadChannels && <span className={styles.navDot} />}
       </button>
 

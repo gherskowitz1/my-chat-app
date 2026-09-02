@@ -1,20 +1,64 @@
 const { pool } = require('../db');
 
+const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
+const ICON_DATA_URL_RE = /^data:image\/(png|jpe?g|webp|gif);base64,/;
+const MAX_ICON_LENGTH = 1_500_000; // matches the avatar upload cap
+
 // ── Server ──────────────────────────────────────────────────
 async function updateServer(req, res) {
   const { serverId } = req.params;
-  const { name, description, textCategoryLabel, voiceCategoryLabel } = req.body;
+  const { name, description, textCategoryLabel, voiceCategoryLabel, iconUrl } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
+
+  if (iconUrl) {
+    if (typeof iconUrl !== 'string' || !ICON_DATA_URL_RE.test(iconUrl)) {
+      return res.status(400).json({ error: 'Invalid image data' });
+    }
+    if (iconUrl.length > MAX_ICON_LENGTH) {
+      return res.status(400).json({ error: 'Image is too large' });
+    }
+  }
+
   try {
     const { rows } = await pool.query(
       `UPDATE servers
        SET name = $1, description = $2,
            text_category_label = COALESCE(NULLIF($3, ''), text_category_label),
-           voice_category_label = COALESCE(NULLIF($4, ''), voice_category_label)
-       WHERE id = $5 RETURNING *`,
-      [name.trim(), description?.trim() ?? null, textCategoryLabel?.trim(), voiceCategoryLabel?.trim(), serverId]
+           voice_category_label = COALESCE(NULLIF($4, ''), voice_category_label),
+           icon_url = $5
+       WHERE id = $6 RETURNING *`,
+      [name.trim(), description?.trim() ?? null, textCategoryLabel?.trim(), voiceCategoryLabel?.trim(), iconUrl || null, serverId]
     );
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Assigns the server's owner if it has none yet, or transfers it if the
+// requester is the current owner. The owner is protected from demotion/
+// removal by other admins (see updateUserRole/deleteUser below) and is
+// promoted to admin here so ownership always implies admin powers.
+async function setServerOwner(req, res) {
+  const { serverId } = req.params;
+  const { userId } = req.body;
+  if (!userId) return res.status(400).json({ error: 'userId required' });
+
+  try {
+    const { rows: serverRows } = await pool.query('SELECT owner_id FROM servers WHERE id = $1', [serverId]);
+    if (!serverRows[0]) return res.status(404).json({ error: 'Server not found' });
+
+    const currentOwnerId = serverRows[0].owner_id;
+    if (currentOwnerId && currentOwnerId !== req.user.id) {
+      return res.status(403).json({ error: 'Only the current owner can transfer ownership' });
+    }
+
+    const { rows: userRows } = await pool.query('SELECT id FROM users WHERE id = $1', [userId]);
+    if (!userRows[0]) return res.status(404).json({ error: 'User not found' });
+
+    await pool.query('UPDATE servers SET owner_id = $1 WHERE id = $2', [userId, serverId]);
+    await pool.query("UPDATE users SET role = 'admin' WHERE id = $1", [userId]);
+    res.json({ success: true, ownerId: userId });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -78,6 +122,10 @@ async function updateUserRole(req, res) {
     return res.status(400).json({ error: 'Cannot change your own role' });
   }
   try {
+    const { rows: serverRows } = await pool.query('SELECT owner_id FROM servers WHERE id = $1', [DEFAULT_SERVER]);
+    if (serverRows[0]?.owner_id === userId) {
+      return res.status(400).json({ error: "Cannot change the server owner's role — transfer ownership first" });
+    }
     const { rows } = await pool.query(
       'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color, avatar_url',
       [role, userId]
@@ -94,6 +142,10 @@ async function deleteUser(req, res) {
     return res.status(400).json({ error: 'Cannot delete your own account' });
   }
   try {
+    const { rows: serverRows } = await pool.query('SELECT owner_id FROM servers WHERE id = $1', [DEFAULT_SERVER]);
+    if (serverRows[0]?.owner_id === userId) {
+      return res.status(400).json({ error: 'Cannot remove the server owner — transfer ownership first' });
+    }
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
     res.json({ success: true });
   } catch (err) {
@@ -175,7 +227,7 @@ async function setUserPassword(req, res) {
 }
 
 module.exports = {
-  updateServer, getServer, renameChannel,
+  updateServer, getServer, renameChannel, setServerOwner,
   getAllUsers, updateUserRole, deleteUser,
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
 };

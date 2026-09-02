@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useGameTracking } from '../hooks/useGameTracking';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
@@ -69,6 +70,7 @@ async function get(path) {
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
 export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed }) {
+  const { user: currentUser } = useAuth();
   const { socket } = useSocket();
   const [tab, setTab] = useState('server');
   const [server, setServer] = useState(null);
@@ -76,6 +78,8 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
   const [users, setUsers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null); // { text, type }
+  const [iconUploading, setIconUploading] = useState(false);
+  const iconInputRef = useRef(null);
 
   const flash = (text, type = 'success') => {
     setMsg({ text, type });
@@ -95,6 +99,25 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Server icon ───────────────────────────────────────────
+  const onServerIconSelected = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return flash('Please choose an image file.', 'error');
+    if (file.size > 10 * 1024 * 1024) return flash('That image is too large (max 10MB).', 'error');
+
+    setIconUploading(true);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: 256, quality: 0.85 });
+      setServer(s => ({ ...s, icon_url: dataUrl }));
+    } catch (err) {
+      flash(err.message || 'Failed to process image', 'error');
+    } finally {
+      setIconUploading(false);
+    }
+  };
+
   // ── Server name ───────────────────────────────────────────
   const saveServer = async (e) => {
     e.preventDefault();
@@ -105,6 +128,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
         description: server.description,
         textCategoryLabel: server.text_category_label,
         voiceCategoryLabel: server.voice_category_label,
+        iconUrl: server.icon_url,
       });
       onServerRenamed(updated);
       flash('Server updated!');
@@ -192,6 +216,20 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
     }
   };
 
+  // ── Server owner ────────────────────────────────────────────
+  const makeOwner = async (targetUser) => {
+    const verb = server?.owner_id ? 'Transfer ownership to' : 'Make';
+    if (!confirm(`${verb} ${targetUser.username}${server?.owner_id ? '' : ' the server owner'}?`)) return;
+    try {
+      await patch(`/servers/${DEFAULT_SERVER}/owner`, { userId: targetUser.id });
+      setServer(s => ({ ...s, owner_id: targetUser.id }));
+      setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, role: 'admin' } : u));
+      flash(`${targetUser.username} is now the server owner`);
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
   const textChannels = channels.filter(c => c.type === 'text');
   const voiceChannels = channels.filter(c => c.type === 'voice');
 
@@ -225,6 +263,25 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               <p className={styles.subtitle}>Customize your server's name and description.</p>
 
               <form onSubmit={saveServer} className={styles.form}>
+                <label className={styles.field}>
+                  <span>SERVER ICON</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: '50%', overflow: 'hidden', background: 'var(--bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {server.icon_url
+                        ? <img src={server.icon_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-muted)' }}>{(server.name || 'S').trim().charAt(0).toUpperCase()}</span>}
+                    </div>
+                    <button type="button" className={styles.saveSmall} onClick={() => iconInputRef.current?.click()} disabled={iconUploading}>
+                      {iconUploading ? 'Uploading…' : 'Change Icon'}
+                    </button>
+                    {server.icon_url && (
+                      <button type="button" className={styles.cancelSmall} onClick={() => setServer(s => ({ ...s, icon_url: null }))}>
+                        Remove
+                      </button>
+                    )}
+                    <input ref={iconInputRef} type="file" accept="image/*" hidden onChange={onServerIconSelected} />
+                  </div>
+                </label>
                 <label className={styles.field}>
                   <span>SERVER NAME</span>
                   <input
@@ -366,34 +423,48 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               <p className={styles.subtitle}>{users.length} registered {users.length === 1 ? 'user' : 'users'}</p>
 
               <div className={styles.userList}>
-                {users.map(u => (
-                  <div key={u.id} className={styles.userRow}>
-                    <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
-                    <div className={styles.userInfo}>
-                      <span className={styles.username}>{u.username}</span>
-                      <span className={styles.email}>{u.email}</span>
+                {users.map(u => {
+                  const isOwner = u.id === server?.owner_id;
+                  const canManageOwner = !server?.owner_id || server?.owner_id === currentUser?.id;
+                  return (
+                    <div key={u.id} className={styles.userRow}>
+                      <Avatar url={u.avatar_url} color={u.avatar_color} username={u.username} className={styles.avatar} />
+                      <div className={styles.userInfo}>
+                        <span className={styles.username}>{u.username}</span>
+                        <span className={styles.email}>{u.email}</span>
+                      </div>
+                      <div className={styles.userActions}>
+                        {isOwner && <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>Owner</span>}
+                        <span className={`${styles.badge} ${u.role === 'admin' ? styles.adminBadge : styles.memberBadge}`}>
+                          {u.role}
+                        </span>
+                        {canManageOwner && !isOwner && (
+                          <button className={styles.roleBtn} onClick={() => makeOwner(u)} title="Make this user the server owner">
+                            {server?.owner_id ? 'Transfer Owner' : 'Make Owner'}
+                          </button>
+                        )}
+                        {!isOwner && (
+                          <button
+                            className={styles.roleBtn}
+                            onClick={() => toggleRole(u)}
+                            title={u.role === 'admin' ? 'Revoke admin' : 'Make admin'}
+                          >
+                            {u.role === 'admin' ? '↓ Member' : '↑ Admin'}
+                          </button>
+                        )}
+                        {!isOwner && (
+                          <button
+                            className={styles.deleteUserBtn}
+                            onClick={() => deleteUser(u)}
+                            title="Remove user"
+                          >
+                            <TrashIcon />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className={styles.userActions}>
-                      <span className={`${styles.badge} ${u.role === 'admin' ? styles.adminBadge : styles.memberBadge}`}>
-                        {u.role}
-                      </span>
-                      <button
-                        className={styles.roleBtn}
-                        onClick={() => toggleRole(u)}
-                        title={u.role === 'admin' ? 'Revoke admin' : 'Make admin'}
-                      >
-                        {u.role === 'admin' ? '↓ Member' : '↑ Admin'}
-                      </button>
-                      <button
-                        className={styles.deleteUserBtn}
-                        onClick={() => deleteUser(u)}
-                        title="Remove user"
-                      >
-                        <TrashIcon />
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -677,7 +748,7 @@ function EmojiTab({ flash }) {
   );
 }
 
-const MAX_SOUND_SOURCE_BYTES = 1.5 * 1024 * 1024;
+const MAX_SOUND_SOURCE_BYTES = 5 * 1024 * 1024;
 const SOUND_NAME_RE = /^[a-zA-Z0-9_ -]{2,32}$/;
 
 function SoundboardTab({ flash }) {
@@ -715,7 +786,7 @@ function SoundboardTab({ flash }) {
       return;
     }
     if (file.size > MAX_SOUND_SOURCE_BYTES) {
-      setError('That clip is too large (max 1.5MB) — keep soundboard clips short.');
+      setError('That clip is too large (max 5MB).');
       return;
     }
 
@@ -763,7 +834,7 @@ function SoundboardTab({ flash }) {
           <input ref={fileInputRef} type="file" accept="audio/*" hidden onChange={handleFile} />
         </div>
         {error && <p className={styles.hint} style={{ color: 'var(--red)' }}>{error}</p>}
-        <p className={styles.hint}>{sounds.length} / 100 sounds used.</p>
+        <p className={styles.hint}>{sounds.length} / 500 sounds used.</p>
       </div>
 
       <div className={styles.channelGroup}>
