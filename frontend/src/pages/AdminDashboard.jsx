@@ -5,6 +5,7 @@ import Avatar from '../components/Avatar';
 import { useGameTracking } from '../hooks/useGameTracking';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
 import { resizeImageToDataUrl } from '../utils/imageResize';
+import { fileToDataUrl } from '../utils/fileToDataUrl';
 import styles from './AdminDashboard.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -48,6 +49,7 @@ export default function AdminDashboard() {
             { id: 'channels', label: 'Channels', icon: '💬' },
             { id: 'games', label: 'Games (PatchBot)', icon: '🎮' },
             { id: 'emoji', label: 'Custom Emoji', icon: '😀' },
+            { id: 'sounds', label: 'Soundboard', icon: '🔊' },
             { id: 'messages', label: 'Recent Messages', icon: '📝' },
             { id: 'server', label: 'Server Settings', icon: '⚙️' },
           ].map(t => (
@@ -82,6 +84,7 @@ export default function AdminDashboard() {
         {tab === 'channels' && <ChannelsTab />}
         {tab === 'games' && <GamesTab />}
         {tab === 'emoji' && <EmojiTab />}
+        {tab === 'sounds' && <SoundboardTab />}
         {tab === 'messages' && <MessagesTab />}
         {tab === 'server' && <ServerTab />}
       </main>
@@ -669,6 +672,95 @@ function EmojiTab() {
             <img src={e.image_data} alt={`:${e.name}:`} width={36} height={36} style={{ objectFit: 'contain' }} />
             <span style={{ fontSize: 11, wordBreak: 'break-all', textAlign: 'center' }}>:{e.name}:</span>
             <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => removeEmoji(e)} title="Delete emoji">🗑️</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Soundboard Tab ───────────────────────────────────────────
+const MAX_SOUND_SOURCE_BYTES = 1.5 * 1024 * 1024;
+const SOUND_NAME_RE = /^[a-zA-Z0-9_ -]{2,32}$/;
+
+function SoundboardTab() {
+  const [sounds, setSounds] = useState([]);
+  const [name, setName] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [flash, setFlash] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const showFlash = (msg, type = 'success') => { setFlash({ msg, type }); setTimeout(() => setFlash(null), 3000); };
+
+  const load = useCallback(() => {
+    authFetch(`/servers/${DEFAULT_SERVER}/sounds`).then(setSounds).catch(() => {});
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!SOUND_NAME_RE.test(name.trim())) return showFlash('Enter a name first (2-32 characters).', 'error');
+    if (!file.type.startsWith('audio/')) return showFlash('Please choose an audio file.', 'error');
+    if (file.size > MAX_SOUND_SOURCE_BYTES) return showFlash('That clip is too large (max 1.5MB) — keep clips short.', 'error');
+
+    setUploading(true);
+    try {
+      const audioData = await fileToDataUrl(file);
+      const res = await authFetch(`/servers/${DEFAULT_SERVER}/sounds`, { method: 'POST', body: JSON.stringify({ name: name.trim(), audioData }) });
+      if (res.error) throw new Error(res.error);
+      setName('');
+      load();
+      showFlash(`Added "${name.trim()}"`);
+    } catch (err) {
+      showFlash(err.message || 'Failed to upload sound', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeSound = async (s) => {
+    if (!confirm(`Delete "${s.name}"?`)) return;
+    const res = await authFetch(`/servers/${DEFAULT_SERVER}/sounds/${s.id}`, { method: 'DELETE' });
+    if (res.error) return showFlash(res.error, 'error');
+    load();
+    showFlash(`Removed "${s.name}"`);
+  };
+
+  return (
+    <div className={styles.content}>
+      <h1>Soundboard</h1>
+      <p className={styles.subtitle}>Upload short audio clips members can play into a voice channel.</p>
+      {flash && <div className={`${styles.flash} ${styles[flash.type]}`}>{flash.msg}</div>}
+
+      <h2 className={styles.sectionTitle}>Add Sound</h2>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+        <input
+          className={styles.input}
+          style={{ maxWidth: 200 }}
+          placeholder="sound name"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          maxLength={32}
+        />
+        <button type="button" className={styles.primaryBtn} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+          {uploading ? 'Uploading…' : 'Choose Audio File'}
+        </button>
+        <input ref={fileInputRef} type="file" accept="audio/*" hidden onChange={handleFile} />
+      </div>
+      <p className={styles.subtitle}>{sounds.length} / 100 sounds used.</p>
+
+      <h2 className={styles.sectionTitle}>Server Sounds</h2>
+      {sounds.length === 0 && <p className={styles.subtitle}>No sounds yet.</p>}
+      <div className={styles.table}>
+        {sounds.map(s => (
+          <div key={s.id} className={styles.tableRow} style={{ gridTemplateColumns: '2fr 1fr' }}>
+            <span className={styles.userCell}>🔊 {s.name}</span>
+            <span className={styles.actions}>
+              <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => removeSound(s)} title="Delete sound">🗑️</button>
+            </span>
           </div>
         ))}
       </div>

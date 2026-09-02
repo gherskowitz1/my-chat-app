@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useKeyboardShortcuts, loadShortcuts, formatKey } from '../hooks/useKeyboardShortcuts';
+import Soundboard from './Soundboard';
 import styles from './VoiceControls.module.css';
 
 /**
@@ -158,6 +159,8 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             <span>Push to Talk</span>
             <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
           </button>
+
+          <Soundboard />
         </div>
 
         <button

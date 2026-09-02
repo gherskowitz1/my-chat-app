@@ -193,6 +193,18 @@ CREATE TABLE IF NOT EXISTS custom_emoji (
   UNIQUE (server_id, name)
 );
 
+-- Soundboard clips — short audio clips any member can play into a voice
+-- channel; admins manage the library (upload/delete), same tier as emoji.
+CREATE TABLE IF NOT EXISTS soundboard_sounds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  server_id UUID REFERENCES servers(id) ON DELETE CASCADE,
+  name VARCHAR(32) NOT NULL,
+  audio_data TEXT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (server_id, name)
+);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

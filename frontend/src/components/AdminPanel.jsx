@@ -3,6 +3,7 @@ import { useSocket } from '../context/SocketContext';
 import { useGameTracking } from '../hooks/useGameTracking';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
 import { resizeImageToDataUrl } from '../utils/imageResize';
+import { fileToDataUrl } from '../utils/fileToDataUrl';
 import Avatar from './Avatar';
 import styles from './AdminPanel.module.css';
 
@@ -199,14 +200,15 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.sidebar}>
           <div className={styles.sidebarTitle}>Admin Settings</div>
-          {['server', 'channels', 'games', 'emoji', 'users'].map(t => (
+          {['server', 'channels', 'games', 'emoji', 'sounds', 'users'].map(t => (
             <button key={t} className={`${styles.tabBtn} ${tab === t ? styles.active : ''}`} onClick={() => setTab(t)}>
               {t === 'server' && <ServerIcon />}
               {t === 'channels' && <ChannelIcon />}
               {t === 'games' && <GameIcon />}
               {t === 'emoji' && <span>😀</span>}
+              {t === 'sounds' && <span>🔊</span>}
               {t === 'users' && <UsersIcon />}
-              {t === 'games' ? 'Games' : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'games' ? 'Games' : t === 'sounds' ? 'Soundboard' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
           <div className={styles.spacer} />
@@ -345,6 +347,15 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
               <h2>Custom Emoji</h2>
               <p className={styles.subtitle}>Upload images to use as :name: emoji in messages and as reactions.</p>
               <EmojiTab flash={flash} />
+            </div>
+          )}
+
+          {/* SOUNDBOARD TAB */}
+          {tab === 'sounds' && (
+            <div className={styles.section}>
+              <h2>Soundboard</h2>
+              <p className={styles.subtitle}>Upload short audio clips members can play into a voice channel.</p>
+              <SoundboardTab flash={flash} />
             </div>
           )}
 
@@ -661,6 +672,111 @@ function EmojiTab({ flash }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+const MAX_SOUND_SOURCE_BYTES = 1.5 * 1024 * 1024;
+const SOUND_NAME_RE = /^[a-zA-Z0-9_ -]{2,32}$/;
+
+function SoundboardTab({ flash }) {
+  const { socket } = useSocket();
+  const [sounds, setSounds] = useState([]);
+  const [name, setName] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = useRef(null);
+
+  const load = useCallback(() => {
+    get(`/servers/${DEFAULT_SERVER}/sounds`).then(setSounds).catch(() => {});
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('soundboard:updated', load);
+    return () => socket.off('soundboard:updated', load);
+  }, [socket, load]);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setError('');
+
+    if (!SOUND_NAME_RE.test(name.trim())) {
+      setError('Enter a name first (2-32 characters).');
+      return;
+    }
+    if (!file.type.startsWith('audio/')) {
+      setError('Please choose an audio file.');
+      return;
+    }
+    if (file.size > MAX_SOUND_SOURCE_BYTES) {
+      setError('That clip is too large (max 1.5MB) — keep soundboard clips short.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const audioData = await fileToDataUrl(file);
+      await post(`/servers/${DEFAULT_SERVER}/sounds`, { name: name.trim(), audioData });
+      setName('');
+      load();
+      flash(`Added "${name.trim()}"`);
+    } catch (err) {
+      setError(err.message || 'Failed to upload sound');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeSound = async (s) => {
+    if (!confirm(`Delete "${s.name}"?`)) return;
+    try {
+      await del(`/servers/${DEFAULT_SERVER}/sounds/${s.id}`);
+      load();
+      flash(`Removed "${s.name}"`);
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>ADD SOUND</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            className={styles.channelInput}
+            style={{ padding: '8px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', width: 180 }}
+            placeholder="sound name"
+            value={name}
+            onChange={(ev) => setName(ev.target.value)}
+            maxLength={32}
+          />
+          <button type="button" className={styles.saveSmall} onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            {uploading ? 'Uploading…' : 'Choose Audio File'}
+          </button>
+          <input ref={fileInputRef} type="file" accept="audio/*" hidden onChange={handleFile} />
+        </div>
+        {error && <p className={styles.hint} style={{ color: 'var(--red)' }}>{error}</p>}
+        <p className={styles.hint}>{sounds.length} / 100 sounds used.</p>
+      </div>
+
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>SERVER SOUNDS</div>
+        {sounds.length === 0 && <p className={styles.hint}>No sounds yet.</p>}
+        {sounds.map((s) => (
+          <div key={s.id} className={styles.channelRow}>
+            <span className={styles.channelName}>🔊 {s.name}</span>
+            <button className={styles.deleteBtn} style={{ opacity: 1 }} onClick={() => removeSound(s)} title="Delete sound">
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );

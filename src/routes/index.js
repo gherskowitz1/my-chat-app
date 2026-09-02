@@ -20,6 +20,7 @@ const {
 const { getPinnedMessages, pinMessage, unpinMessage } = require('../controllers/pinController');
 const { getFriends, sendRequest, acceptRequest, declineRequest, removeFriend } = require('../controllers/friendController');
 const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiController');
+const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -57,6 +58,11 @@ router.get('/search', authMiddleware, searchMessages);
 router.get('/servers/:serverId/emoji', authMiddleware, getEmoji);
 router.post('/servers/:serverId/emoji', authMiddleware, adminMiddleware, createEmoji);
 router.delete('/servers/:serverId/emoji/:emojiId', authMiddleware, adminMiddleware, deleteEmoji);
+
+// Soundboard — anyone can view/play, only admins can manage the library
+router.get('/servers/:serverId/sounds', authMiddleware, getSounds);
+router.post('/servers/:serverId/sounds', authMiddleware, adminMiddleware, createSound);
+router.delete('/servers/:serverId/sounds/:soundId', authMiddleware, adminMiddleware, deleteSound);
 
 // Friends — additive only, does not gate DMs
 router.get('/friends', authMiddleware, getFriends);
