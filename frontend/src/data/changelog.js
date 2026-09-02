@@ -4,6 +4,20 @@
 // brand-new sign-up, who has nothing to "catch up" on.
 export const CHANGELOG = [
   {
+    version: '2.0.0',
+    date: 'September 2026',
+    highlights: [
+      'File and image attachments in chat — paste from clipboard or upload, click for full size',
+      'Messages sent while offline are held and delivered automatically once you reconnect',
+      'Screen sharing now opens in a resizable floating window you can minimize or full-screen',
+      'Voice: an "open mic" voice-activity mode, plus a speaker test sound in User Settings > Audio',
+      'Push notifications for DMs and mentions, even with the app fully closed',
+      'Installable as an app on your phone or desktop straight from the browser',
+      'Custom server icons',
+      'Real notification sounds for voice channel join/leave and new DMs',
+    ],
+  },
+  {
     version: '1.5.0',
     date: 'August 2026',
     highlights: [
