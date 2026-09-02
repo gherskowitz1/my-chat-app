@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
 import { useDraft } from '../hooks/useDraft';
+import { addPending, removePending, getPendingFor, newClientId, reconcileMessage } from '../utils/outbox';
 import Message from './Message';
 import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
@@ -13,6 +14,26 @@ import messageStyles from './Message.module.css';
 
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
+
+// See the identical helper in ChatArea.jsx — same reasoning, just keyed by
+// conversation_id instead of channel_id.
+function toOptimisticMessage(entry, user) {
+  return {
+    id: entry.clientId,
+    client_id: entry.clientId,
+    conversation_id: entry.targetId,
+    user_id: user.id,
+    username: user.username,
+    avatar_color: user.avatar_color,
+    avatar_url: user.avatar_url,
+    content: entry.content,
+    reply_to_id: entry.replyToId || null,
+    created_at: entry.createdAt,
+    reactions: [],
+    pending: true,
+    failed: entry.failed || false,
+  };
+}
 
 export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
@@ -45,10 +66,14 @@ export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId
   const fetchMessages = useCallback(async () => {
     try {
       const data = await api.get(`/dm/conversations/${conversation.id}/messages?limit=${PAGE_SIZE}`);
-      setMessages(data);
+      const deliveredClientIds = new Set(data.filter((m) => m.client_id).map((m) => m.client_id));
+      const pending = getPendingFor('dm', conversation.id)
+        .filter((entry) => !deliveredClientIds.has(entry.clientId))
+        .map((entry) => toOptimisticMessage(entry, user));
+      setMessages([...data, ...pending]);
       setHasMore(data.length === PAGE_SIZE);
     } catch {}
-  }, [conversation.id]);
+  }, [conversation.id, user]);
 
   const loadOlderMessages = useCallback(async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
@@ -121,10 +146,29 @@ export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId
     }
   }, [conversation.id, jumpToMessageId, fetchMessages, socket]);
 
+  // Reconciles a pending bubble resolved by SocketContext's background
+  // reconnect-flush — see the identical effect in ChatArea.jsx.
+  useEffect(() => {
+    const onResolved = (e) => {
+      if (e.detail.type !== 'dm' || e.detail.targetId !== conversation.id) return;
+      setMessages((prev) => reconcileMessage(prev, e.detail.message));
+    };
+    const onFailed = (e) => {
+      if (e.detail.type !== 'dm' || e.detail.targetId !== conversation.id) return;
+      setMessages((prev) => prev.map((m) => (m.client_id === e.detail.clientId ? { ...m, pending: false, failed: true } : m)));
+    };
+    window.addEventListener('outbox:resolved', onResolved);
+    window.addEventListener('outbox:failed', onFailed);
+    return () => {
+      window.removeEventListener('outbox:resolved', onResolved);
+      window.removeEventListener('outbox:failed', onFailed);
+    };
+  }, [conversation.id]);
+
   useEffect(() => {
     if (!socket) return;
     const onNew = (msg) => {
-      if (msg.conversation_id === conversation.id && !viewingHistorical) setMessages((p) => [...p, msg]);
+      if (msg.conversation_id === conversation.id && !viewingHistorical) setMessages((p) => reconcileMessage(p, msg));
     };
     const onEdited = (updated) => {
       if (updated.conversation_id !== conversation.id) return;
@@ -163,13 +207,52 @@ export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId
 
   const sendMessage = (e) => {
     e?.preventDefault();
-    if (!input.trim()) return;
-    socket?.emit('dm:send', { conversationId: conversation.id, content: input.trim(), replyToId: replyingTo?.id });
+    const content = input.trim();
+    if (!content) return;
+
+    const entry = {
+      clientId: newClientId(),
+      type: 'dm',
+      targetId: conversation.id,
+      content,
+      replyToId: replyingTo?.id || null,
+      createdAt: new Date().toISOString(),
+    };
+    addPending(entry);
+    setMessages((prev) => [...prev, toOptimisticMessage(entry, user)]);
+
+    socket?.emit('dm:send', {
+      conversationId: conversation.id, content, replyToId: entry.replyToId, clientId: entry.clientId,
+    }, (res) => {
+      if (!res) return;
+      removePending(entry.clientId);
+      if (res.success) setMessages((prev) => reconcileMessage(prev, res.message));
+      else setMessages((prev) => prev.map((m) => (m.client_id === entry.clientId ? { ...m, pending: false, failed: true } : m)));
+    });
+
     setInput('');
     clearDraft();
     setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
+  };
+
+  const retryMessage = (msg) => {
+    if (!msg.failed) return;
+    const entry = {
+      clientId: msg.client_id, type: 'dm', targetId: conversation.id,
+      content: msg.content, replyToId: msg.reply_to_id, createdAt: msg.created_at,
+    };
+    addPending(entry);
+    setMessages((prev) => prev.map((m) => (m.client_id === msg.client_id ? { ...m, pending: true, failed: false } : m)));
+    socket?.emit('dm:send', {
+      conversationId: conversation.id, content: entry.content, replyToId: entry.replyToId, clientId: entry.clientId,
+    }, (res) => {
+      if (!res) return;
+      removePending(entry.clientId);
+      if (res.success) setMessages((prev) => reconcileMessage(prev, res.message));
+      else setMessages((prev) => prev.map((m) => (m.client_id === entry.clientId ? { ...m, pending: false, failed: true } : m)));
+    });
   };
 
   const handleTyping = (e) => {
@@ -297,6 +380,7 @@ export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId
               onReply={startReply}
               onReact={reactToMessage}
               onJumpToMessage={scrollToMessage}
+              onRetry={retryMessage}
             />
           );
         })}

@@ -24,6 +24,26 @@
   color: var(--yellow);
 }
 
+.pendingMessage { opacity: 0.6; }
+
+.failedMessage {
+  cursor: pointer;
+  background: rgba(242, 63, 66, 0.06);
+}
+.failedMessage:hover { background: rgba(242, 63, 66, 0.12); }
+
+.pendingTag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.failedTag {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--red);
+}
+
 .avatar {
   width: 40px;
   height: 40px;

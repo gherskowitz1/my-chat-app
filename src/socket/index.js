@@ -58,23 +58,52 @@ function setupSocket(io) {
       socket.join(`channel:${channelId}`);
     });
 
-    // Send message to a channel
-    socket.on('message:send', async ({ channelId, content, replyToId }) => {
+    // Send message to a channel. Accepts an optional clientId (the offline
+    // outbox's idempotency key) and an optional ack callback — neither is
+    // required, so older/other callers that just fire-and-forget still work.
+    socket.on('message:send', async ({ channelId, content, replyToId, clientId }, ack) => {
       if (!content?.trim()) return;
       try {
         const channel = await getChannelById(channelId);
-        if (!(await canAccessChannel(channel, userId, role))) return;
+        if (!(await canAccessChannel(channel, userId, role))) {
+          if (typeof ack === 'function') ack({ success: false, error: 'No access to this channel' });
+          return;
+        }
 
-        const { rows } = await pool.query(
-          `WITH inserted AS (
-             INSERT INTO messages (channel_id, user_id, content, reply_to_id) VALUES ($1, $2, $3, $4)
-             RETURNING id, channel_id, content, reply_to_id, created_at, user_id
-           )
-           SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
-           FROM inserted JOIN users u ON u.id = inserted.user_id`,
-          [channelId, userId, content.trim(), replyToId || null]
+        // ON CONFLICT DO NOTHING makes a retried send (same clientId, after
+        // a dropped connection or reload) a no-op instead of a duplicate
+        // message; if it conflicts, RETURNING is empty, so fall back to
+        // fetching the row that already exists.
+        const { rows: insertedRows } = await pool.query(
+          `INSERT INTO messages (channel_id, user_id, content, reply_to_id, client_id)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (channel_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
+           RETURNING id, channel_id, content, reply_to_id, created_at, user_id, client_id`,
+          [channelId, userId, content.trim(), replyToId || null, clientId || null]
         );
-        const newMessage = { ...rows[0], reactions: [] };
+        let messageRow = insertedRows[0];
+        let wasDuplicate = false;
+        if (!messageRow && clientId) {
+          wasDuplicate = true;
+          const { rows: existingRows } = await pool.query(
+            'SELECT id, channel_id, content, reply_to_id, created_at, user_id, client_id FROM messages WHERE channel_id = $1 AND client_id = $2',
+            [channelId, clientId]
+          );
+          messageRow = existingRows[0];
+        }
+        if (!messageRow) {
+          if (typeof ack === 'function') ack({ success: false, error: 'Failed to send message' });
+          return;
+        }
+
+        const { rows: userRows } = await pool.query(
+          'SELECT username, avatar_color, avatar_url FROM users WHERE id = $1',
+          [messageRow.user_id]
+        );
+        const newMessage = { ...messageRow, ...userRows[0], reactions: [] };
+        if (typeof ack === 'function') ack({ success: true, message: newMessage });
+        if (wasDuplicate) return; // already broadcast the first time this clientId was seen
+
         io.to(`channel:${channelId}`).emit('message:new', newMessage);
 
         // Notify the people who can actually see this channel directly
@@ -113,6 +142,7 @@ function setupSocket(io) {
       } catch (err) {
         console.error('message:send error', err);
         socket.emit('error', { message: 'Failed to send message' });
+        if (typeof ack === 'function') ack({ success: false, error: 'Failed to send message' });
       }
     });
 
@@ -198,8 +228,8 @@ function setupSocket(io) {
       socket.join(`dm:${conversationId}`);
     });
 
-    // Send DM
-    socket.on('dm:send', async ({ conversationId, content, replyToId }) => {
+    // Send DM. See message:send above for the clientId/ack idempotency scheme.
+    socket.on('dm:send', async ({ conversationId, content, replyToId, clientId }, ack) => {
       if (!content?.trim()) return;
       try {
         // Verify participant
@@ -207,18 +237,41 @@ function setupSocket(io) {
           'SELECT 1 FROM dm_participants WHERE conversation_id = $1 AND user_id = $2',
           [conversationId, userId]
         );
-        if (!check[0]) return;
+        if (!check[0]) {
+          if (typeof ack === 'function') ack({ success: false, error: 'No access to this conversation' });
+          return;
+        }
 
-        const { rows } = await pool.query(
-          `WITH inserted AS (
-             INSERT INTO dm_messages (conversation_id, user_id, content, reply_to_id) VALUES ($1, $2, $3, $4)
-             RETURNING id, conversation_id, content, reply_to_id, created_at, user_id
-           )
-           SELECT inserted.*, u.username, u.avatar_color, u.avatar_url
-           FROM inserted JOIN users u ON u.id = inserted.user_id`,
-          [conversationId, userId, content.trim(), replyToId || null]
+        const { rows: insertedRows } = await pool.query(
+          `INSERT INTO dm_messages (conversation_id, user_id, content, reply_to_id, client_id)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (conversation_id, client_id) WHERE client_id IS NOT NULL DO NOTHING
+           RETURNING id, conversation_id, content, reply_to_id, created_at, user_id, client_id`,
+          [conversationId, userId, content.trim(), replyToId || null, clientId || null]
         );
-        const newMessage = { ...rows[0], reactions: [] };
+        let messageRow = insertedRows[0];
+        let wasDuplicate = false;
+        if (!messageRow && clientId) {
+          wasDuplicate = true;
+          const { rows: existingRows } = await pool.query(
+            'SELECT id, conversation_id, content, reply_to_id, created_at, user_id, client_id FROM dm_messages WHERE conversation_id = $1 AND client_id = $2',
+            [conversationId, clientId]
+          );
+          messageRow = existingRows[0];
+        }
+        if (!messageRow) {
+          if (typeof ack === 'function') ack({ success: false, error: 'Failed to send message' });
+          return;
+        }
+
+        const { rows: userRows } = await pool.query(
+          'SELECT username, avatar_color, avatar_url FROM users WHERE id = $1',
+          [messageRow.user_id]
+        );
+        const newMessage = { ...messageRow, ...userRows[0], reactions: [] };
+        if (typeof ack === 'function') ack({ success: true, message: newMessage });
+        if (wasDuplicate) return;
+
         io.to(`dm:${conversationId}`).emit('dm:new', newMessage);
 
         const { rows: others } = await pool.query(
@@ -236,6 +289,7 @@ function setupSocket(io) {
         });
       } catch (err) {
         console.error('dm:send error', err);
+        if (typeof ack === 'function') ack({ success: false, error: 'Failed to send message' });
       }
     });
 

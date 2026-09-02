@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { getPending, removePending } from '../utils/outbox';
 
 const SocketContext = createContext(null);
 
@@ -26,7 +27,40 @@ export function SocketProvider({ children }) {
       path: '/socket.io',
     });
 
-    socket.on('connect', () => setConnected(true));
+    // Retries every still-pending outbox entry on every successful connect —
+    // including the very first one after a fresh page load, which is exactly
+    // what makes a message "typed during a blip" survive a reload: it was
+    // written to localStorage before the emit attempt, and gets replayed
+    // here once there's a connection again, wherever that connection comes
+    // from. Each entry carries its own clientId, so a message the server
+    // already received (the resend was actually unnecessary) is deduped
+    // there rather than appearing twice.
+    const flushOutbox = () => {
+      getPending().forEach((entry) => {
+        const event = entry.type === 'channel' ? 'message:send' : 'dm:send';
+        const payload = entry.type === 'channel'
+          ? { channelId: entry.targetId, content: entry.content, replyToId: entry.replyToId, clientId: entry.clientId }
+          : { conversationId: entry.targetId, content: entry.content, replyToId: entry.replyToId, clientId: entry.clientId };
+        socket.emit(event, payload, (res) => {
+          if (!res) return; // no ack (still offline) — leave it queued for the next connect
+          if (res.success) {
+            removePending(entry.clientId);
+            window.dispatchEvent(new CustomEvent('outbox:resolved', {
+              detail: { clientId: entry.clientId, message: res.message, type: entry.type, targetId: entry.targetId },
+            }));
+          } else {
+            // Rejected outright (e.g. access revoked) rather than just
+            // undelivered — stop retrying it forever.
+            removePending(entry.clientId);
+            window.dispatchEvent(new CustomEvent('outbox:failed', {
+              detail: { clientId: entry.clientId, error: res.error, type: entry.type, targetId: entry.targetId },
+            }));
+          }
+        });
+      });
+    };
+
+    socket.on('connect', () => { setConnected(true); flushOutbox(); });
     socket.on('disconnect', () => setConnected(false));
 
     // Attached in this same synchronous block, before the socket has even

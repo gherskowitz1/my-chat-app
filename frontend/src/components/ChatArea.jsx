@@ -5,6 +5,7 @@ import { useSocket } from '../context/SocketContext';
 import { useMentionAutocomplete } from '../hooks/useMentionAutocomplete';
 import { useDraft } from '../hooks/useDraft';
 import { EVERYONE_USER } from '../utils/mentions';
+import { addPending, removePending, getPendingFor, newClientId, reconcileMessage } from '../utils/outbox';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
@@ -15,6 +16,29 @@ import messageStyles from './Message.module.css';
 
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
+
+// Renders an outbox entry as a message-shaped object so it can sit in the
+// same list as real ones (dimmed via `pending`/`failed` in Message.jsx)
+// until the server confirms it — the outbox entry itself only stores what's
+// needed to resend, not a full author profile, so that comes from whoever's
+// logged in now (always correct, since a pending entry is always your own).
+function toOptimisticMessage(entry, user) {
+  return {
+    id: entry.clientId,
+    client_id: entry.clientId,
+    channel_id: entry.targetId,
+    user_id: user.id,
+    username: user.username,
+    avatar_color: user.avatar_color,
+    avatar_url: user.avatar_url,
+    content: entry.content,
+    reply_to_id: entry.replyToId || null,
+    created_at: entry.createdAt,
+    reactions: [],
+    pending: true,
+    failed: entry.failed || false,
+  };
+}
 
 export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM, onBack, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
@@ -54,10 +78,18 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const fetchMessages = useCallback(async () => {
     try {
       const data = await api.get(`/channels/${channel.id}/messages?limit=${PAGE_SIZE}`);
-      setMessages(data);
+      // Anything still in the outbox for this channel either hasn't been
+      // delivered yet (show it as pending) or was delivered but a reload
+      // beat the delivery confirmation back here (already in `data` by
+      // clientId, so skip re-adding it as a duplicate pending bubble).
+      const deliveredClientIds = new Set(data.filter((m) => m.client_id).map((m) => m.client_id));
+      const pending = getPendingFor('channel', channel.id)
+        .filter((entry) => !deliveredClientIds.has(entry.clientId))
+        .map((entry) => toOptimisticMessage(entry, user));
+      setMessages([...data, ...pending]);
       setHasMore(data.length === PAGE_SIZE);
     } catch {}
-  }, [channel.id]);
+  }, [channel.id, user]);
 
   const loadOlderMessages = useCallback(async () => {
     if (loadingMore || !hasMore || messages.length === 0) return;
@@ -141,6 +173,26 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     }
   }, [channel.id, jumpToMessageId, fetchMessages, socket]);
 
+  // Reconciles a pending bubble resolved by SocketContext's background
+  // reconnect-flush, which runs independently of whichever channel happens
+  // to be open right now.
+  useEffect(() => {
+    const onResolved = (e) => {
+      if (e.detail.type !== 'channel' || e.detail.targetId !== channel.id) return;
+      setMessages((prev) => reconcileMessage(prev, e.detail.message));
+    };
+    const onFailed = (e) => {
+      if (e.detail.type !== 'channel' || e.detail.targetId !== channel.id) return;
+      setMessages((prev) => prev.map((m) => (m.client_id === e.detail.clientId ? { ...m, pending: false, failed: true } : m)));
+    };
+    window.addEventListener('outbox:resolved', onResolved);
+    window.addEventListener('outbox:failed', onFailed);
+    return () => {
+      window.removeEventListener('outbox:resolved', onResolved);
+      window.removeEventListener('outbox:failed', onFailed);
+    };
+  }, [channel.id]);
+
   useEffect(() => {
     api.get(`/channels/${channel.id}/pins`)
       .then((pins) => setPinnedIds(new Set(pins.map((p) => p.id))))
@@ -153,8 +205,11 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       // Viewing an old window jumped to from search/reply/pin — appending a
       // live message here would tack it onto the end with a time gap in
       // between; let "Jump to Present" bring the user back to it instead.
+      // Reconciling (rather than a plain append) means this also correctly
+      // resolves our own pending outbox bubble if this broadcast is the
+      // echo of a message we just sent.
       if (msg.channel_id === channel.id && !viewingHistorical) {
-        setMessages((prev) => [...prev, msg]);
+        setMessages((prev) => reconcileMessage(prev, msg));
       }
     };
     const onDeleted = ({ messageId }) => {
@@ -215,13 +270,52 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
 
   const sendMessage = (e) => {
     e?.preventDefault();
-    if (!input.trim()) return;
-    socket?.emit('message:send', { channelId: channel.id, content: input.trim(), replyToId: replyingTo?.id });
+    const content = input.trim();
+    if (!content) return;
+
+    const entry = {
+      clientId: newClientId(),
+      type: 'channel',
+      targetId: channel.id,
+      content,
+      replyToId: replyingTo?.id || null,
+      createdAt: new Date().toISOString(),
+    };
+    addPending(entry);
+    setMessages((prev) => [...prev, toOptimisticMessage(entry, user)]);
+
+    socket?.emit('message:send', {
+      channelId: channel.id, content, replyToId: entry.replyToId, clientId: entry.clientId,
+    }, (res) => {
+      if (!res) return; // no ack (offline) — SocketContext's reconnect flush will retry it
+      removePending(entry.clientId);
+      if (res.success) setMessages((prev) => reconcileMessage(prev, res.message));
+      else setMessages((prev) => prev.map((m) => (m.client_id === entry.clientId ? { ...m, pending: false, failed: true } : m)));
+    });
+
     setInput('');
     clearDraft();
     setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
+  };
+
+  const retryMessage = (msg) => {
+    if (!msg.failed) return;
+    const entry = {
+      clientId: msg.client_id, type: 'channel', targetId: channel.id,
+      content: msg.content, replyToId: msg.reply_to_id, createdAt: msg.created_at,
+    };
+    addPending(entry);
+    setMessages((prev) => prev.map((m) => (m.client_id === msg.client_id ? { ...m, pending: true, failed: false } : m)));
+    socket?.emit('message:send', {
+      channelId: channel.id, content: entry.content, replyToId: entry.replyToId, clientId: entry.clientId,
+    }, (res) => {
+      if (!res) return;
+      removePending(entry.clientId);
+      if (res.success) setMessages((prev) => reconcileMessage(prev, res.message));
+      else setMessages((prev) => prev.map((m) => (m.client_id === entry.clientId ? { ...m, pending: false, failed: true } : m)));
+    });
   };
 
   const handleTyping = (e) => {
@@ -398,6 +492,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
               onReply={startReply}
               onReact={reactToMessage}
               onJumpToMessage={scrollToMessage}
+              onRetry={retryMessage}
             />
           );
         })}

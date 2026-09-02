@@ -68,6 +68,12 @@ CREATE TABLE IF NOT EXISTS messages (
 
 ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES messages(id) ON DELETE SET NULL;
 
+-- Client-generated id for the offline outbox: a resend after a dropped
+-- connection carries the same client_id, so ON CONFLICT DO NOTHING makes
+-- retrying idempotent instead of creating a duplicate message.
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS client_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_channel_client ON messages (channel_id, client_id) WHERE client_id IS NOT NULL;
+
 -- Full-text search — a generated column keeps the tsvector in sync with
 -- content automatically (no trigger needed), and the GIN index makes
 -- @@ lookups fast even as message history grows.
@@ -120,6 +126,9 @@ CREATE TABLE IF NOT EXISTS dm_messages (
 
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ;
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS reply_to_id UUID REFERENCES dm_messages(id) ON DELETE SET NULL;
+
+ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS client_id UUID;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_dm_messages_conversation_client ON dm_messages (conversation_id, client_id) WHERE client_id IS NOT NULL;
 
 ALTER TABLE dm_messages ADD COLUMN IF NOT EXISTS content_tsv tsvector
   GENERATED ALWAYS AS (to_tsvector('english', content)) STORED;

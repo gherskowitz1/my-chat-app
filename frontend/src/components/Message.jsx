@@ -154,7 +154,7 @@ function formatDate(ts) {
 
 export default function Message({
   msg, grouped, canDelete, canEdit, onDelete, onEdit, users = [], onMentionClick,
-  allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage,
+  allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage, onRetry,
 }) {
   const { user } = useAuth();
   const { emojiByName } = useCustomEmoji();
@@ -209,9 +209,11 @@ export default function Message({
   return (
     <div
       id={`msg-${msg.id}`}
-      className={`${styles.message} ${grouped ? styles.grouped : ''} ${isPinned ? styles.pinnedMessage : ''}`}
+      className={`${styles.message} ${grouped ? styles.grouped : ''} ${isPinned ? styles.pinnedMessage : ''} ${msg.pending ? styles.pendingMessage : ''} ${msg.failed ? styles.failedMessage : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={msg.failed ? () => onRetry?.(msg) : undefined}
+      title={msg.failed ? 'Click to retry sending' : undefined}
     >
       {!grouped ? (
         <Avatar
@@ -232,6 +234,8 @@ export default function Message({
             <span className={styles.username}>{msg.username}</span>
             <span className={styles.timestamp}>{formatDate(msg.created_at)}</span>
             {isPinned && <span className={styles.pinnedTag}>📌 Pinned</span>}
+            {msg.pending && <span className={styles.pendingTag}>Sending…</span>}
+            {msg.failed && <span className={styles.failedTag}>⚠ Failed — click to retry</span>}
           </div>
         )}
 
@@ -301,7 +305,7 @@ export default function Message({
         )}
       </div>
 
-      {hovered && !editing && (
+      {hovered && !editing && !msg.pending && !msg.failed && (
         <div className={styles.actions}>
           <button
             className={styles.actionBtn}
