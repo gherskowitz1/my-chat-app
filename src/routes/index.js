@@ -24,6 +24,7 @@ const { getFriends, sendRequest, acceptRequest, declineRequest, removeFriend } =
 const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiController');
 const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
 const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
+const { getGifs } = require('../controllers/giphyController');
 
 // Auth
 router.get('/auth/config', getAuthConfig);
@@ -39,6 +40,9 @@ router.patch('/auth/avatar-color', authMiddleware, updateAvatarColor);
 
 // Users
 router.get('/users', authMiddleware, getUsers);
+
+// GIFs
+router.get('/giphy', authMiddleware, getGifs);
 
 // Channels
 router.get('/servers/:serverId/channels', authMiddleware, getChannels);

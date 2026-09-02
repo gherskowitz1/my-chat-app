@@ -11,6 +11,7 @@ import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import EmojiPicker from './EmojiPicker';
+import GifPicker from './GifPicker';
 import styles from './ChatArea.module.css';
 import messageStyles from './Message.module.css';
 
@@ -55,6 +56,7 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
+  const [gifPickerAnchor, setGifPickerAnchor] = useState(null);
 
   // Inserts at the cursor rather than always appending, so picking an emoji
   // partway through a sentence you're editing lands where you'd expect.
@@ -299,6 +301,32 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
     setReplyingTo(null);
     shouldStickToBottomRef.current = true;
     stopTyping();
+  };
+
+  // A GIF sends immediately as its own message, independent of whatever's
+  // still sitting in the composer — same idea as Discord's GIF button.
+  const sendGif = (gifUrl) => {
+    const entry = {
+      clientId: newClientId(),
+      type: 'dm',
+      targetId: conversation.id,
+      content: gifUrl,
+      replyToId: null,
+      createdAt: new Date().toISOString(),
+    };
+    addPending(entry);
+    setMessages((prev) => [...prev, toOptimisticMessage(entry, user)]);
+
+    socket?.emit('dm:send', {
+      conversationId: conversation.id, content: gifUrl, replyToId: null, clientId: entry.clientId,
+    }, (res) => {
+      if (!res) return;
+      removePending(entry.clientId);
+      if (res.success) setMessages((prev) => reconcileMessage(prev, res.message));
+      else setMessages((prev) => prev.map((m) => (m.client_id === entry.clientId ? { ...m, pending: false, failed: true } : m)));
+    });
+
+    shouldStickToBottomRef.current = true;
   };
 
   // See the identical function in ChatArea.jsx for why this goes over REST
@@ -587,6 +615,21 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
               anchorRect={emojiPickerAnchor}
               onClose={() => setEmojiPickerAnchor(null)}
               onSelect={insertEmoji}
+            />
+          )}
+          <button
+            type="button"
+            className={styles.attachBtn}
+            onClick={(e) => setGifPickerAnchor(e.currentTarget.getBoundingClientRect())}
+            title="GIF"
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '-0.02em' }}>GIF</span>
+          </button>
+          {gifPickerAnchor && (
+            <GifPicker
+              anchorRect={gifPickerAnchor}
+              onClose={() => setGifPickerAnchor(null)}
+              onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); }}
             />
           )}
           <button type="submit" className={styles.sendBtn} disabled={!input.trim() && stagedAttachments.length === 0}>
