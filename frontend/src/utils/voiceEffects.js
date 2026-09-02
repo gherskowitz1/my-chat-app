@@ -286,6 +286,13 @@ const EFFECT_BUILDERS = {
   demon: (ctx) => buildPitchShift(ctx, 0.6, 'demon'),
 };
 
+// Exposed so a local "hear yourself" preview can build the exact same
+// effect graph without going through LiveKit's TrackProcessor at all —
+// useful when previewing shouldn't require being connected to a room.
+export function buildEffectGraph(ctx, effectId) {
+  return EFFECT_BUILDERS[effectId](ctx);
+}
+
 // Conforms to LiveKit's TrackProcessor<Track.Kind.Audio> interface:
 // { name, init(opts), restart(opts), destroy(), processedTrack }.
 export class VoiceEffectProcessor {
@@ -312,8 +319,7 @@ export class VoiceEffectProcessor {
     const ctx = this._audioContext;
     const source = ctx.createMediaStreamSource(new MediaStream([track]));
     const destination = ctx.createMediaStreamDestination();
-    const builder = EFFECT_BUILDERS[this.effectId];
-    const graph = await builder(ctx);
+    const graph = await buildEffectGraph(ctx, this.effectId);
     source.connect(graph.input);
     graph.output.connect(destination);
     this._nodes = [source, destination, ...graph.extraNodes];

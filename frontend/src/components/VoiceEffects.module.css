@@ -20,6 +20,32 @@
   margin-bottom: 8px;
 }
 
+.previewToggle {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  transition: background 0.1s;
+}
+.previewToggle:hover:not(:disabled) { background: var(--bg-hover); }
+.previewToggle:disabled { opacity: 0.5; cursor: default; }
+
+.previewOn {
+  background: rgba(88,101,242,0.25);
+  color: var(--accent);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
