@@ -32,6 +32,29 @@
   --scrollbar-thumb: #1a1b1e;
 }
 
+/* Light theme — the main chat app only (the standalone Admin Portal keeps
+   its own fixed dark palette; it doesn't use these variables at all). */
+:root[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f2f3f5;
+  --bg-tertiary: #e3e5e8;
+  --bg-hover: #e3e5e8;
+  --bg-active: #e0e3ff;
+  --bg-input: #ebedef;
+  --bg-modal: #ffffff;
+
+  --text-primary: #060607;
+  --text-secondary: #4e5058;
+  --text-muted: #6d7079;
+  --text-link: #006ce7;
+
+  --border: #e3e5e8;
+  --border-light: #d4d7dc;
+
+  --scrollbar-track: #f2f3f5;
+  --scrollbar-thumb: #c7c9cd;
+}
+
 html, body, #root {
   height: 100%;
   background: var(--bg-primary);

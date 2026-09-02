@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LiveKitRoom,
   VideoConference,
   RoomAudioRenderer,
 } from '@livekit/components-react';
+import { DefaultReconnectPolicy } from 'livekit-client';
 import '@livekit/components-styles';
 import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
@@ -11,11 +12,18 @@ import VoiceAdminControls from './VoiceAdminControls';
 import VolumeMixer from './VolumeMixer';
 import VoiceControls from './VoiceControls';
 import VoiceChimes from './VoiceChimes';
+import VoiceReliability from './VoiceReliability';
 import { useAuth } from '../context/AuthContext';
 import styles from './VoiceChannel.module.css';
 
 const INACTIVITY_LIMIT_MS = 4 * 60 * 60 * 1000; // 4 hours
 export const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
+
+// Delays (ms) between LiveKit's own reconnect attempts after a dropped
+// connection, summing to ~15s before it gives up and fires onDisconnected —
+// long enough to ride out a brief network blip without kicking the user back
+// to the join screen.
+const RECONNECT_RETRY_DELAYS = [0, 500, 1000, 1500, 2000, 2500, 3000, 4500];
 
 export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchChannel }) {
   const { user } = useAuth();
@@ -26,6 +34,11 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
   const [joined, setJoined] = useState(false);
   const [audioPrefs, setAudioPrefs] = useState(null);
   const lastActivityRef = useRef(Date.now());
+
+  const roomOptions = useMemo(() => ({
+    reconnectPolicy: new DefaultReconnectPolicy(RECONNECT_RETRY_DELAYS),
+    ...(audioPrefs?.bitrateCap ? { publishDefaults: { audioPreset: { maxBitrate: audioPrefs.bitrateCap } } } : {}),
+  }), [audioPrefs?.bitrateCap]);
 
   const join = async () => {
     setJoining(true);
@@ -104,9 +117,10 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
     );
   }
 
-  const audioConstraints = audioPrefs?.inputDeviceId
-    ? { deviceId: { exact: audioPrefs.inputDeviceId } }
-    : true;
+  const audioConstraints = {
+    noiseSuppression: audioPrefs?.noiseSuppression !== false,
+    ...(audioPrefs?.inputDeviceId ? { deviceId: { exact: audioPrefs.inputDeviceId } } : {}),
+  };
 
   const isAfkChannel = normalizeChannelName(channel.name) === 'takingashit';
 
@@ -118,11 +132,13 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
         connect={true}
         video={false}
         audio={audioConstraints}
+        options={roomOptions}
         onDisconnected={leave}
         style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
       >
         <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
         <VoiceChimes />
+        <VoiceReliability />
         <div className={styles.room}>
           <VideoConference />
         </div>

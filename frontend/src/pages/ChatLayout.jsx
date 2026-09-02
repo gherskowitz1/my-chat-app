@@ -8,7 +8,9 @@ import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
 import UserSettings from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
+import WhatsNewModal from '../components/WhatsNewModal';
 import { mentionsUser } from '../utils/mentions';
+import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -16,6 +18,7 @@ import styles from './ChatLayout.module.css';
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
+const WHATS_NEW_KEY = 'crowsnest_whatsnew_seen';
 
 function truncate(text, max = 120) {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -31,11 +34,29 @@ export default function ChatLayout() {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [serverName, setServerName] = useState('');
+  const [categoryLabels, setCategoryLabels] = useState({ text: 'TEXT CHANNELS', voice: 'VOICE CHANNELS' });
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
   const [unreadChannels, setUnreadChannels] = useState(new Map()); // channelId -> { count, mentioned }
   const [unreadDMs, setUnreadDMs] = useState(new Map()); // conversationId -> count
   const [toasts, setToasts] = useState([]);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const toastIdRef = useRef(0);
+
+  // Show the changelog once to a returning user whose last-seen version is
+  // behind — never to a brand-new sign-up, who has nothing to catch up on.
+  useEffect(() => {
+    const seen = localStorage.getItem(WHATS_NEW_KEY);
+    if (seen === null) {
+      localStorage.setItem(WHATS_NEW_KEY, CURRENT_VERSION);
+      return;
+    }
+    if (seen !== CURRENT_VERSION) setShowWhatsNew(true);
+  }, []);
+
+  const dismissWhatsNew = () => {
+    localStorage.setItem(WHATS_NEW_KEY, CURRENT_VERSION);
+    setShowWhatsNew(false);
+  };
 
   const pushToast = useCallback((toast) => {
     const id = ++toastIdRef.current;
@@ -46,10 +67,13 @@ export default function ChatLayout() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Load real server name from DB on mount
+  // Load real server name/category labels from DB on mount
   useEffect(() => {
     api.get(`/servers/${DEFAULT_SERVER}`)
-      .then(s => setServerName(s.name))
+      .then(s => {
+        setServerName(s.name);
+        setCategoryLabels({ text: s.text_category_label, voice: s.voice_category_label });
+      })
       .catch(() => setServerName('General Server'));
   }, []);
 
@@ -146,8 +170,9 @@ export default function ChatLayout() {
     };
   }, [socket]);
 
-  const handleServerRenamed = useCallback((name) => {
-    setServerName(name);
+  const handleServerRenamed = useCallback((updatedServer) => {
+    setServerName(updatedServer.name);
+    setCategoryLabels({ text: updatedServer.text_category_label, voice: updatedServer.voice_category_label });
   }, []);
 
   const handleChannelRenamed = useCallback((updatedChannel) => {
@@ -227,6 +252,8 @@ export default function ChatLayout() {
           key={channelRefreshKey}
           serverId={DEFAULT_SERVER}
           serverName={serverName}
+          textCategoryLabel={categoryLabels.text}
+          voiceCategoryLabel={categoryLabels.voice}
           activeChannel={activeChannel}
           onChannelSelect={selectChannel}
           unreadChannels={unreadChannels}
@@ -270,6 +297,8 @@ export default function ChatLayout() {
       )}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
+
+      {showWhatsNew && <WhatsNewModal onClose={dismissWhatsNew} />}
     </div>
   );
 }

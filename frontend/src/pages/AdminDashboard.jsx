@@ -648,7 +648,15 @@ function ServerTab() {
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const res = await authFetch(`/servers/${DEFAULT_SERVER}`, { method: 'PATCH', body: JSON.stringify({ name: server.name, description: server.description }) });
+    const res = await authFetch(`/servers/${DEFAULT_SERVER}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        name: server.name,
+        description: server.description,
+        textCategoryLabel: server.text_category_label,
+        voiceCategoryLabel: server.voice_category_label,
+      }),
+    });
     setSaving(false);
     if (res.error) { setFlash({ msg: res.error, type: 'error' }); return; }
     setServer(res);
@@ -673,6 +681,14 @@ function ServerTab() {
         <label className={styles.field}>
           <span>DESCRIPTION</span>
           <input className={styles.input} value={server.description || ''} onChange={e => setServer(s => ({ ...s, description: e.target.value }))} maxLength={255} placeholder="What's this server about?" />
+        </label>
+        <label className={styles.field}>
+          <span>TEXT CHANNELS SECTION LABEL</span>
+          <input className={styles.input} value={server.text_category_label || ''} onChange={e => setServer(s => ({ ...s, text_category_label: e.target.value }))} maxLength={100} placeholder="TEXT CHANNELS" />
+        </label>
+        <label className={styles.field}>
+          <span>VOICE CHANNELS SECTION LABEL</span>
+          <input className={styles.input} value={server.voice_category_label || ''} onChange={e => setServer(s => ({ ...s, voice_category_label: e.target.value }))} maxLength={100} placeholder="VOICE CHANNELS" />
         </label>
         <button type="submit" className={styles.primaryBtn} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
       </form>

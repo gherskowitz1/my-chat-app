@@ -12,7 +12,7 @@ import styles from './ChannelSidebar.module.css';
 // until someone actually opens a voice channel.
 const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
 
-export default function ChannelSidebar({ serverId, serverName, activeChannel, onChannelSelect, unreadChannels }) {
+export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -121,7 +121,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
       <div className={styles.channels}>
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <span>TEXT CHANNELS</span>
+            <span>{textCategoryLabel || 'TEXT CHANNELS'}</span>
             {user?.role === 'admin' && (
               <button className={styles.addBtn} onClick={() => { setShowCreate(true); setNewType('text'); }} title="Add channel">+</button>
             )}
@@ -156,7 +156,7 @@ export default function ChannelSidebar({ serverId, serverName, activeChannel, on
 
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <span>VOICE CHANNELS</span>
+            <span>{voiceCategoryLabel || 'VOICE CHANNELS'}</span>
             {user?.role === 'admin' && (
               <button className={styles.addBtn} onClick={() => { setShowCreate(true); setNewType('voice'); }} title="Add voice channel">+</button>
             )}

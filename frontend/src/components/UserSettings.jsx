@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useTheme } from '../context/ThemeContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
@@ -40,6 +41,8 @@ function resizeImageToDataUrl(file, maxDimension = AVATAR_MAX_DIMENSION, quality
 
 const STORAGE_KEY_IN = 'chatter_audio_input';
 const STORAGE_KEY_OUT = 'chatter_audio_output';
+const STORAGE_KEY_NOISE_SUPPRESSION = 'chatter_noise_suppression';
+const STORAGE_KEY_BITRATE = 'chatter_bitrate_cap';
 
 export default function UserSettings({ onClose }) {
   const { user, updateAvatar } = useAuth();
@@ -134,10 +137,16 @@ export default function UserSettings({ onClose }) {
           <button className={`${styles.tab} ${tab === 'status' ? styles.activeTab : ''}`} onClick={() => setTab('status')}>
             <StatusDotIcon /> Status
           </button>
+          <button className={`${styles.tab} ${tab === 'appearance' ? styles.activeTab : ''}`} onClick={() => setTab('appearance')}>
+            🎨 Appearance
+          </button>
         </div>
 
         <div className={styles.body}>
-          {tab === 'audio' ? <AudioTab /> : tab === 'shortcuts' ? <ShortcutsTab /> : <StatusTab />}
+          {tab === 'audio' ? <AudioTab />
+            : tab === 'shortcuts' ? <ShortcutsTab />
+            : tab === 'status' ? <StatusTab />
+            : <AppearanceTab />}
         </div>
       </div>
     </div>
@@ -150,6 +159,8 @@ function AudioTab() {
   const [outputs, setOutputs] = useState([]);
   const [selectedInput, setSelectedInput] = useState(localStorage.getItem(STORAGE_KEY_IN) || '');
   const [selectedOutput, setSelectedOutput] = useState(localStorage.getItem(STORAGE_KEY_OUT) || '');
+  const [noiseSuppression, setNoiseSuppression] = useState(localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false');
+  const [bitrateCap, setBitrateCap] = useState(localStorage.getItem(STORAGE_KEY_BITRATE) || '');
   const [testing, setTesting] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -169,6 +180,8 @@ function AudioTab() {
   const save = () => {
     localStorage.setItem(STORAGE_KEY_IN, selectedInput);
     localStorage.setItem(STORAGE_KEY_OUT, selectedOutput);
+    localStorage.setItem(STORAGE_KEY_NOISE_SUPPRESSION, String(noiseSuppression));
+    localStorage.setItem(STORAGE_KEY_BITRATE, bitrateCap);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -214,6 +227,24 @@ function AudioTab() {
           {outputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Speaker ${d.deviceId.slice(0,8)}`}</option>)}
         </select>
         {outputs.length === 0 && <p className={styles.hint}>Output device selection requires Chrome or Edge.</p>}
+      </section>
+
+      <section className={styles.section}>
+        <h3>🎚️ Voice Quality</h3>
+        <label className={styles.checkboxRow}>
+          <input type="checkbox" checked={noiseSuppression} onChange={e => setNoiseSuppression(e.target.checked)} />
+          <span>Noise suppression</span>
+        </label>
+        <p className={styles.hint} style={{ marginTop: -4, marginBottom: 10 }}>Filters out background noise from your microphone.</p>
+
+        <h3 style={{ marginTop: 4 }}>Bitrate Cap</h3>
+        <select className={styles.select} value={bitrateCap} onChange={e => setBitrateCap(e.target.value)}>
+          <option value="">Auto (recommended)</option>
+          <option value="16000">Low — 16 kbps (slow connections)</option>
+          <option value="32000">Normal — 32 kbps</option>
+          <option value="64000">High — 64 kbps (best quality)</option>
+        </select>
+        <p className={styles.hint}>Limits how much bandwidth your outgoing voice uses. Lower it if you have a weak connection.</p>
       </section>
 
       <div className={styles.footer}>
@@ -346,6 +377,42 @@ function StatusTab() {
   );
 }
 
+// ── Appearance Tab ───────────────────────────────────────────
+const THEME_OPTIONS = [
+  { value: 'dark', label: 'Dark', desc: 'The default look.', swatch: '#1e1f22' },
+  { value: 'light', label: 'Light', desc: 'A brighter theme for daytime use.', swatch: '#ffffff' },
+];
+
+function AppearanceTab() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <section className={styles.section}>
+      <h3>🎨 Theme</h3>
+      <div className={styles.shortcutList}>
+        {THEME_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            className={styles.shortcutRow}
+            style={{ border: theme === opt.value ? '1px solid var(--accent)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+            onClick={() => setTheme(opt.value)}
+          >
+            <div className={styles.shortcutInfo}>
+              <span className={styles.shortcutLabel}>
+                <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: opt.swatch, border: '1px solid var(--border-light)', marginRight: 8, verticalAlign: 'middle' }} />
+                {opt.label}
+              </span>
+              <span className={styles.shortcutDesc}>{opt.desc}</span>
+            </div>
+            {theme === opt.value && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
+          </button>
+        ))}
+      </div>
+      <p className={styles.hint} style={{ marginTop: 12 }}>Applies instantly and only to this device. The standalone Admin Portal keeps its own fixed dark look.</p>
+    </section>
+  );
+}
+
 // ── Icons ────────────────────────────────────────────────────
 const MicIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -365,8 +432,11 @@ const StatusDotIcon = () => (
 );
 
 export function getAudioPreferences() {
+  const bitrate = localStorage.getItem(STORAGE_KEY_BITRATE);
   return {
     inputDeviceId: localStorage.getItem(STORAGE_KEY_IN) || undefined,
     outputDeviceId: localStorage.getItem(STORAGE_KEY_OUT) || undefined,
+    noiseSuppression: localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false',
+    bitrateCap: bitrate ? parseInt(bitrate, 10) : undefined,
   };
 }

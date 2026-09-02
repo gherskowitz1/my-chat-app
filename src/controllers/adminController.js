@@ -3,12 +3,16 @@ const { pool } = require('../db');
 // ── Server ──────────────────────────────────────────────────
 async function updateServer(req, res) {
   const { serverId } = req.params;
-  const { name, description } = req.body;
+  const { name, description, textCategoryLabel, voiceCategoryLabel } = req.body;
   if (!name?.trim()) return res.status(400).json({ error: 'Name required' });
   try {
     const { rows } = await pool.query(
-      'UPDATE servers SET name = $1, description = $2 WHERE id = $3 RETURNING *',
-      [name.trim(), description?.trim() ?? null, serverId]
+      `UPDATE servers
+       SET name = $1, description = $2,
+           text_category_label = COALESCE(NULLIF($3, ''), text_category_label),
+           voice_category_label = COALESCE(NULLIF($4, ''), voice_category_label)
+       WHERE id = $5 RETURNING *`,
+      [name.trim(), description?.trim() ?? null, textCategoryLabel?.trim(), voiceCategoryLabel?.trim(), serverId]
     );
     res.json(rows[0]);
   } catch (err) {

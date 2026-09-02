@@ -85,8 +85,13 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
     e.preventDefault();
     setSaving(true);
     try {
-      const updated = await patch(`/servers/${DEFAULT_SERVER}`, { name: server.name, description: server.description });
-      onServerRenamed(updated.name);
+      const updated = await patch(`/servers/${DEFAULT_SERVER}`, {
+        name: server.name,
+        description: server.description,
+        textCategoryLabel: server.text_category_label,
+        voiceCategoryLabel: server.voice_category_label,
+      });
+      onServerRenamed(updated);
       flash('Server updated!');
     } catch (err) {
       flash(err.message, 'error');
@@ -219,6 +224,24 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
                     onChange={e => setServer(s => ({ ...s, description: e.target.value }))}
                     maxLength={255}
                     placeholder="What's this server about?"
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>TEXT CHANNELS SECTION LABEL</span>
+                  <input
+                    value={server.text_category_label || ''}
+                    onChange={e => setServer(s => ({ ...s, text_category_label: e.target.value }))}
+                    maxLength={100}
+                    placeholder="TEXT CHANNELS"
+                  />
+                </label>
+                <label className={styles.field}>
+                  <span>VOICE CHANNELS SECTION LABEL</span>
+                  <input
+                    value={server.voice_category_label || ''}
+                    onChange={e => setServer(s => ({ ...s, voice_category_label: e.target.value }))}
+                    maxLength={100}
+                    placeholder="VOICE CHANNELS"
                   />
                 </label>
                 <button type="submit" className={styles.saveBtn} disabled={saving}>
