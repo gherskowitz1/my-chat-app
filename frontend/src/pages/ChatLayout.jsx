@@ -281,8 +281,17 @@ export default function ChatLayout() {
 
   const clearPendingJump = useCallback(() => setPendingJump(null), []);
 
+  // Below the mobile breakpoint (see ChatLayout.module.css), the nav pane
+  // and the chat pane can't both fit on screen — this decides which one to
+  // show. Above the breakpoint it's a no-op; both are always visible.
+  const mobileChatOpen = (activeSection === 'server' && !!activeChannel) || (activeSection === 'dm' && !!activeConversation);
+  const backToNav = () => {
+    if (activeSection === 'server') selectChannel(null);
+    else selectConversation(null);
+  };
+
   return (
-    <div className={styles.layout}>
+    <div className={`${styles.layout} ${mobileChatOpen ? styles.chatOpen : ''}`}>
       <ServerSidebar
         activeSection={activeSection}
         onSectionChange={setActiveSection}
@@ -295,24 +304,26 @@ export default function ChatLayout() {
         pendingFriendRequests={pendingFriendRequests}
       />
 
-      {activeSection === 'server' ? (
-        <ChannelSidebar
-          key={channelRefreshKey}
-          serverId={DEFAULT_SERVER}
-          serverName={serverName}
-          textCategoryLabel={categoryLabels.text}
-          voiceCategoryLabel={categoryLabels.voice}
-          activeChannel={activeChannel}
-          onChannelSelect={selectChannel}
-          unreadChannels={unreadChannels}
-        />
-      ) : (
-        <DMSidebar
-          activeConversation={activeConversation}
-          onConversationSelect={selectConversation}
-          unreadDMs={unreadDMs}
-        />
-      )}
+      <div className={styles.navPane}>
+        {activeSection === 'server' ? (
+          <ChannelSidebar
+            key={channelRefreshKey}
+            serverId={DEFAULT_SERVER}
+            serverName={serverName}
+            textCategoryLabel={categoryLabels.text}
+            voiceCategoryLabel={categoryLabels.voice}
+            activeChannel={activeChannel}
+            onChannelSelect={selectChannel}
+            unreadChannels={unreadChannels}
+          />
+        ) : (
+          <DMSidebar
+            activeConversation={activeConversation}
+            onConversationSelect={selectConversation}
+            unreadDMs={unreadDMs}
+          />
+        )}
+      </div>
 
       <div className={styles.main}>
         {activeSection === 'server' && activeChannel ? (
@@ -321,6 +332,7 @@ export default function ChatLayout() {
             onToggleMembers={() => setShowMembers((v) => !v)}
             showMembers={showMembers}
             onOpenDM={openDM}
+            onBack={backToNav}
             jumpToMessageId={pendingJump?.type === 'channel' && pendingJump.targetId === activeChannel.id ? pendingJump.messageId : null}
             onJumpHandled={clearPendingJump}
           />
@@ -328,6 +340,7 @@ export default function ChatLayout() {
           <DMArea
             conversation={activeConversation}
             onOpenDM={openDM}
+            onBack={backToNav}
             jumpToMessageId={pendingJump?.type === 'dm' && pendingJump.targetId === activeConversation.id ? pendingJump.messageId : null}
             onJumpHandled={clearPendingJump}
           />

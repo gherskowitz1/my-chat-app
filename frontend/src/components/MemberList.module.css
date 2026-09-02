@@ -6,6 +6,22 @@
   flex-shrink: 0;
 }
 
+/* On narrow screens there's no room for this next to the chat pane — slide
+   it over as an overlay instead. The header's existing member-list toggle
+   button dismisses it the same way it shows it. */
+@media (max-width: 768px) {
+  .list {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 75vw;
+    max-width: 280px;
+    z-index: 50;
+    box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
+  }
+}
+
 .section { margin-bottom: 16px; }
 
 .sectionTitle {

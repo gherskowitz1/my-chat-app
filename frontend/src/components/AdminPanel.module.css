@@ -12,6 +12,8 @@
   display: flex;
   width: 860px;
   height: 580px;
+  max-width: 92vw;
+  max-height: 90vh;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   overflow: hidden;

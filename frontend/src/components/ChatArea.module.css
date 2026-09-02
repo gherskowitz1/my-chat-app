@@ -45,6 +45,26 @@
 .iconBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
 .iconBtn.active { color: var(--text-primary); }
 
+/* Only shown on narrow screens, where the channel/DM list is a separate
+   full-width pane rather than a sidebar sitting next to this one — see the
+   .chatOpen toggle in ChatLayout.module.css. */
+.backBtn {
+  display: none;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+}
+.backBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+@media (max-width: 768px) {
+  .backBtn { display: flex; }
+}
+
 .messages {
   flex: 1;
   overflow-y: auto;

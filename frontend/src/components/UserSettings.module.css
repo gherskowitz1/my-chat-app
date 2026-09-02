@@ -10,6 +10,10 @@
 
 .panel {
   width: 480px;
+  max-width: 92vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -24,6 +28,7 @@
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border);
   position: relative;
+  flex-shrink: 0;
 }
 
 .avatarPickerWrap {
@@ -109,6 +114,8 @@
 
 .body {
   padding: 24px;
+  flex: 1;
+  overflow-y: auto;
 }
 
 .body h2 {
@@ -225,6 +232,8 @@
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
   gap: 4px;
+  overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .tab {

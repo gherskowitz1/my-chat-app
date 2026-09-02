@@ -14,7 +14,7 @@ import messageStyles from './Message.module.css';
 const PAGE_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 150;
 
-export default function DMArea({ conversation, onOpenDM, jumpToMessageId, onJumpHandled }) {
+export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -240,6 +240,13 @@ export default function DMArea({ conversation, onOpenDM, jumpToMessageId, onJump
   return (
     <div className={styles.area}>
       <div className={styles.header}>
+        {onBack && (
+          <button className={styles.backBtn} onClick={onBack} title="Back to conversations">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+            </svg>
+          </button>
+        )}
         <Avatar
           url={conversation.other_avatar_url}
           color={conversation.other_avatar_color}
