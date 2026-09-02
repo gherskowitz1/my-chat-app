@@ -7,6 +7,7 @@ import { useCustomEmoji } from '../context/CustomEmojiContext';
 import { resizeImageToDataUrl } from '../utils/imageResize';
 import { fileToDataUrl } from '../utils/fileToDataUrl';
 import GuideModal from '../components/GuideModal';
+import ImageCropper from '../components/ImageCropper';
 import { ADMIN_GUIDE } from '../data/adminGuideContent';
 import styles from './AdminDashboard.module.css';
 
@@ -846,29 +847,25 @@ function ServerTab() {
   const [server, setServer] = useState(null);
   const [saving, setSaving] = useState(false);
   const [flash, setFlash] = useState(null);
-  const [iconUploading, setIconUploading] = useState(false);
+  const [iconCropFile, setIconCropFile] = useState(null);
   const iconInputRef = useRef(null);
 
   useEffect(() => {
     authFetch(`/servers/${DEFAULT_SERVER}`).then(setServer).catch(() => {});
   }, []);
 
-  const onIconSelected = async (e) => {
+  const onIconSelected = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) return setFlash({ msg: 'Please choose an image file.', type: 'error' });
     if (file.size > 10 * 1024 * 1024) return setFlash({ msg: 'That image is too large (max 10MB).', type: 'error' });
+    setIconCropFile(file);
+  };
 
-    setIconUploading(true);
-    try {
-      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: 256, quality: 0.85 });
-      setServer(s => ({ ...s, icon_url: dataUrl }));
-    } catch (err) {
-      setFlash({ msg: err.message || 'Failed to process image', type: 'error' });
-    } finally {
-      setIconUploading(false);
-    }
+  const onIconCropSave = (dataUrl) => {
+    setIconCropFile(null);
+    setServer(s => ({ ...s, icon_url: dataUrl }));
   };
 
   const save = async (e) => {
@@ -909,8 +906,8 @@ function ServerTab() {
                 ? <img src={server.icon_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 : <span style={{ fontSize: 22, fontWeight: 700 }}>{(server.name || 'S').trim().charAt(0).toUpperCase()}</span>}
             </div>
-            <button type="button" className={styles.primaryBtn} onClick={() => iconInputRef.current?.click()} disabled={iconUploading}>
-              {iconUploading ? 'Uploading…' : 'Change Icon'}
+            <button type="button" className={styles.primaryBtn} onClick={() => iconInputRef.current?.click()}>
+              Change Icon
             </button>
             {server.icon_url && (
               <button type="button" className={styles.cancelBtn} onClick={() => setServer(s => ({ ...s, icon_url: null }))}>Remove</button>
@@ -936,6 +933,7 @@ function ServerTab() {
         </label>
         <button type="submit" className={styles.primaryBtn} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
       </form>
+      {iconCropFile && <ImageCropper file={iconCropFile} onCancel={() => setIconCropFile(null)} onCrop={onIconCropSave} />}
     </div>
   );
 }

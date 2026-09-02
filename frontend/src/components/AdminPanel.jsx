@@ -6,6 +6,7 @@ import { useCustomEmoji } from '../context/CustomEmojiContext';
 import { resizeImageToDataUrl } from '../utils/imageResize';
 import { fileToDataUrl } from '../utils/fileToDataUrl';
 import Avatar from './Avatar';
+import ImageCropper from './ImageCropper';
 import styles from './AdminPanel.module.css';
 
 const POLL_OPTIONS = [
@@ -78,7 +79,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
   const [users, setUsers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null); // { text, type }
-  const [iconUploading, setIconUploading] = useState(false);
+  const [iconCropFile, setIconCropFile] = useState(null);
   const iconInputRef = useRef(null);
 
   const flash = (text, type = 'success') => {
@@ -100,22 +101,18 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
   useEffect(() => { load(); }, [load]);
 
   // ── Server icon ───────────────────────────────────────────
-  const onServerIconSelected = async (e) => {
+  const onServerIconSelected = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     if (!file.type.startsWith('image/')) return flash('Please choose an image file.', 'error');
     if (file.size > 10 * 1024 * 1024) return flash('That image is too large (max 10MB).', 'error');
+    setIconCropFile(file);
+  };
 
-    setIconUploading(true);
-    try {
-      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: 256, quality: 0.85 });
-      setServer(s => ({ ...s, icon_url: dataUrl }));
-    } catch (err) {
-      flash(err.message || 'Failed to process image', 'error');
-    } finally {
-      setIconUploading(false);
-    }
+  const onIconCropSave = (dataUrl) => {
+    setIconCropFile(null);
+    setServer(s => ({ ...s, icon_url: dataUrl }));
   };
 
   // ── Server name ───────────────────────────────────────────
@@ -272,8 +269,8 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
                         ? <img src={server.icon_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         : <span style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-muted)' }}>{(server.name || 'S').trim().charAt(0).toUpperCase()}</span>}
                     </div>
-                    <button type="button" className={styles.saveSmall} onClick={() => iconInputRef.current?.click()} disabled={iconUploading}>
-                      {iconUploading ? 'Uploading…' : 'Change Icon'}
+                    <button type="button" className={styles.saveSmall} onClick={() => iconInputRef.current?.click()}>
+                      Change Icon
                     </button>
                     {server.icon_url && (
                       <button type="button" className={styles.cancelSmall} onClick={() => setServer(s => ({ ...s, icon_url: null }))}>
@@ -471,6 +468,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
           )}
         </div>
       </div>
+      {iconCropFile && <ImageCropper file={iconCropFile} onCancel={() => setIconCropFile(null)} onCrop={onIconCropSave} />}
     </div>
   );
 }

@@ -3,14 +3,13 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
-import { resizeImageToDataUrl } from '../utils/imageResize';
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import { playTestChime } from '../utils/testChime';
 import Avatar from './Avatar';
+import ImageCropper from './ImageCropper';
 import styles from './UserSettings.module.css';
 
-const MAX_SOURCE_FILE_BYTES = 10 * 1024 * 1024; // reject absurd uploads before we even try to resize them
-const AVATAR_MAX_DIMENSION = 256;
+const MAX_SOURCE_FILE_BYTES = 10 * 1024 * 1024; // reject absurd uploads before the cropper even opens
 
 const STORAGE_KEY_IN = 'chatter_audio_input';
 const STORAGE_KEY_OUT = 'chatter_audio_output';
@@ -24,11 +23,12 @@ export default function UserSettings({ onClose }) {
   const [tab, setTab] = useState('account');
   const [avatarError, setAvatarError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [cropFile, setCropFile] = useState(null);
   const fileInputRef = useRef(null);
 
   const pickAvatar = () => fileInputRef.current?.click();
 
-  const onAvatarSelected = async (e) => {
+  const onAvatarSelected = (e) => {
     const file = e.target.files?.[0];
     e.target.value = ''; // allow re-selecting the same file later
     if (!file) return;
@@ -42,10 +42,13 @@ export default function UserSettings({ onClose }) {
       setAvatarError('That image is too large (max 10MB).');
       return;
     }
+    setCropFile(file);
+  };
 
+  const onCropSave = async (dataUrl) => {
+    setCropFile(null);
     setUploading(true);
     try {
-      const dataUrl = await resizeImageToDataUrl(file, { maxDimension: AVATAR_MAX_DIMENSION, quality: 0.85 });
       await updateAvatar(dataUrl);
     } catch (err) {
       setAvatarError(err.message || 'Failed to update avatar');
@@ -132,6 +135,7 @@ export default function UserSettings({ onClose }) {
             : <NotificationsTab />}
         </div>
       </div>
+      {cropFile && <ImageCropper file={cropFile} onCancel={() => setCropFile(null)} onCrop={onCropSave} />}
     </div>
   );
 }
