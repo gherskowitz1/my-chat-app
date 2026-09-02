@@ -182,6 +182,27 @@
 
 .link:hover { text-decoration: underline; }
 
+.inlineCode {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--text-primary);
+}
+
+.codeBlock {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  margin: 4px 0;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text-primary);
+}
+
 .editWrap {
   display: flex;
   flex-direction: column;

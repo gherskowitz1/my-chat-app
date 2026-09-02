@@ -13,22 +13,60 @@ function escapeRegExp(s) {
 
 const URL_RE = /(https?:\/\/[^\s]+)/g;
 
+// Inline markdown — code spans and blocks take precedence (their content is
+// never itself reinterpreted as markdown, matching standard behavior), then
+// bold, then strikethrough, then italic. Rendered as real React elements
+// (never dangerouslySetInnerHTML), so this can't be used to inject markup.
+// Underscore variants require a non-word boundary on both sides so ordinary
+// snake_case_identifiers and file_names don't get parsed as italic/bold.
+const MARKDOWN_RE = /(```[\s\S]*?```)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|((?<!\w)__[^_\n]+?__(?!\w))|(~~[^~\n]+?~~)|(\*[^*\n]+?\*)|((?<!\w)_[^_\n]+?_(?!\w))/g;
+
+function parseMarkdown(text, keyPrefix, mdStyles) {
+  if (!text) return text;
+  let m;
+  let lastIndex = 0;
+  let key = 0;
+  const parts = [];
+  MARKDOWN_RE.lastIndex = 0;
+  while ((m = MARKDOWN_RE.exec(text))) {
+    if (m.index > lastIndex) parts.push(text.slice(lastIndex, m.index));
+    const matched = m[0];
+    const k = `${keyPrefix}-md${key++}`;
+    if (matched.startsWith('```')) {
+      const code = matched.slice(3, -3).replace(/^\n/, '');
+      parts.push(<pre key={k} className={mdStyles.codeBlock}><code>{code}</code></pre>);
+    } else if (matched.startsWith('`')) {
+      parts.push(<code key={k} className={mdStyles.inlineCode}>{matched.slice(1, -1)}</code>);
+    } else if (matched.startsWith('**') || matched.startsWith('__')) {
+      parts.push(<strong key={k}>{matched.slice(2, -2)}</strong>);
+    } else if (matched.startsWith('~~')) {
+      parts.push(<del key={k}>{matched.slice(2, -2)}</del>);
+    } else {
+      parts.push(<em key={k}>{matched.slice(1, -1)}</em>);
+    }
+    lastIndex = MARKDOWN_RE.lastIndex;
+  }
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
+  return parts.length > 0 ? parts : text;
+}
+
 // Wraps bare URLs in a plain-text segment with a clickable link, opened in a
 // new tab (the desktop app's main-process window-open handler redirects that
 // to the user's OS default browser instead of an in-app window). Trailing
 // sentence punctuation is peeled off so "check this out: https://x.com." or
-// "(https://x.com)" don't pull the period/paren into the URL itself.
-function linkify(text, linkClass) {
+// "(https://x.com)" don't pull the period/paren into the URL itself. The
+// plain (non-URL) text in between still gets markdown formatting applied.
+function linkify(text, mdStyles) {
   const segments = text.split(URL_RE);
-  if (segments.length === 1) return text;
+  if (segments.length === 1) return parseMarkdown(text, 'lf', mdStyles);
   return segments.map((seg, i) => {
-    if (i % 2 === 0) return seg;
+    if (i % 2 === 0) return <React.Fragment key={i}>{parseMarkdown(seg, `lf${i}`, mdStyles)}</React.Fragment>;
     const trailingMatch = seg.match(/[.,!?;:'")\]]+$/);
     const trailing = trailingMatch ? trailingMatch[0] : '';
     const url = trailing ? seg.slice(0, -trailing.length) : seg;
     return (
       <React.Fragment key={i}>
-        <a href={url} target="_blank" rel="noopener noreferrer" className={linkClass} onClick={(e) => e.stopPropagation()}>
+        <a href={url} target="_blank" rel="noopener noreferrer" className={mdStyles.link} onClick={(e) => e.stopPropagation()}>
           {url}
         </a>
         {trailing}
@@ -44,15 +82,15 @@ function linkify(text, linkClass) {
 // into the result, so odd indices are always the mention itself.
 function renderMentions(text, users, currentUser, mentionStyles, onMentionClick) {
   const allUsers = currentUser ? [...users, currentUser] : users;
-  if (allUsers.length === 0) return linkify(text, mentionStyles.link);
+  if (allUsers.length === 0) return linkify(text, mentionStyles);
   const names = [...new Set(allUsers.map((u) => u.username))]
     .sort((a, b) => b.length - a.length)
     .map(escapeRegExp);
   const re = new RegExp(`(@(?:${names.join('|')})\\b)`, 'gi');
   const parts = text.split(re);
-  if (parts.length === 1) return linkify(text, mentionStyles.link);
+  if (parts.length === 1) return linkify(text, mentionStyles);
   return parts.map((part, i) => {
-    if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles.link)}</React.Fragment>;
+    if (i % 2 === 0) return <React.Fragment key={i}>{linkify(part, mentionStyles)}</React.Fragment>;
     const uname = part.slice(1);
     const isEveryone = uname.toLowerCase() === EVERYONE_USER.username && allUsers.some((u) => u.id === EVERYONE_USER.id);
     const isSelfName = currentUser && uname.toLowerCase() === currentUser.username.toLowerCase();
