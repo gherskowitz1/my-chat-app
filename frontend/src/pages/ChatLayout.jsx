@@ -6,7 +6,7 @@ import DMSidebar from '../components/DMSidebar';
 import DMArea from '../components/DMArea';
 import MemberList from '../components/MemberList';
 import AdminPanel from '../components/AdminPanel';
-import UserSettings from '../components/UserSettings';
+import UserSettings, { STORAGE_KEY_DM_SOUND_MUTED } from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
 import WhatsNewModal from '../components/WhatsNewModal';
 import SearchPanel from '../components/SearchPanel';
@@ -150,7 +150,9 @@ export default function ChatLayout() {
       const isViewing = activeSection === 'dm' && activeConversation?.id === conversationId;
       if (isViewing) return;
 
-      new Audio('/sounds/youve-got-mail.mp3').play().catch(() => {});
+      if (localStorage.getItem(STORAGE_KEY_DM_SOUND_MUTED) !== 'true') {
+        new Audio('/sounds/youve-got-mail.mp3').play().catch(() => {});
+      }
 
       setUnreadDMs((prev) => {
         const next = new Map(prev);

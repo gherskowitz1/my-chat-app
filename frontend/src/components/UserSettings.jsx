@@ -435,11 +435,19 @@ function AppearanceTab() {
   );
 }
 
+export const STORAGE_KEY_DM_SOUND_MUTED = 'crowsnest_dm_sound_muted';
+
 // ── Notifications Tab ──────────────────────────────────────────
 function NotificationsTab() {
   const [status, setStatus] = useState('checking');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [dmSoundMuted, setDmSoundMuted] = useState(localStorage.getItem(STORAGE_KEY_DM_SOUND_MUTED) === 'true');
+
+  const toggleDmSound = (e) => {
+    setDmSoundMuted(e.target.checked);
+    localStorage.setItem(STORAGE_KEY_DM_SOUND_MUTED, String(e.target.checked));
+  };
 
   useEffect(() => {
     getPushSubscriptionStatus().then(setStatus).catch(() => setStatus('unsupported'));
@@ -491,6 +499,11 @@ function NotificationsTab() {
         </button>
       )}
       {error && <div className={styles.avatarError}>{error}</div>}
+
+      <label className={styles.checkboxRow} style={{ marginTop: 16 }}>
+        <input type="checkbox" checked={dmSoundMuted} onChange={toggleDmSound} />
+        Mute the sound when I get a new DM
+      </label>
     </section>
   );
 }
