@@ -6,6 +6,8 @@ import { useGameTracking } from '../hooks/useGameTracking';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
 import { resizeImageToDataUrl } from '../utils/imageResize';
 import { fileToDataUrl } from '../utils/fileToDataUrl';
+import GuideModal from '../components/GuideModal';
+import { ADMIN_GUIDE } from '../data/adminGuideContent';
 import styles from './AdminDashboard.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -24,6 +26,7 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [tab, setTab] = useState('dashboard');
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     if (user && user.role !== 'admin') navigate('/');
@@ -61,10 +64,13 @@ export default function AdminDashboard() {
               <span>{t.icon}</span> {t.label}
             </button>
           ))}
-          <a className={styles.navBtn} href="/CrowsNest-Admin-Guide.docx" download>
+          <button className={styles.navBtn} onClick={() => setShowGuide(true)}>
             <span>📖</span> Admin Guide
-          </a>
+          </button>
         </nav>
+        {showGuide && (
+          <GuideModal guide={ADMIN_GUIDE} downloadHref="/CrowsNest-Admin-Guide.docx" onClose={() => setShowGuide(false)} />
+        )}
 
         <div className={styles.sidebarFooter}>
           <div className={styles.adminBadge}>

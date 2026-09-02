@@ -235,7 +235,7 @@ const doc = new Document({
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 0 },
-        children: [new TextRun({ text: `Version 3.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
+        children: [new TextRun({ text: `Version 4.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
       }),
       spacer(1200),
 
@@ -268,21 +268,26 @@ const doc = new Document({
           dataRow(['Kick from voice channel', 'No', 'Yes'], [4400, 2480, 2480]),
           dataRow(['Join voice channels', 'Yes', 'Yes'], [4400, 2480, 2480], true),
           dataRow(['Send direct messages', 'Yes', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Upload / delete custom server emoji', 'No', 'Yes'], [4400, 2480, 2480], true),
+          dataRow(['Upload / delete soundboard clips', 'No', 'Yes'], [4400, 2480, 2480]),
+          dataRow(['Change server icon / category labels', 'No', 'Yes'], [4400, 2480, 2480], true),
         ],
       }),
+      spacer(80),
+      note('One admin can additionally hold the Owner flag — see Section 7.7. It doesn’t unlock new actions, but it protects that account from being demoted or removed by other admins.', 'info'),
       spacer(160),
 
       heading2('1.2 Accessing Admin Settings'),
       body('The Admin Settings panel is only visible to users with the admin role. To open it:'),
       step('Log in with your admin account'),
       step('Click the gear icon (Settings) in the bottom-left sidebar'),
-      step('The panel opens with four tabs: Server, Channels, Games, and Users'),
+      step('The panel opens with six tabs: Server, Channels, Games, Custom Emoji, Soundboard, and Users'),
       spacer(80),
       note('If the gear icon is not visible, your account may still have the "member" role. See Section 7.2 to grant yourself admin.', 'warning'),
       spacer(160),
 
       heading2('1.3 Full Admin Portal'),
-      body('A shield icon above the gear icon opens the full standalone Admin Portal — a separate dashboard at the admin. subdomain with deeper server management tools. In the desktop app it opens in its own window; in a browser it opens in a new tab. It has six sections in its sidebar:'),
+      body('A shield icon above the gear icon opens the full standalone Admin Portal — a separate dashboard at the admin. subdomain with deeper server management tools. In the desktop app it opens in its own window; in a browser it opens in a new tab. It has eight sections in its sidebar:'),
       spacer(40),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
@@ -290,11 +295,13 @@ const doc = new Document({
         rows: [
           headerRow(['Tab', 'What It Does'], [2400, 6960]),
           dataRow(['Dashboard', 'Total users, messages, channels, and DMs at a glance, plus a table of recent sign-ups.'], [2400, 6960]),
-          dataRow(['Users', 'Search, promote/demote, force a password reset, set a password directly, or remove a user.'], [2400, 6960], true),
+          dataRow(['Users', 'Search, promote/demote, force a password reset, set a password directly, transfer the Owner flag, or remove a user.'], [2400, 6960], true),
           dataRow(['Channels', 'Create, rename, delete channels, and manage private-channel access.'], [2400, 6960]),
           dataRow(['Games (PatchBot)', 'Pick a channel and manage which games post update notes there; set the check frequency.'], [2400, 6960], true),
+          dataRow(['Custom Emoji', 'Upload or delete the server’s custom :name: emoji.'], [2400, 6960]),
+          dataRow(['Soundboard', 'Upload or delete the clips available in every voice channel’s Soundboard panel.'], [2400, 6960], true),
           dataRow(['Recent Messages', 'Search the last 100 messages sent across every channel.'], [2400, 6960]),
-          dataRow(['Server Settings', 'Rename the server and edit its description.'], [2400, 6960], true),
+          dataRow(['Server Settings', 'Rename the server, edit its description, change its icon, and rename the channel category labels.'], [2400, 6960], true),
         ],
       }),
       spacer(200),
@@ -354,6 +361,14 @@ const doc = new Document({
       step('Edit the SERVER NAME field'),
       step('Optionally add a DESCRIPTION'),
       step('Click Save Changes — the new name appears immediately in the sidebar for all users'),
+      spacer(160),
+
+      heading2('3.2 Server Icon'),
+      body('In the same Server Settings tab, click Change Icon under SERVER ICON to upload an image, or Remove to go back to the default lettered icon. It appears in the sidebar for everyone.'),
+      spacer(160),
+
+      heading2('3.3 Renaming the Channel Category Labels'),
+      body('The TEXT CHANNELS SECTION LABEL and VOICE CHANNELS SECTION LABEL fields (same Server Settings tab) let you rename those two category headings in the sidebar to whatever you like — leave blank to use the defaults.'),
       spacer(200),
 
       // ─── SECTION 4: CHANNEL MANAGEMENT ─────────────────────
@@ -467,6 +482,14 @@ const doc = new Document({
 
       heading2('7.6 View All Users via SQL'),
       sqlBlock('SELECT username, email, role, created_at FROM users ORDER BY created_at DESC;'),
+      spacer(160),
+
+      heading2('7.7 The Owner Role'),
+      body('One admin can additionally be marked Owner — a protection layer on top of the admin role, not a separate permission set. An Owner can’t be demoted or removed by another admin, and only the Owner (or, if nobody holds it yet, any admin) can hand the flag to someone else.'),
+      step('Open the Users tab (Admin Settings or the Admin Portal)'),
+      step('Find the user and click Make Owner (or Transfer Owner, if the flag is already held)'),
+      spacer(80),
+      note('There’s no way to remove the Owner flag from within the app once set, other than transferring it to someone else — this is intentional, so ownership can’t be stripped by a compromised admin account.', 'warning'),
       spacer(200),
 
       // ─── SECTION 8: VOICE ADMIN CONTROLS ────────────────────
@@ -522,8 +545,42 @@ const doc = new Document({
       body('The Recent Messages tab lists the last 100 messages sent across every channel, with a search box to filter by message content or username — useful for moderation without digging through each channel individually.'),
       spacer(200),
 
-      // ─── SECTION 11: QUICK REFERENCE ─────────────────────────
-      heading1('11. Quick Reference'),
+      // ─── SECTION 11: CUSTOM EMOJI ────────────────────────────
+      heading1('11. Custom Emoji'),
+      body('The Custom Emoji tab (Admin Settings or the Admin Portal) lets you upload server-specific emoji that anyone can use by typing :name: in a message or picking them as a reaction.'),
+      step('Open the Custom Emoji tab'),
+      step('Click Upload, choose an image, and give it a name (letters, numbers, and underscores)'),
+      step('Click a delete icon next to any existing emoji to remove it — it disappears from new messages immediately, but stays visible in messages already sent'),
+      spacer(80),
+      note('Limits: 200 emoji per server, up to about 512KB each.', 'info'),
+      spacer(200),
+
+      // ─── SECTION 12: SOUNDBOARD ───────────────────────────────
+      heading1('12. Soundboard'),
+      body('The Soundboard tab lets you upload audio clips that appear in the Soundboard panel inside every voice channel, for anyone to play during a call.'),
+      step('Open the Soundboard tab'),
+      step('Click Upload, choose an audio file, and give it a name'),
+      step('Click a delete icon next to any existing clip to remove it from the soundboard'),
+      spacer(80),
+      note('Limits: 500 clips per server, up to about 5MB each. Each user’s own playback volume for a clip is personal to them and doesn’t affect what it sounds like for anyone else.', 'info'),
+      spacer(200),
+
+      // ─── SECTION 13: DESKTOP APP RELEASES ─────────────────────
+      heading1('13. Releasing a Desktop App Update'),
+      body('The desktop app (Windows/macOS/Linux) checks GitHub Releases for new versions and updates itself automatically — this is separate from the web deploy on Railway, which updates the moment you push to the repo.'),
+      spacer(80),
+      step('In desktop/package.json, bump the "version" field (e.g. 2.0.0 → 2.1.0)'),
+      step('Create a GitHub personal access token with repo scope, at github.com/settings/tokens/new, if you don’t already have one handy'),
+      step('From the desktop/ folder, run the matching release script with that token set for the command — e.g. on Windows: GH_TOKEN=your_token npm run release:win'),
+      step('electron-builder builds the installer and publishes it as a new GitHub Release automatically — existing installs pick it up on their next launch'),
+      spacer(80),
+      note('Revoke the token from GitHub once you’re done publishing — it doesn’t need to stay active between releases.', 'info'),
+      spacer(80),
+      note('A Linux (.AppImage) build can only be produced on a Linux machine, or on Windows/Mac with WSL or Docker installed — electron-builder shells out to a Linux tool (mksquashfs) that plain Windows can’t execute. A macOS build additionally needs Apple notarization, which isn’t set up for this project — Mac users should use the browser or the installable web app in the meantime.', 'warning'),
+      spacer(200),
+
+      // ─── SECTION 14: QUICK REFERENCE ─────────────────────────
+      heading1('14. Quick Reference'),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [3800, 5560],
@@ -544,14 +601,19 @@ const doc = new Document({
           dataRow(['Remove a user', 'Admin Settings > Users > trash icon'], [3800, 5560]),
           dataRow(['Mute / kick in voice', 'In Voice panel > mic / remove icon'], [3800, 5560], true),
           dataRow(['Search all recent messages', 'Admin Portal > Recent Messages'], [3800, 5560]),
-          dataRow(['View server logs', 'Railway > backend service > Deployments > View logs'], [3800, 5560], true),
-          dataRow(['Restart backend', 'Railway > backend service > Deployments > Redeploy'], [3800, 5560]),
+          dataRow(['Upload / delete custom emoji', 'Admin Settings or Admin Portal > Custom Emoji'], [3800, 5560], true),
+          dataRow(['Upload / delete a soundboard clip', 'Admin Settings or Admin Portal > Soundboard'], [3800, 5560]),
+          dataRow(['Change server icon / category labels', 'Admin Settings or Admin Portal > Server tab'], [3800, 5560], true),
+          dataRow(['Make/transfer server Owner', 'Admin Settings or Admin Portal > Users > Make/Transfer Owner'], [3800, 5560]),
+          dataRow(['Release a desktop app update', 'Bump desktop/package.json version, run npm run release:win with GH_TOKEN set'], [3800, 5560], true),
+          dataRow(['View server logs', 'Railway > backend service > Deployments > View logs'], [3800, 5560]),
+          dataRow(['Restart backend', 'Railway > backend service > Deployments > Redeploy'], [3800, 5560], true),
         ],
       }),
       spacer(200),
 
-      // ─── SECTION 12: TROUBLESHOOTING ─────────────────────────
-      heading1('12. Troubleshooting'),
+      // ─── SECTION 15: TROUBLESHOOTING ─────────────────────────
+      heading1('15. Troubleshooting'),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [3600, 5760],
@@ -566,6 +628,9 @@ const doc = new Document({
           dataRow(['CORS error in console', 'Update CLIENT_URL in backend Variables to match exact frontend URL'], [3600, 5760]),
           dataRow(['Backend offline', 'Railway > backend > Deployments > Redeploy'], [3600, 5760], true),
           dataRow(['Messages not appearing', 'Refresh the page; check Railway backend logs for errors'], [3600, 5760]),
+          dataRow(['Users not getting push notifications', 'Verify VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT are set in Railway backend Variables'], [3600, 5760], true),
+          dataRow(['Link previews / images blocked in console (CSP)', 'Check the Content-Security-Policy in frontend/serve.js allows the domain in question'], [3600, 5760]),
+          dataRow(['Desktop release publish fails', 'Confirm GH_TOKEN has repo scope and hasn’t expired; Linux builds need WSL/Docker (see Section 13)'], [3600, 5760], true),
         ],
       }),
       spacer(200),

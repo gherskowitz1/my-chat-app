@@ -1,0 +1,246 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  padding: 24px;
+}
+
+.modal {
+  background: var(--bg-modal);
+  border-radius: var(--radius-lg);
+  width: 960px;
+  max-width: 100%;
+  height: 88vh;
+  max-height: 900px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.header h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.downloadLink {
+  font-size: 12.5px;
+  color: var(--text-link);
+  white-space: nowrap;
+}
+.downloadLink:hover { text-decoration: underline; }
+
+.closeBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.closeBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+.body_ {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.toc {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tocItem {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.3;
+}
+.tocItem:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tocActive { background: var(--accent-soft, var(--bg-active)); color: var(--text-primary); font-weight: 600; }
+
+.tocNum {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px 60px;
+}
+
+.section {
+  margin-bottom: 36px;
+  scroll-margin-top: 12px;
+}
+
+.sectionTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--accent);
+}
+
+.sectionNum {
+  color: var(--accent);
+  margin-right: 4px;
+}
+
+.sub {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 22px 0 8px;
+}
+
+.sub:first-child { margin-top: 0; }
+
+.subNum {
+  font-variant-numeric: tabular-nums;
+  margin-right: 4px;
+}
+
+.body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+
+.bullets, .steps {
+  margin: 0 0 10px;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bullets li, .steps li {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+
+.note {
+  display: flex;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 10px 14px;
+  margin: 0 0 10px;
+}
+
+.note.warning { border-left-color: #e0a838; }
+.note.danger { border-left-color: var(--red); }
+
+.noteLabel {
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.note.warning .noteLabel { color: #e0a838; }
+.note.danger .noteLabel { color: var(--red); }
+
+.sql {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  color: #a8d8a8;
+  overflow-x: auto;
+  margin: 0 0 10px;
+  white-space: pre;
+}
+
+.tableWrap {
+  overflow-x: auto;
+  margin: 0 0 10px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  vertical-align: top;
+}
+
+.table tr:nth-child(even) td { background: var(--bg-tertiary); }
+
+.footer {
+  text-align: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+
+@media (max-width: 720px) {
+  .toc { display: none; }
+  .content { padding: 20px; }
+  .modal { height: 92vh; }
+}

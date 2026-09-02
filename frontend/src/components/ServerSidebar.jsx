@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { usePwaInstall } from '../hooks/usePwaInstall';
 import Avatar from './Avatar';
+import GuideModal from './GuideModal';
+import { USER_GUIDE } from '../data/userGuideContent';
 import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
@@ -12,6 +14,7 @@ export default function ServerSidebar({ serverName, serverIcon, activeSection, o
   const { statusMap } = useSocket();
   const { canInstall, promptInstall } = usePwaInstall();
   const myStatus = statusMap.get(user?.id) || 'offline';
+  const [showGuide, setShowGuide] = useState(false);
 
   // Opens the standalone admin dashboard (admin.<domain>) in a new tab. Inside
   // the Electron app, window.open is already redirected to the OS browser by
@@ -80,16 +83,18 @@ export default function ServerSidebar({ serverName, serverIcon, activeSection, o
       )}
 
       {/* User guide — visible to everyone */}
-      <a
+      <button
         className={styles.iconBtn}
-        href="/CrowsNest-User-Guide.docx"
-        download
+        onClick={() => setShowGuide(true)}
         title="User Guide"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
         </svg>
-      </a>
+      </button>
+      {showGuide && (
+        <GuideModal guide={USER_GUIDE} downloadHref="/CrowsNest-User-Guide.docx" onClose={() => setShowGuide(false)} />
+      )}
 
       {/* Full admin portal (admin.<domain>) — only visible to admins */}
       {user?.role === 'admin' && (

@@ -209,7 +209,7 @@ const doc = new Document({
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 0 },
-        children: [new TextRun({ text: `Version 3.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
+        children: [new TextRun({ text: `Version 4.0  •  ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`, font: 'Arial', size: 20, color: 'B5BAC1' })],
       }),
       spacer(1200),
 
@@ -271,7 +271,7 @@ const doc = new Document({
       step('Click in the message box at the bottom of the screen'),
       step('Type your message and press Enter, or click the send button'),
       spacer(80),
-      note('Messages can be up to 2,000 characters. There is no file attachment feature yet.', 'info'),
+      note('Messages can be up to 2,000 characters, plus optional file attachments (see Section 3.12).', 'info'),
       spacer(160),
 
       heading2('3.2 Editing and Deleting Your Own Messages'),
@@ -299,10 +299,50 @@ const doc = new Document({
       step('Use the arrow keys and Enter (or click) to pick someone, or pick everyone with @everyone to notify the whole channel'),
       step('Click any @mention in a message (yours or someone else’s) to see that person’s profile card, with a Message button to jump straight into a DM with them'),
       spacer(80),
-      note('Being @mentioned (or an @everyone) highlights the message for you, shows a red badge on that channel, pops an in-app toast, and — in the desktop app — a system notification too.', 'info'),
+      note('Being @mentioned (or an @everyone) highlights the message for you, shows a red badge on that channel, pops an in-app toast, and — in the desktop app, or anywhere with push notifications enabled — a system notification too.', 'info'),
       spacer(160),
 
-      heading2('3.7 Link Previews'),
+      heading2('3.7 Reactions'),
+      body('Hover over any message and click the smiley (Add reaction) icon to react with an emoji. Click an existing reaction on a message to add or remove your own — hover one to see who else reacted.'),
+      spacer(160),
+
+      heading2('3.8 Replying to a Message'),
+      step('Hover over a message and click Reply'),
+      step('Type your response — it sends attached to the original with a quoted preview above it'),
+      step('Click that quoted preview at any time to jump straight back to the original message'),
+      spacer(160),
+
+      heading2('3.9 Pinned Messages'),
+      body('Admins can pin an important message to a channel by hovering it and clicking the pin icon — click the pin icon again to unpin. Everyone can click the pinned-messages icon in the channel header to see the full list and jump to any of them.'),
+      spacer(160),
+
+      heading2('3.10 Searching Messages'),
+      step('Click the magnifying-glass (Search Messages) icon in the far-left sidebar'),
+      step('Type your search term'),
+      step('Choose a scope: Everywhere, Channels, or Direct Messages'),
+      step('Click any result to jump straight to that message'),
+      spacer(160),
+
+      heading2('3.11 Custom Server Emoji'),
+      body('In addition to standard emoji, your server may have its own custom ones. Type a colon (:) followed by a few letters of the emoji’s name to see matching custom emoji, and use one the same way you would type :name: — it renders as an image both inline in your message and as a reaction option.'),
+      spacer(160),
+
+      heading2('3.12 File & Image Attachments'),
+      step('Click the paperclip (Attach a file) icon next to the message box, or paste an image straight from your clipboard (Ctrl+V)'),
+      step('Your file appears staged above the message box — add more (up to 5 per message) or remove one with its ✕'),
+      step('Type an optional caption and press Enter to send'),
+      step('Click any image attachment in the chat to view it full-size'),
+      spacer(80),
+      note('Attachments share an 8MB combined limit per message. This works the same way in both channels and direct messages.', 'info'),
+      spacer(160),
+
+      heading2('3.13 Drafts & Sending While Offline'),
+      body('Whatever you’ve typed but not sent is saved automatically per channel — switch away and come back later, even after closing the app, and it’s still there waiting in the message box.'),
+      spacer(80),
+      note('If your connection drops right as you hit send, the message is held on your device and delivered automatically the moment you’re back online — even across a reload. A message stuck like this shows as "pending"; if it ever shows as "failed" instead, click it to retry.', 'info'),
+      spacer(160),
+
+      heading2('3.14 Link Previews'),
       body('Paste a link and it becomes clickable automatically. Certain links also get a rich preview underneath the message:'),
       bullet('YouTube, Twitch (clips, VODs, live channels), and Vimeo — click-to-play thumbnail'),
       bullet('Spotify and SoundCloud — an inline player'),
@@ -331,6 +371,14 @@ const doc = new Document({
 
       heading2('4.4 Typing Indicators in DMs'),
       body('The same typing indicator as text channels works in DMs — when the other person is typing, you will see their name appear at the bottom of the conversation.'),
+      spacer(160),
+
+      heading2('4.5 Friends'),
+      step('Click the Friends icon in the far-left sidebar'),
+      step('Search for someone and click Add Friend to send a request'),
+      step('They’ll see it under Pending — Accept or Decline it there; you can also Remove an existing friend at any time'),
+      spacer(80),
+      note('Friends are just a list for keeping track of people — you can already direct-message anyone on the server whether or not you’re friends.', 'info'),
       spacer(200),
 
       // ─── SECTION 5: VOICE & VIDEO ────────────────────────────
@@ -366,20 +414,45 @@ const doc = new Document({
       spacer(160),
 
       heading2('5.5 Sharing Your Screen'),
-      step('Click the screen-share icon in the control bar'),
+      step('Click Share Screen in the control bar'),
       step('A picker appears listing every screen and open window (including games) you can share'),
       step('Choose one and click Share (double-click also works)'),
-      step('Click the icon again, or Stop Sharing, to end it'),
+      step('Click Stop Sharing to end it'),
+      spacer(80),
+      body('Whoever is watching sees your share in its own floating window that they can drag, resize, minimize, maximize, or expand to full screen. A quality-mode toggle lets you favor Detail (sharper, for reading text) or Motion (smoother, for fast-moving video/games).'),
       spacer(80),
       note('In the desktop app, sharing includes your computer’s system audio automatically (Windows only) — so background music or game sound comes through too, not just what’s on screen.', 'info'),
       spacer(160),
 
       heading2('5.6 Volume Mixer'),
-      body('When other people are in the voice channel with you, a Volume Mixer panel lets you control how loud each person sounds to you personally — a slider (up to 150%) and a mute toggle per person. It only affects your own audio.'),
+      body('When other people are in the voice channel with you, a Volume Mixer panel lets you control how loud each person sounds to you personally — a slider (up to 200%) and a mute toggle per person. It only affects your own audio.'),
       spacer(160),
 
       heading2('5.7 Join/Leave Chimes & the Away Channel'),
-      body('You’ll hear a short chime when someone joins or leaves your current voice channel. If you’re connected to voice with no keyboard/mouse activity for 4 hours, you’re automatically moved to a muted "taking-a-shit" channel to free up the room — rejoin normally whenever you’re back.'),
+      body('You’ll hear a short chime when someone joins or leaves your current voice channel, and a different one when you get a new direct message. If you’re connected to voice with no keyboard/mouse activity for 4 hours, you’re automatically moved to a muted "taking-a-shit" channel to free up the room — rejoin normally whenever you’re back.'),
+      spacer(160),
+
+      heading2('5.8 Voice Effects'),
+      step('Click the Voice Effects icon in the control bar'),
+      step('Pick an effect — Robot, Alien, Chipmunk, Helium, Deep Voice, Demon, Echo, Reverb, Telephone, Radio, Broken Radio, Underwater, Whisper, or Megaphone'),
+      step('Click 🎧 Hear Yourself to preview it privately before committing — only you hear the preview'),
+      spacer(80),
+      note('Everyone else in the channel hears the effect applied to your live voice the moment you pick it; switch or turn it off mid-call any time.', 'info'),
+      spacer(160),
+
+      heading2('5.9 Soundboard'),
+      step('Click Soundboard in the control bar to open the panel'),
+      step('Click a clip to play it for everyone in the channel, or use its preview button to hear it privately first'),
+      step('Adjust each clip’s own volume slider to taste — this only affects how loud it plays for you'),
+      spacer(80),
+      note('Not every browser can broadcast soundboard clips to others — if yours can’t, clips still play, just only for you.', 'warning'),
+      spacer(160),
+
+      heading2('5.10 Choosing How Your Mic Activates'),
+      body('In User Settings > Audio, pick how your microphone turns on:'),
+      bullet('Open Mic — always transmitting unless you manually mute'),
+      bullet('Push to Talk — hold a key (Space by default; rebindable under Shortcuts) to transmit, muted otherwise'),
+      bullet('Voice Activity — transmits automatically whenever you’re actually speaking, with an adjustable sensitivity'),
       spacer(200),
 
       // ─── SECTION 6: NOTIFICATIONS ─────────────────────────────
@@ -397,6 +470,15 @@ const doc = new Document({
 
       heading2('6.3 In-App Toast Alerts'),
       body('A dismissible pop-up appears in the bottom-right for new DMs and channel @mentions, in both the browser and desktop app — click it to jump straight to that conversation.'),
+      spacer(160),
+
+      heading2('6.4 Push Notifications (Even With the App Closed)'),
+      step('Open User Settings and turn on notifications when prompted by your browser'),
+      step('Accept the browser’s permission prompt (this only needs to happen once per device)'),
+      spacer(80),
+      body('From then on, a new direct message or an @mention reaches you as a real notification even if you’ve fully closed the tab or app — tapping it opens straight to that conversation. Only DMs and mentions ever send a push notification; regular channel activity you’re not tagged in never will.'),
+      spacer(80),
+      note('This works on desktop browsers and, once installed to your phone’s home screen (Section 11.2), on an iPhone or Android too.', 'info'),
       spacer(200),
 
       // ─── SECTION 7: YOUR STATUS ────────────────────────────────
@@ -435,6 +517,10 @@ const doc = new Document({
 
       heading2('8.3 Changing Your Profile Picture'),
       body('Click your avatar in User Settings (or in the header) and choose Change Photo to upload a new picture, or Remove to go back to your colored-initial avatar.'),
+      spacer(160),
+
+      heading2('8.4 Light / Dark Theme'),
+      body('In User Settings > Appearance, switch between light and dark theme any time — it applies immediately and is remembered on that device.'),
       spacer(200),
 
       // ─── SECTION 9: PRIVATE CHANNELS ──────────────────────────
@@ -458,10 +544,18 @@ const doc = new Document({
       step('Once installed, The Crows Nest appears in your Start menu / app launcher and on your desktop'),
       step('Open it — it loads directly to The Crows Nest'),
       spacer(80),
-      note('The app checks for updates automatically in the background and installs them the next time you restart it.', 'info'),
+      note('The app checks for updates automatically in the background and installs them the next time you restart it. A macOS build isn’t published yet — Mac users should use the browser or the installable web app below in the meantime.', 'info'),
       spacer(160),
 
-      heading2('11.2 Desktop vs Browser'),
+      heading2('11.2 Installing as a Web App (No Download Required)'),
+      body('The Crows Nest can also be installed straight from your browser, on a phone or a computer, without downloading anything from the login page:'),
+      bullet('Phone (iOS/Android): open the site in your browser, then use the browser’s Share/menu > Add to Home Screen (or click the Install App icon in the sidebar if your browser shows one) — it then opens full-screen like a normal app'),
+      bullet('Desktop browser (Chrome/Edge): click the Install App icon in the far-left sidebar, or the install icon in the address bar'),
+      spacer(80),
+      note('This is the easiest way to get push notifications and a real app icon on a phone, and works even where a native installer isn’t available (Mac, Chromebook, etc.).', 'info'),
+      spacer(160),
+
+      heading2('11.3 Desktop vs Browser'),
       new Table({
         width: { size: 9360, type: WidthType.DXA },
         columnWidths: [4000, 2680, 2680],
@@ -495,6 +589,10 @@ const doc = new Document({
           dataRow(['Test your mic first', 'User Settings > Test Microphone before joining important calls'], [3400, 5960]),
           dataRow(['DM anyone', 'Not just people in your channels — click + in the DM list'], [3400, 5960], true),
           dataRow(['Stay signed in', 'Remember Me at login, or just wait — sessions last 180 days either way'], [3400, 5960]),
+          dataRow(['Paste an image to share it', 'Ctrl+V in the message box works instead of using the attach button'], [3400, 5960], true),
+          dataRow(['Sent something during a drop?', 'It’s held on your device and sent automatically once you’re back online'], [3400, 5960]),
+          dataRow(['Find an old message fast', 'Click the search icon in the sidebar instead of scrolling'], [3400, 5960], true),
+          dataRow(['Preview a voice effect first', '🎧 Hear Yourself in Voice Effects before switching for the whole call'], [3400, 5960]),
         ],
       }),
       spacer(200),
@@ -516,6 +614,9 @@ const doc = new Document({
           dataRow(['App says "Failed to fetch"', 'The server may be restarting. Wait 30 seconds and refresh.'], [3600, 5760], true),
           dataRow(['Desktop app won’t open', 'Windows: Run as Administrator or reinstall. Linux: re-mark the AppImage executable.'], [3600, 5760]),
           dataRow(['Output dropdown missing', 'Output device switching requires Chrome or Edge, not Firefox'], [3600, 5760], true),
+          dataRow(['"Message too large" on send', 'Attachments share an 8MB combined limit per message — split into two messages'], [3600, 5760]),
+          dataRow(['Not getting push notifications', 'Check your browser/OS notification permission for the site; re-enable it in User Settings'], [3600, 5760], true),
+          dataRow(['No Install App icon in the sidebar', 'Your browser may not support installable apps, or it’s already installed — check your browser or home screen'], [3600, 5760]),
         ],
       }),
       spacer(160),
