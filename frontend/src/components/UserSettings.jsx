@@ -16,6 +16,8 @@ const STORAGE_KEY_IN = 'chatter_audio_input';
 const STORAGE_KEY_OUT = 'chatter_audio_output';
 const STORAGE_KEY_NOISE_SUPPRESSION = 'chatter_noise_suppression';
 const STORAGE_KEY_BITRATE = 'chatter_bitrate_cap';
+const STORAGE_KEY_MIC_MODE = 'crowsnest_mic_mode';
+const STORAGE_KEY_VAD_SENSITIVITY = 'crowsnest_vad_sensitivity';
 
 export default function UserSettings({ onClose }) {
   const { user, updateAvatar } = useAuth();
@@ -138,6 +140,8 @@ function AudioTab() {
   const [selectedOutput, setSelectedOutput] = useState(localStorage.getItem(STORAGE_KEY_OUT) || '');
   const [noiseSuppression, setNoiseSuppression] = useState(localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false');
   const [bitrateCap, setBitrateCap] = useState(localStorage.getItem(STORAGE_KEY_BITRATE) || '');
+  const [micMode, setMicMode] = useState(localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open');
+  const [vadSensitivity, setVadSensitivity] = useState(Number(localStorage.getItem(STORAGE_KEY_VAD_SENSITIVITY)) || 50);
   const [testing, setTesting] = useState(false);
   const [testingOutput, setTestingOutput] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
@@ -160,6 +164,8 @@ function AudioTab() {
     localStorage.setItem(STORAGE_KEY_OUT, selectedOutput);
     localStorage.setItem(STORAGE_KEY_NOISE_SUPPRESSION, String(noiseSuppression));
     localStorage.setItem(STORAGE_KEY_BITRATE, bitrateCap);
+    localStorage.setItem(STORAGE_KEY_MIC_MODE, micMode);
+    localStorage.setItem(STORAGE_KEY_VAD_SENSITIVITY, String(vadSensitivity));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -204,6 +210,33 @@ function AudioTab() {
         <button className={styles.testBtn} onClick={testMic} disabled={testing}>
           {testing ? <><span className={styles.pulse} /> Recording for 3s…</> : <><MicIcon /> Test Microphone</>}
         </button>
+      </section>
+
+      <section className={styles.section}>
+        <h3>🎙️ Microphone Activation</h3>
+        <select className={styles.select} value={micMode} onChange={e => setMicMode(e.target.value)}>
+          <option value="open">Open Mic — always on unless muted</option>
+          <option value="ptt">Push to Talk — hold a key to transmit</option>
+          <option value="vad">Voice Activity — transmits automatically when you speak</option>
+        </select>
+        {micMode === 'ptt' && (
+          <p className={styles.hint}>Starts each voice channel muted; hold the Push to Talk key (set under Shortcuts) to transmit.</p>
+        )}
+        {micMode === 'vad' && (
+          <>
+            <p className={styles.hint} style={{ marginBottom: 6 }}>Starts each voice channel muted and unmutes automatically while you're talking.</p>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Sensitivity — higher picks up quieter speech</span>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={vadSensitivity}
+                onChange={e => setVadSensitivity(Number(e.target.value))}
+              />
+            </label>
+          </>
+        )}
       </section>
 
       <section className={styles.section}>
@@ -482,10 +515,13 @@ const StatusDotIcon = () => (
 
 export function getAudioPreferences() {
   const bitrate = localStorage.getItem(STORAGE_KEY_BITRATE);
+  const sensitivity = localStorage.getItem(STORAGE_KEY_VAD_SENSITIVITY);
   return {
     inputDeviceId: localStorage.getItem(STORAGE_KEY_IN) || undefined,
     outputDeviceId: localStorage.getItem(STORAGE_KEY_OUT) || undefined,
     noiseSuppression: localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false',
     bitrateCap: bitrate ? parseInt(bitrate, 10) : undefined,
+    micMode: localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open',
+    vadSensitivity: sensitivity ? Number(sensitivity) : 50,
   };
 }

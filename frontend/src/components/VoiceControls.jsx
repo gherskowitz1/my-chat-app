@@ -1,10 +1,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
-import { Track } from 'livekit-client';
+import { Track, TrackEvent } from 'livekit-client';
 import { useKeyboardShortcuts, loadShortcuts, formatKey } from '../hooks/useKeyboardShortcuts';
+import { getAudioPreferences } from './UserSettings';
 import Soundboard from './Soundboard';
 import VoiceEffects from './VoiceEffects';
 import styles from './VoiceControls.module.css';
+
+// How far the RMS level has to be from silence before VAD considers it
+// speech, and how long it has to stay quiet before re-muting — the release
+// delay avoids chopping off word endings during natural speech pauses.
+const VAD_RELEASE_MS = 400;
 
 /**
  * Sits inside <LiveKitRoom> so it has access to LiveKit hooks.
@@ -18,9 +24,13 @@ export default function VoiceControls({ onLeave, forceMuted }) {
   const [deafened, setDeafened] = useState(false);
   const [toast, setToast] = useState(null);
   const [elapsed, setElapsed] = useState(0);
+  const [micMode] = useState(() => getAudioPreferences().micMode);
+  const [vadSpeaking, setVadSpeaking] = useState(false);
   const toastTimerRef = useRef(null);
   const preDeafenMuteRef = useRef(false);
   const startTimeRef = useRef(Date.now());
+  const vadHardMutedRef = useRef(false);
+  const deafenedRef = useRef(false);
 
   // Session timer
   useEffect(() => {
@@ -51,6 +61,118 @@ export default function VoiceControls({ onLeave, forceMuted }) {
     setMuted(true);
   }, [forceMuted, localParticipant]);
 
+  useEffect(() => { deafenedRef.current = deafened; }, [deafened]);
+
+  // Push-to-talk and voice-activity modes both start a voice session muted —
+  // LiveKitRoom auto-unmutes on connect, so this has to run after that.
+  useEffect(() => {
+    if (micMode === 'open' || !localParticipant || forceMuted) return;
+    localParticipant.setMicrophoneEnabled(false);
+    setMuted(true);
+  }, [micMode, localParticipant, forceMuted]);
+
+  // Voice activity detection — watches the mic's real (pre-mute) audio level
+  // via an AnalyserNode and auto-toggles the transmitted track, so speaking
+  // unmutes you and staying quiet re-mutes you without touching a key.
+  // Rebuilds the analyser if the underlying device is swapped mid-call
+  // (LiveKit fires TrackEvent.Restarted on the LocalAudioTrack itself, not
+  // a participant-level event, since it's the same publication).
+  useEffect(() => {
+    if (micMode !== 'vad' || !localParticipant || forceMuted) return;
+
+    let raf;
+    let audioContext;
+    let cancelled = false;
+    let silenceStart = null;
+    let subscribedTrack = null;
+    const prefs = getAudioPreferences();
+    // Sensitivity 0-100 -> RMS threshold ~0.06 (quiet) down to ~0.006 (very sensitive)
+    const threshold = 0.06 - (prefs.vadSensitivity / 100) * 0.054;
+
+    const getMicTrack = () => localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
+
+    const stopAnalysis = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = null;
+      if (audioContext) {
+        audioContext.close().catch(() => {});
+        audioContext = null;
+      }
+    };
+
+    const startAnalysis = (rawTrack) => {
+      stopAnalysis();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx || cancelled) return;
+      audioContext = new Ctx();
+      const source = audioContext.createMediaStreamSource(new MediaStream([rawTrack]));
+      const analyser = audioContext.createAnalyser();
+      analyser.fftSize = 512;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.fftSize);
+
+      const tick = () => {
+        if (cancelled) return;
+        analyser.getByteTimeDomainData(data);
+        let sumSquares = 0;
+        for (let i = 0; i < data.length; i++) {
+          const centered = (data[i] - 128) / 128;
+          sumSquares += centered * centered;
+        }
+        const rms = Math.sqrt(sumSquares / data.length);
+        const isLoudEnough = rms > threshold;
+
+        if (!vadHardMutedRef.current && !deafenedRef.current) {
+          if (isLoudEnough) {
+            silenceStart = null;
+            setVadSpeaking(true);
+            setMuted((wasMuted) => {
+              if (wasMuted) localParticipant.setMicrophoneEnabled(true);
+              return false;
+            });
+          } else {
+            if (silenceStart === null) silenceStart = performance.now();
+            if (performance.now() - silenceStart > VAD_RELEASE_MS) {
+              setVadSpeaking(false);
+              setMuted((wasMuted) => {
+                if (!wasMuted) localParticipant.setMicrophoneEnabled(false);
+                return true;
+              });
+            }
+          }
+        }
+        raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+
+    const onTrackRestarted = () => {
+      const track = getMicTrack();
+      if (track?.mediaStreamTrack) startAnalysis(track.mediaStreamTrack);
+    };
+
+    // The mic publication may not exist the instant this effect runs.
+    let retryTimer;
+    const tryStart = () => {
+      const track = getMicTrack();
+      if (track?.mediaStreamTrack) {
+        subscribedTrack = track;
+        track.on(TrackEvent.Restarted, onTrackRestarted);
+        startAnalysis(track.mediaStreamTrack);
+      } else {
+        retryTimer = setTimeout(tryStart, 200);
+      }
+    };
+    tryStart();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+      stopAnalysis();
+      subscribedTrack?.off(TrackEvent.Restarted, onTrackRestarted);
+    };
+  }, [micMode, localParticipant, forceMuted]);
+
   const showToast = (msg) => {
     setToast(msg);
     clearTimeout(toastTimerRef.current);
@@ -60,6 +182,10 @@ export default function VoiceControls({ onLeave, forceMuted }) {
   const toggleMute = () => {
     if (!localParticipant || forceMuted) return;
     const newMuted = !muted;
+    // In VAD mode, a manual mute is a hard override the detector must
+    // respect; manually unmuting lifts that override and hands control
+    // back to the detector.
+    if (micMode === 'vad') vadHardMutedRef.current = newMuted;
     localParticipant.setMicrophoneEnabled(!newMuted);
     setMuted(newMuted);
     showToast(newMuted ? '🎙️ Muted' : '🎙️ Unmuted');
@@ -151,15 +277,25 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             <kbd>{formatKey(shortcuts.toggleDeafen.key)}</kbd>
           </button>
 
-          <button
-            className={`${styles.ctrl} ${styles.ptt}`}
-            disabled={forceMuted}
-            title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
-          >
-            <PttIcon />
-            <span>Push to Talk</span>
-            <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
-          </button>
+          {micMode === 'vad' ? (
+            <span
+              className={`${styles.ctrl} ${styles.ptt} ${vadSpeaking ? styles.on : ''}`}
+              title="Voice Activity — transmits automatically while you're talking"
+            >
+              <PttIcon />
+              <span>{vadSpeaking ? 'Speaking' : 'Listening'}</span>
+            </span>
+          ) : (
+            <button
+              className={`${styles.ctrl} ${styles.ptt}`}
+              disabled={forceMuted}
+              title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
+            >
+              <PttIcon />
+              <span>Push to Talk</span>
+              <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
+            </button>
+          )}
 
           <Soundboard />
           <VoiceEffects />
