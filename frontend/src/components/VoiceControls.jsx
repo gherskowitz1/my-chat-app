@@ -26,6 +26,7 @@ export default function VoiceControls({ onLeave, forceMuted }) {
   const [elapsed, setElapsed] = useState(0);
   const [micMode] = useState(() => getAudioPreferences().micMode);
   const [vadSpeaking, setVadSpeaking] = useState(false);
+  const [sharingScreen, setSharingScreen] = useState(false);
   const toastTimerRef = useRef(null);
   const preDeafenMuteRef = useRef(false);
   const startTimeRef = useRef(Date.now());
@@ -51,6 +52,21 @@ export default function VoiceControls({ onLeave, forceMuted }) {
     return () => {
       localParticipant.off('trackMuted', update);
       localParticipant.off('trackUnmuted', update);
+    };
+  }, [localParticipant]);
+
+  // Sync screen-share state — driving our own button rather than relying on
+  // LiveKit's prebuilt VideoConference control bar, which duplicated this
+  // control and reserved layout space even when nobody was sharing.
+  useEffect(() => {
+    if (!localParticipant) return;
+    const update = () => setSharingScreen(!!localParticipant.getTrackPublication(Track.Source.ScreenShare));
+    update();
+    localParticipant.on('localTrackPublished', update);
+    localParticipant.on('localTrackUnpublished', update);
+    return () => {
+      localParticipant.off('localTrackPublished', update);
+      localParticipant.off('localTrackUnpublished', update);
     };
   }, [localParticipant]);
 
@@ -226,6 +242,21 @@ export default function VoiceControls({ onLeave, forceMuted }) {
     }
   };
 
+  const toggleScreenShare = async () => {
+    if (!localParticipant) return;
+    try {
+      // The quality mode (Detail/Motion) gets applied automatically once the
+      // track exists — see ScreenShareWindow's effect that reads the same
+      // persisted preference and sets contentHint live, so it doesn't need
+      // to be passed here.
+      await localParticipant.setScreenShareEnabled(!sharingScreen, { audio: true });
+    } catch (err) {
+      // Most commonly the user just closed the "Share your screen" browser
+      // picker without choosing anything — not worth surfacing as an error.
+      console.error('screen share error', err);
+    }
+  };
+
   const handleLeave = () => {
     room?.disconnect();
     onLeave?.();
@@ -297,6 +328,15 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             </button>
           )}
 
+          <button
+            className={`${styles.ctrl} ${sharingScreen ? styles.off : styles.on}`}
+            onClick={toggleScreenShare}
+            title={sharingScreen ? 'Stop sharing your screen' : 'Share your screen'}
+          >
+            <ScreenShareIcon />
+            <span>{sharingScreen ? 'Stop Sharing' : 'Share Screen'}</span>
+          </button>
+
           <Soundboard />
           <VoiceEffects />
         </div>
@@ -334,6 +374,11 @@ const HeadphonesIcon = () => (
 const DeafenedIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
     <path d="M3 3l18 18-1.5 1.5-3.27-3.27A8.97 8.97 0 0 1 12 21a9 9 0 0 1-9-9v-1H1v-1a9 9 0 0 1 .76-3.67L1.5 6 3 4.5 3 3zm12.72 12.72L5.28 5.28A7.96 7.96 0 0 0 4 11v1h2v8h1c.55 0 1-.45 1-1v-7h.28l7.44 7.44zM12 3a9 9 0 0 1 9 9v1h-2v-1a7 7 0 0 0-7-7 6.97 6.97 0 0 0-4.39 1.54L6.08 5.02A8.97 8.97 0 0 1 12 3z"/>
+  </svg>
+);
+const ScreenShareIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 16V6h16v10.01L4 16zm7-1 4-4-1.41-1.41L12 11.17V8h-2v3.17L8.41 9.59 7 11l4 4z"/>
   </svg>
 );
 const PttIcon = () => (
