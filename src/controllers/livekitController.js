@@ -60,6 +60,12 @@ async function getParticipants(req, res) {
       isMuted: !p.tracks?.some(t => t.source === TrackSource.MICROPHONE && !t.muted),
     })));
   } catch (err) {
+    // A voice channel nobody has joined yet has no corresponding LiveKit
+    // room at all (rooms are created on-demand on first join and torn down
+    // once empty) — listParticipants() on a nonexistent room throws rather
+    // than returning an empty list, so that's just "nobody's in here", not
+    // a real failure. Everything else still 500s and logs.
+    if (err.code === 'not_found') return res.json([]);
     console.error(err);
     res.status(500).json({ error: 'Failed to list participants' });
   }
