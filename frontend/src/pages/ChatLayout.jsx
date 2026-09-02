@@ -40,6 +40,7 @@ export default function ChatLayout() {
   const [showSettings, setShowSettings] = useState(false);
   const [serverName, setServerName] = useState('');
   const [serverIcon, setServerIcon] = useState(null);
+  const [serverOwnerId, setServerOwnerId] = useState(null);
   const [categoryLabels, setCategoryLabels] = useState({ text: 'TEXT CHANNELS', voice: 'VOICE CHANNELS' });
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
   const [unreadChannels, setUnreadChannels] = useState(new Map()); // channelId -> { count, mentioned }
@@ -83,6 +84,7 @@ export default function ChatLayout() {
       .then(s => {
         setServerName(s.name);
         setServerIcon(s.icon_url);
+        setServerOwnerId(s.owner_id);
         setCategoryLabels({ text: s.text_category_label, voice: s.voice_category_label });
       })
       .catch(() => setServerName('General Server'));
@@ -343,6 +345,7 @@ export default function ChatLayout() {
             showMembers={showMembers}
             onOpenDM={openDM}
             onBack={backToNav}
+            ownerId={serverOwnerId}
             jumpToMessageId={pendingJump?.type === 'channel' && pendingJump.targetId === activeChannel.id ? pendingJump.messageId : null}
             onJumpHandled={clearPendingJump}
           />
@@ -351,6 +354,7 @@ export default function ChatLayout() {
             conversation={activeConversation}
             onOpenDM={openDM}
             onBack={backToNav}
+            ownerId={serverOwnerId}
             jumpToMessageId={pendingJump?.type === 'dm' && pendingJump.targetId === activeConversation.id ? pendingJump.messageId : null}
             onJumpHandled={clearPendingJump}
           />
@@ -366,7 +370,7 @@ export default function ChatLayout() {
       {showMembers && (
         <>
           <div className={styles.membersBackdrop} onClick={() => setShowMembers(false)} />
-          <MemberList serverId={DEFAULT_SERVER} onClose={() => setShowMembers(false)} />
+          <MemberList serverId={DEFAULT_SERVER} ownerId={serverOwnerId} onClose={() => setShowMembers(false)} />
         </>
       )}
 
@@ -375,6 +379,7 @@ export default function ChatLayout() {
           onClose={() => setShowAdmin(false)}
           onServerRenamed={handleServerRenamed}
           onChannelRenamed={handleChannelRenamed}
+          onOwnerChanged={setServerOwnerId}
         />
       )}
 

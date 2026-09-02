@@ -36,7 +36,7 @@ function toOptimisticMessage(entry, user) {
   };
 }
 
-export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId, onJumpHandled }) {
+export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpToMessageId, onJumpHandled }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -494,6 +494,7 @@ export default function DMArea({ conversation, onOpenDM, onBack, jumpToMessageId
           user={profileTarget.user}
           anchorRect={profileTarget.rect}
           isSelf={profileTarget.user.id === user.id}
+          ownerId={ownerId}
           onClose={() => setProfileTarget(null)}
           onMessage={onOpenDM}
         />

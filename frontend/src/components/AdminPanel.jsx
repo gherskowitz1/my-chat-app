@@ -69,7 +69,7 @@ async function get(path) {
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
-export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed }) {
+export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed, onOwnerChanged }) {
   const { user: currentUser } = useAuth();
   const { socket } = useSocket();
   const [tab, setTab] = useState('server');
@@ -224,6 +224,7 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed 
       await patch(`/servers/${DEFAULT_SERVER}/owner`, { userId: targetUser.id });
       setServer(s => ({ ...s, owner_id: targetUser.id }));
       setUsers(prev => prev.map(u => u.id === targetUser.id ? { ...u, role: 'admin' } : u));
+      onOwnerChanged?.(targetUser.id);
       flash(`${targetUser.username} is now the server owner`);
     } catch (err) {
       flash(err.message, 'error');

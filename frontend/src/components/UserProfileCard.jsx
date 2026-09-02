@@ -5,7 +5,7 @@ import styles from './UserProfileCard.module.css';
 // A small popover anchored under whatever was clicked (a mention span, an
 // avatar). Positioned in fixed coordinates and clamped so it never renders
 // past the right/bottom edge of the viewport.
-export default function UserProfileCard({ user, anchorRect, isSelf, onClose, onMessage }) {
+export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onClose, onMessage }) {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -41,7 +41,9 @@ export default function UserProfileCard({ user, anchorRect, isSelf, onClose, onM
       <div className={styles.body}>
         <div className={styles.nameRow}>
           <span className={styles.username}>{user.username}</span>
-          {user.role === 'admin' && <span className={styles.badge}>Admin</span>}
+          {user.id === ownerId
+            ? <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>👑 Owner</span>
+            : user.role === 'admin' && <span className={styles.badge}>Admin</span>}
         </div>
         {!isSelf && (
           <button

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import Avatar from './Avatar';
 import styles from './MemberList.module.css';
 
-export default function MemberList({ serverId, onClose }) {
+export default function MemberList({ serverId, ownerId, onClose }) {
   const { user } = useAuth();
   const { statusMap } = useSocket();
   const [members, setMembers] = useState([]);
@@ -26,19 +26,19 @@ export default function MemberList({ serverId, onClose }) {
       <button className={styles.closeBtn} onClick={onClose} title="Close member list">✕</button>
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Online — {online.length}</div>
-        {online.map((m) => <MemberItem key={m.id} member={m} status={statusOf(m.id)} />)}
+        {online.map((m) => <MemberItem key={m.id} member={m} status={statusOf(m.id)} isOwner={m.id === ownerId} />)}
       </div>
       {offline.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Offline — {offline.length}</div>
-          {offline.map((m) => <MemberItem key={m.id} member={m} status="offline" />)}
+          {offline.map((m) => <MemberItem key={m.id} member={m} status="offline" isOwner={m.id === ownerId} />)}
         </div>
       )}
     </div>
   );
 }
 
-function MemberItem({ member, status }) {
+function MemberItem({ member, status, isOwner }) {
   const dimmed = status === 'offline';
   return (
     <div className={styles.member}>
@@ -54,7 +54,9 @@ function MemberItem({ member, status }) {
       </div>
       <div className={styles.info}>
         <span className={styles.name} style={{ opacity: dimmed ? 0.5 : 1 }}>{member.username}</span>
-        {member.role === 'admin' && <span className={styles.badge}>Admin</span>}
+        {isOwner
+          ? <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>👑 Owner</span>
+          : member.role === 'admin' && <span className={styles.badge}>Admin</span>}
       </div>
     </div>
   );
