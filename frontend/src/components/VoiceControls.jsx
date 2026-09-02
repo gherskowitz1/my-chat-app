@@ -3,6 +3,7 @@ import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 import { useKeyboardShortcuts, loadShortcuts, formatKey } from '../hooks/useKeyboardShortcuts';
 import Soundboard from './Soundboard';
+import VoiceEffects from './VoiceEffects';
 import styles from './VoiceControls.module.css';
 
 /**
@@ -161,6 +162,7 @@ export default function VoiceControls({ onLeave, forceMuted }) {
           </button>
 
           <Soundboard />
+          <VoiceEffects />
         </div>
 
         <button
