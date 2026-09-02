@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../services/api';
 import styles from './AuthPage.module.css';
 
 // "Remember me" stores the raw password in localStorage so the login form
@@ -27,10 +28,16 @@ export default function AuthPage() {
     username: '',
     email: searchParams.get('email') || remembered?.email || '',
     password: remembered?.password || '',
+    inviteCode: '',
   });
   const [rememberMe, setRememberMe] = useState(!!remembered);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [signupCodeRequired, setSignupCodeRequired] = useState(false);
+
+  useEffect(() => {
+    api.get('/auth/config').then((c) => setSignupCodeRequired(c.signupCodeRequired)).catch(() => {});
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -45,7 +52,7 @@ export default function AuthPage() {
           localStorage.removeItem(REMEMBER_KEY);
         }
       } else {
-        await signup(form.username, form.email, form.password);
+        await signup(form.username, form.email, form.password, form.inviteCode);
       }
     } catch (err) {
       setError(err.message);
@@ -84,6 +91,19 @@ export default function AuthPage() {
                 maxLength={32}
                 placeholder="cooluser123"
                 autoComplete="username"
+              />
+            </label>
+          )}
+          {mode === 'signup' && signupCodeRequired && (
+            <label className={styles.field}>
+              <span>INVITE CODE</span>
+              <input
+                type="text"
+                value={form.inviteCode}
+                onChange={set('inviteCode')}
+                required
+                placeholder="Ask whoever invited you"
+                autoComplete="off"
               />
             </label>
           )}

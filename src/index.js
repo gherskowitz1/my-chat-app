@@ -13,6 +13,10 @@ const push = require('./utils/push');
 push.configure();
 
 const app = express();
+// Railway sits in front of the app behind a proxy — without this, every
+// request's IP resolves to the proxy's internal address, which would make
+// the rate limiters below share one bucket across every real user.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 const allowedOrigins = process.env.CLIENT_URL

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
-const { signup, login, getMe, updateAvatar } = require('../controllers/authController');
+const { signup, login, getMe, updateAvatar, getAuthConfig } = require('../controllers/authController');
+const { loginLimiter, signupLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
 const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments } = require('../controllers/dmController');
 const { getAttachment } = require('../controllers/attachmentController');
@@ -25,10 +26,11 @@ const { getSounds, createSound, deleteSound } = require('../controllers/soundCon
 const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
 
 // Auth
-router.post('/auth/signup', signup);
-router.post('/auth/login', login);
+router.get('/auth/config', getAuthConfig);
+router.post('/auth/signup', signupLimiter, signup);
+router.post('/auth/login', loginLimiter, login);
 router.get('/auth/me', authMiddleware, getMe);
-router.post('/auth/forgot-password', forgotPassword);
+router.post('/auth/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/auth/reset-password', resetPassword);
 router.patch('/auth/avatar', authMiddleware, updateAvatar);
 

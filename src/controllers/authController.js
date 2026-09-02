@@ -2,13 +2,23 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
+// Public — read by the signup form before it knows whether to show the
+// invite-code field at all. Only ever set once at startup, so it's safe to
+// read process.env directly on every request rather than caching it.
+function getAuthConfig(req, res) {
+  res.json({ signupCodeRequired: !!process.env.SIGNUP_CODE });
+}
+
 async function signup(req, res) {
-  const { username, email, password } = req.body;
+  const { username, email, password, inviteCode } = req.body;
   if (!username || !email || !password) {
     return res.status(400).json({ error: 'All fields required' });
   }
   if (username.length < 2 || username.length > 32) {
     return res.status(400).json({ error: 'Username must be 2-32 characters' });
+  }
+  if (process.env.SIGNUP_CODE && inviteCode?.trim() !== process.env.SIGNUP_CODE) {
+    return res.status(403).json({ error: 'Invalid invite code' });
   }
 
   try {
@@ -111,4 +121,4 @@ async function updateAvatar(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe, updateAvatar };
+module.exports = { signup, login, getMe, updateAvatar, getAuthConfig };

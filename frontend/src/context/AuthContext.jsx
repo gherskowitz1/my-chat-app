@@ -61,8 +61,8 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
-  const signup = async (username, email, password) => {
-    const data = await api.post('/auth/signup', { username, email, password });
+  const signup = async (username, email, password, inviteCode) => {
+    const data = await api.post('/auth/signup', { username, email, password, inviteCode });
     persistToken(data.token);
     setUser(data.user);
     return data.user;
