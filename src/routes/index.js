@@ -21,6 +21,7 @@ const { getPinnedMessages, pinMessage, unpinMessage } = require('../controllers/
 const { getFriends, sendRequest, acceptRequest, declineRequest, removeFriend } = require('../controllers/friendController');
 const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiController');
 const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
+const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
 
 // Auth
 router.post('/auth/signup', signup);
@@ -63,6 +64,11 @@ router.delete('/servers/:serverId/emoji/:emojiId', authMiddleware, adminMiddlewa
 router.get('/servers/:serverId/sounds', authMiddleware, getSounds);
 router.post('/servers/:serverId/sounds', authMiddleware, adminMiddleware, createSound);
 router.delete('/servers/:serverId/sounds/:soundId', authMiddleware, adminMiddleware, deleteSound);
+
+// Push notifications
+router.get('/push/vapid-public-key', authMiddleware, getPublicKey);
+router.post('/push/subscribe', authMiddleware, subscribe);
+router.post('/push/unsubscribe', authMiddleware, unsubscribe);
 
 // Friends — additive only, does not gate DMs
 router.get('/friends', authMiddleware, getFriends);

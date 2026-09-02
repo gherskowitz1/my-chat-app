@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
+const { mentionsUsername } = require('../utils/mentions');
+const { sendPushToUser } = require('../utils/push');
 
 const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
@@ -81,20 +83,32 @@ function setupSocket(io) {
         // channel, or just its explicit allow-list for a private one.
         const { rows: members } = channel.is_private
           ? await pool.query(
-              'SELECT user_id FROM channel_members WHERE channel_id = $1 AND user_id != $2',
+              `SELECT cm.user_id, u.username FROM channel_members cm
+               JOIN users u ON u.id = cm.user_id
+               WHERE cm.channel_id = $1 AND cm.user_id != $2`,
               [channelId, userId]
             )
           : await pool.query(
-              `SELECT sm.user_id FROM server_members sm
+              `SELECT sm.user_id, u.username FROM server_members sm
+               JOIN users u ON u.id = sm.user_id
                JOIN channels c ON c.server_id = sm.server_id
                WHERE c.id = $1 AND sm.user_id != $2`,
               [channelId, userId]
             );
         const channelName = channel.name;
-        members.forEach(({ user_id }) => {
+        members.forEach(({ user_id, username: memberUsername }) => {
           emitToUser(io, user_id, 'notify:message', {
             channelId, channelName, username, content: content.trim(),
           });
+          // Only push when they have no live connection at all (app fully
+          // closed) — an open tab/app already got the toast/desktop notify
+          // above, so a push on top of that would just be a duplicate.
+          if (!onlineUsers.has(user_id) && mentionsUsername(content, memberUsername)) {
+            sendPushToUser(pool, user_id, {
+              title: `${username} mentioned you in #${channelName}`,
+              body: content.trim().slice(0, 120),
+            }).catch((err) => console.error('push send error', err));
+          }
         });
       } catch (err) {
         console.error('message:send error', err);
@@ -213,6 +227,12 @@ function setupSocket(io) {
         );
         others.forEach(({ user_id }) => {
           emitToUser(io, user_id, 'notify:dm', { conversationId, username, content: content.trim() });
+          if (!onlineUsers.has(user_id)) {
+            sendPushToUser(pool, user_id, {
+              title: username,
+              body: content.trim().slice(0, 120),
+            }).catch((err) => console.error('push send error', err));
+          }
         });
       } catch (err) {
         console.error('dm:send error', err);

@@ -7,6 +7,9 @@ const { initDb } = require('./db');
 const routes = require('./routes');
 const { setupSocket } = require('./socket');
 const { startPatchBot } = require('./jobs/patchBot');
+const push = require('./utils/push');
+
+push.configure();
 
 const app = express();
 const server = http.createServer(app);

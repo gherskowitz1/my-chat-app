@@ -205,6 +205,18 @@ CREATE TABLE IF NOT EXISTS soundboard_sounds (
   UNIQUE (server_id, name)
 );
 
+-- Web push subscriptions — lets DMs/mentions notify a user even with the
+-- app fully closed (not just backgrounded), via the browser's own push
+-- service rather than a persistent connection.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

@@ -4,6 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { resizeImageToDataUrl } from '../utils/imageResize';
+import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import Avatar from './Avatar';
 import styles from './UserSettings.module.css';
 
@@ -111,13 +112,17 @@ export default function UserSettings({ onClose }) {
           <button className={`${styles.tab} ${tab === 'appearance' ? styles.activeTab : ''}`} onClick={() => setTab('appearance')}>
             🎨 Appearance
           </button>
+          <button className={`${styles.tab} ${tab === 'notifications' ? styles.activeTab : ''}`} onClick={() => setTab('notifications')}>
+            🔔 Notifications
+          </button>
         </div>
 
         <div className={styles.body}>
           {tab === 'audio' ? <AudioTab />
             : tab === 'shortcuts' ? <ShortcutsTab />
             : tab === 'status' ? <StatusTab />
-            : <AppearanceTab />}
+            : tab === 'appearance' ? <AppearanceTab />
+            : <NotificationsTab />}
         </div>
       </div>
     </div>
@@ -380,6 +385,66 @@ function AppearanceTab() {
         ))}
       </div>
       <p className={styles.hint} style={{ marginTop: 12 }}>Applies instantly and only to this device. The standalone Admin Portal keeps its own fixed dark look.</p>
+    </section>
+  );
+}
+
+// ── Notifications Tab ──────────────────────────────────────────
+function NotificationsTab() {
+  const [status, setStatus] = useState('checking');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    getPushSubscriptionStatus().then(setStatus).catch(() => setStatus('unsupported'));
+  }, []);
+
+  const enable = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await enablePushNotifications();
+      setStatus('subscribed');
+    } catch (err) {
+      setError(err.message);
+      setStatus(typeof Notification !== 'undefined' && Notification.permission === 'denied' ? 'denied' : 'unsubscribed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await disablePushNotifications();
+      setStatus('unsubscribed');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className={styles.section}>
+      <h3>🔔 Push Notifications</h3>
+      <p className={styles.hint}>Get notified about DMs and @mentions even when Crows Nest is completely closed.</p>
+
+      {status === 'unsupported' && <p className={styles.hint}>Not supported in this browser.</p>}
+      {status === 'denied' && <p className={styles.hint}>Notifications are blocked for this site — enable them in your browser's site settings, then reopen this tab.</p>}
+
+      {(status === 'unsubscribed' || status === 'checking') && (
+        <button className={styles.avatarLink} onClick={enable} disabled={busy || status === 'checking'}>
+          {busy ? 'Enabling…' : 'Enable push notifications'}
+        </button>
+      )}
+      {status === 'subscribed' && (
+        <button className={styles.avatarLink} onClick={disable} disabled={busy}>
+          {busy ? 'Disabling…' : 'Disable push notifications'}
+        </button>
+      )}
+      {error && <div className={styles.avatarError}>{error}</div>}
     </section>
   );
 }
