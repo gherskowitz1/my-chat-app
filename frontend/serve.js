@@ -30,10 +30,22 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       // The API lives on a separate origin from this static site (that's
-      // why the backend needs CORS at all) — these cover this project's
-      // known domain, Railway's default domains, and LiveKit Cloud.
-      imgSrc: ["'self'", 'data:', 'blob:', 'https://*.thecrowsnesttalk.com', 'https://*.up.railway.app', 'https://*.railway.app'],
+      // why the backend needs CORS at all), and message link-previews load
+      // thumbnails from whatever domain someone pastes a link to — images
+      // can't execute code, so allowing any https image is a low-risk way
+      // to support that instead of trying to enumerate every possible host.
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
       mediaSrc: ["'self'", 'data:', 'blob:'],
+      // Link-preview embeds (YouTube/Twitch/Vimeo/Spotify/SoundCloud) render
+      // as iframes from these exact platforms — see linkEmbeds.js/LinkEmbed.jsx.
+      frameSrc: [
+        "'self'",
+        'https://www.youtube.com',
+        'https://clips.twitch.tv', 'https://player.twitch.tv',
+        'https://player.vimeo.com',
+        'https://open.spotify.com',
+        'https://w.soundcloud.com',
+      ],
       connectSrc: [
         "'self'",
         'https://*.thecrowsnesttalk.com', 'wss://*.thecrowsnesttalk.com',
