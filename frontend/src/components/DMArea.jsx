@@ -10,6 +10,7 @@ import Message from './Message';
 import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
+import EmojiPicker from './EmojiPicker';
 import styles from './ChatArea.module.css';
 import messageStyles from './Message.module.css';
 
@@ -53,6 +54,23 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
+
+  // Inserts at the cursor rather than always appending, so picking an emoji
+  // partway through a sentence you're editing lands where you'd expect.
+  const insertEmoji = (emoji) => {
+    const el = inputRef.current;
+    const start = el?.selectionStart ?? input.length;
+    const end = el?.selectionEnd ?? input.length;
+    const next = input.slice(0, start) + emoji + input.slice(end);
+    setInput(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
+  };
   const messagesRef = useRef(null);
   const typingTimerRef = useRef(null);
   const isTypingRef = useRef(false);
@@ -554,6 +572,23 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
             </svg>
           </button>
           <input ref={fileInputRef} type="file" multiple hidden onChange={handleFileInputChange} />
+          <button
+            type="button"
+            className={styles.attachBtn}
+            onClick={(e) => setEmojiPickerAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Emoji"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zM8.5 10a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm7 0a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zM12 17.5c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/>
+            </svg>
+          </button>
+          {emojiPickerAnchor && (
+            <EmojiPicker
+              anchorRect={emojiPickerAnchor}
+              onClose={() => setEmojiPickerAnchor(null)}
+              onSelect={insertEmoji}
+            />
+          )}
           <button type="submit" className={styles.sendBtn} disabled={!input.trim() && stagedAttachments.length === 0}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
