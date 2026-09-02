@@ -21,7 +21,7 @@ const STORAGE_KEY_VAD_SENSITIVITY = 'crowsnest_vad_sensitivity';
 
 export default function UserSettings({ onClose }) {
   const { user, updateAvatar } = useAuth();
-  const [tab, setTab] = useState('audio');
+  const [tab, setTab] = useState('account');
   const [avatarError, setAvatarError] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef(null);
@@ -103,6 +103,9 @@ export default function UserSettings({ onClose }) {
         </div>
 
         <div className={styles.tabs}>
+          <button className={`${styles.tab} ${tab === 'account' ? styles.activeTab : ''}`} onClick={() => setTab('account')}>
+            👤 Account
+          </button>
           <button className={`${styles.tab} ${tab === 'audio' ? styles.activeTab : ''}`} onClick={() => setTab('audio')}>
             <MicIcon /> Audio
           </button>
@@ -121,7 +124,8 @@ export default function UserSettings({ onClose }) {
         </div>
 
         <div className={styles.body}>
-          {tab === 'audio' ? <AudioTab />
+          {tab === 'account' ? <AccountTab />
+            : tab === 'audio' ? <AudioTab />
             : tab === 'shortcuts' ? <ShortcutsTab />
             : tab === 'status' ? <StatusTab />
             : tab === 'appearance' ? <AppearanceTab />
@@ -129,6 +133,162 @@ export default function UserSettings({ onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const AVATAR_COLORS = ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#3BA55C', '#EB8E2B', '#9B59B6'];
+
+// ── Account Tab ──────────────────────────────────────────────
+function AccountTab() {
+  const { user, updateUsername, updatePassword, updateAvatarColor } = useAuth();
+
+  const [username, setUsername] = useState(user?.username || '');
+  const [usernameSaving, setUsernameSaving] = useState(false);
+  const [usernameError, setUsernameError] = useState('');
+  const [usernameSuccess, setUsernameSuccess] = useState('');
+
+  const [colorSaving, setColorSaving] = useState(false);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const saveUsername = async (e) => {
+    e.preventDefault();
+    setUsernameError('');
+    setUsernameSuccess('');
+    setUsernameSaving(true);
+    try {
+      await updateUsername(username.trim());
+      setUsernameSuccess('Username updated.');
+    } catch (err) {
+      setUsernameError(err.message || 'Failed to update username');
+    } finally {
+      setUsernameSaving(false);
+    }
+  };
+
+  const pickColor = async (color) => {
+    if (color === user?.avatar_color || colorSaving) return;
+    setColorSaving(true);
+    try {
+      await updateAvatarColor(color);
+    } catch {
+      // swallow — a failed color change just leaves the old one selected
+    } finally {
+      setColorSaving(false);
+    }
+  };
+
+  const savePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords don’t match.');
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await updatePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordSuccess('Password updated. Your other devices have been signed out.');
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to update password');
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <section className={styles.section}>
+        <h3>👤 Username</h3>
+        <form onSubmit={saveUsername}>
+          <input
+            className={styles.input}
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setUsernameSuccess(''); }}
+            minLength={2}
+            maxLength={32}
+            required
+          />
+          <div className={styles.footer}>
+            <button type="submit" className={styles.saveBtn} disabled={usernameSaving || !username.trim() || username.trim() === user?.username}>
+              {usernameSaving ? 'Saving…' : 'Save Username'}
+            </button>
+            {usernameError && <div className={styles.avatarError}>{usernameError}</div>}
+            {usernameSuccess && <div className={styles.hint}>{usernameSuccess}</div>}
+          </div>
+        </form>
+      </section>
+
+      <section className={styles.section}>
+        <h3>🎨 Avatar Colour</h3>
+        <div className={styles.colorRow}>
+          {AVATAR_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={styles.colorSwatch}
+              style={{ background: c, outline: c === user?.avatar_color ? '2px solid var(--text-primary)' : 'none', outlineOffset: 2 }}
+              onClick={() => pickColor(c)}
+              disabled={colorSaving}
+              title={c}
+            />
+          ))}
+        </div>
+        <p className={styles.hint}>Used for your default avatar when you don't have a profile picture.</p>
+      </section>
+
+      <section className={styles.section}>
+        <h3>🔒 Change Password</h3>
+        <form onSubmit={savePassword}>
+          <input
+            className={styles.input}
+            type="password"
+            placeholder="Current password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          <input
+            className={styles.input}
+            type="password"
+            placeholder="New password (8+ characters)"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            minLength={8}
+            autoComplete="new-password"
+            required
+          />
+          <input
+            className={styles.input}
+            type="password"
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            minLength={8}
+            autoComplete="new-password"
+            required
+          />
+          <div className={styles.footer}>
+            <button type="submit" className={styles.saveBtn} disabled={passwordSaving}>
+              {passwordSaving ? 'Saving…' : 'Change Password'}
+            </button>
+            {passwordError && <div className={styles.avatarError}>{passwordError}</div>}
+            {passwordSuccess && <div className={styles.hint}>{passwordSuccess}</div>}
+          </div>
+        </form>
+        <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in.</p>
+      </section>
+    </>
   );
 }
 

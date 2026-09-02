@@ -12,7 +12,18 @@ async function request(method, path, body) {
   });
 
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    // A 401 here means the token itself is dead — invalid, or its
+    // token_version no longer matches (password changed on another
+    // device). Reloading drops straight back to the login screen instead
+    // of leaving the app silently broken.
+    if (res.status === 401 && token) {
+      localStorage.removeItem('token');
+      if (typeof window.electron?.clearToken === 'function') window.electron.clearToken();
+      window.location.reload();
+    }
+    throw new Error(data.error || 'Request failed');
+  }
   return data;
 }
 

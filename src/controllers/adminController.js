@@ -219,7 +219,7 @@ async function setUserPassword(req, res) {
   try {
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
+    await pool.query('UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, userId]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

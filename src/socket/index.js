@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
+const { checkTokenVersion } = require('../middleware/auth');
 const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 const { mentionsUsername } = require('../utils/mentions');
 const { sendPushToUser } = require('../utils/push');
@@ -18,11 +19,13 @@ function emitToUser(io, userId, event, payload) {
 
 function setupSocket(io) {
 
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token'));
     try {
-      socket.user = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (!(await checkTokenVersion(decoded))) return next(new Error('Session expired'));
+      socket.user = decoded;
       next();
     } catch {
       next(new Error('Invalid token'));

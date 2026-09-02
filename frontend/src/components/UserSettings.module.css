@@ -168,6 +168,38 @@
 
 .select:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
 
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border);
+  margin-bottom: 10px;
+}
+
+.input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
+
+.colorRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.colorSwatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+
+.colorSwatch:hover { transform: scale(1.1); }
+
 .testBtn {
   display: flex;
   align-items: center;

@@ -79,8 +79,26 @@ export function AuthProvider({ children }) {
     return updated;
   };
 
+  const updateUsername = async (username) => {
+    const data = await api.patch('/auth/username', { username });
+    persistToken(data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
+  const updatePassword = async (currentPassword, newPassword) => {
+    const data = await api.patch('/auth/password', { currentPassword, newPassword });
+    persistToken(data.token);
+  };
+
+  const updateAvatarColor = async (avatarColor) => {
+    const updated = await api.patch('/auth/avatar-color', { avatarColor });
+    setUser(updated);
+    return updated;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor }}>
       {children}
     </AuthContext.Provider>
   );

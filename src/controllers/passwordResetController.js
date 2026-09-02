@@ -89,7 +89,9 @@ async function resetPassword(req, res) {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, rows[0].user_id]);
+    // Bumps token_version too — a reset means any existing session (including
+    // one an attacker may have started) should stop working immediately.
+    await pool.query('UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, rows[0].user_id]);
     await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
 
     res.json({ message: 'Password updated successfully' });

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS users (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 
+-- Bumped on password change/reset so old JWTs (which carry the version they
+-- were issued with) fail auth on every device except the one that made the
+-- change, which is immediately reissued a token with the new version.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
+
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

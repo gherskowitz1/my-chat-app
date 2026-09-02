@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
-const { signup, login, getMe, updateAvatar, getAuthConfig } = require('../controllers/authController');
+const { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor } = require('../controllers/authController');
 const { loginLimiter, signupLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
 const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments } = require('../controllers/dmController');
@@ -33,6 +33,9 @@ router.get('/auth/me', authMiddleware, getMe);
 router.post('/auth/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/auth/reset-password', resetPassword);
 router.patch('/auth/avatar', authMiddleware, updateAvatar);
+router.patch('/auth/username', authMiddleware, updateUsername);
+router.patch('/auth/password', authMiddleware, updatePassword);
+router.patch('/auth/avatar-color', authMiddleware, updateAvatarColor);
 
 // Users
 router.get('/users', authMiddleware, getUsers);
