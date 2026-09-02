@@ -148,6 +148,8 @@ export default function ChatLayout() {
       const isViewing = activeSection === 'dm' && activeConversation?.id === conversationId;
       if (isViewing) return;
 
+      new Audio('/sounds/youve-got-mail.mp3').play().catch(() => {});
+
       setUnreadDMs((prev) => {
         const next = new Map(prev);
         next.set(conversationId, (next.get(conversationId) || 0) + 1);
