@@ -101,13 +101,28 @@
   flex: 1;
   min-width: 0;
   display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nameRow {
+  display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .name {
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lastSeen {
+  font-size: 11px;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

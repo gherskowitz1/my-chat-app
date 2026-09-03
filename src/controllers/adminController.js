@@ -104,7 +104,7 @@ async function renameChannel(req, res) {
 async function getAllUsers(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color, avatar_url, created_at FROM users ORDER BY created_at ASC'
+      'SELECT id, username, email, role, avatar_color, avatar_url, created_at, invisible FROM users ORDER BY created_at ASC'
     );
     res.json(rows);
   } catch (err) {
@@ -130,6 +130,27 @@ async function updateUserRole(req, res) {
       'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color, avatar_url',
       [role, userId]
     );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Hides an account (bots, service/test accounts) from the passive
+// online/offline member list only — mentions, DMs, friends, and private
+// channel pickers are unaffected.
+async function setUserInvisible(req, res) {
+  const { userId } = req.params;
+  const { invisible } = req.body;
+  if (typeof invisible !== 'boolean') {
+    return res.status(400).json({ error: 'invisible must be true or false' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'UPDATE users SET invisible = $1 WHERE id = $2 RETURNING id, username, email, role, avatar_color, avatar_url, invisible',
+      [invisible, userId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -228,6 +249,6 @@ async function setUserPassword(req, res) {
 
 module.exports = {
   updateServer, getServer, renameChannel, setServerOwner,
-  getAllUsers, updateUserRole, deleteUser,
+  getAllUsers, updateUserRole, deleteUser, setUserInvisible,
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
 };

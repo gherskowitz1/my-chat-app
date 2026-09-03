@@ -10,7 +10,7 @@ const { searchMessages } = require('../controllers/searchController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
 const {
   updateServer, getServer, renameChannel, setServerOwner,
-  getAllUsers, updateUserRole, deleteUser,
+  getAllUsers, updateUserRole, deleteUser, setUserInvisible,
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
 } = require('../controllers/adminController');
 const { forgotPassword, resetPassword } = require('../controllers/passwordResetController');
@@ -103,6 +103,7 @@ router.patch('/channels/:channelId', authMiddleware, adminMiddleware, renameChan
 router.get('/admin/stats', authMiddleware, adminMiddleware, getStats);
 router.get('/admin/users', authMiddleware, adminMiddleware, getAllUsers);
 router.patch('/admin/users/:userId/role', authMiddleware, adminMiddleware, updateUserRole);
+router.patch('/admin/users/:userId/invisible', authMiddleware, adminMiddleware, setUserInvisible);
 router.delete('/admin/users/:userId', authMiddleware, adminMiddleware, deleteUser);
 router.post('/admin/users/:userId/force-reset', authMiddleware, adminMiddleware, forcePasswordReset);
 router.patch('/admin/users/:userId/password', authMiddleware, adminMiddleware, setUserPassword);

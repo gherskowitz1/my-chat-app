@@ -202,6 +202,16 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
     }
   };
 
+  const toggleInvisible = async (user) => {
+    try {
+      const res = await patch(`/admin/users/${user.id}/invisible`, { invisible: !user.invisible });
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, invisible: res.invisible } : u));
+      flash(`${user.username} is now ${res.invisible ? 'hidden from' : 'visible in'} the member list`);
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
   const deleteUser = async (user) => {
     if (!confirm(`Remove ${user.username} from the server? This cannot be undone.`)) return;
     try {
@@ -450,6 +460,13 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
                             {u.role === 'admin' ? '↓ Member' : '↑ Admin'}
                           </button>
                         )}
+                        <button
+                          className={styles.roleBtn}
+                          onClick={() => toggleInvisible(u)}
+                          title={u.invisible ? 'Show in the member list' : 'Hide from the member list (mentions/DMs still work)'}
+                        >
+                          {u.invisible ? '👻 Hidden' : 'Hide'}
+                        </button>
                         {!isOwner && (
                           <button
                             className={styles.deleteUserBtn}

@@ -213,6 +213,13 @@ function UsersTab() {
     showFlash(`${u.username} deleted`);
   };
 
+  const toggleInvisible = async (u) => {
+    const res = await authFetch(`/admin/users/${u.id}/invisible`, { method: 'PATCH', body: JSON.stringify({ invisible: !u.invisible }) });
+    if (res.error) return showFlash(res.error, 'error');
+    setUsers(prev => prev.map(x => x.id === u.id ? { ...x, invisible: res.invisible } : x));
+    showFlash(`${u.username} is now ${res.invisible ? 'hidden from' : 'visible in'} the member list`);
+  };
+
   return (
     <div className={styles.content}>
       <h1>Users <span className={styles.count}>{users.length}</span></h1>
@@ -254,6 +261,9 @@ function UsersTab() {
                     {u.role === 'admin' ? '⬇️' : '⬆️'}
                   </button>
                 )}
+                <button className={styles.actionBtn} onClick={() => toggleInvisible(u)} title={u.invisible ? 'Show in the member list' : 'Hide from the member list (mentions/DMs still work)'}>
+                  {u.invisible ? '👻' : '👁️'}
+                </button>
                 {u.id !== me.id && !isOwner && (
                   <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => deleteUser(u)} title="Delete user">🗑️</button>
                 )}

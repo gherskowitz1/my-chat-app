@@ -17,6 +17,15 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
 -- change, which is immediately reissued a token with the new version.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 0;
 
+-- Set the moment a user's last socket disconnects, so the member list can
+-- show "last seen" for anyone currently offline.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
+
+-- Admin-only flag to hide an account (bots, service/test accounts) from the
+-- passive online/offline member list — they stay fully usable everywhere
+-- else (mentions, DMs, friends, private-channel pickers).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS invisible BOOLEAN NOT NULL DEFAULT false;
+
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

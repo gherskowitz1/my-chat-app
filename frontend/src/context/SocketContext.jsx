@@ -10,6 +10,7 @@ export function SocketProvider({ children }) {
   const socketRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [statusMap, setStatusMap] = useState(new Map()); // userId -> 'online' | 'away' | 'offline'
+  const [awaySinceMap, setAwaySinceMap] = useState(new Map()); // userId -> ms timestamp status became 'away'
 
   useEffect(() => {
     if (!user) {
@@ -71,12 +72,24 @@ export function SocketProvider({ children }) {
     // effect to run). Subscribing here means we're never too late.
     const onSnapshot = (entries) => {
       setStatusMap(new Map(entries.map(({ userId, status }) => [userId, status])));
+      setAwaySinceMap(new Map(entries.filter((e) => e.awaySince).map(({ userId, awaySince }) => [userId, awaySince])));
     };
-    const onUpdate = ({ userId, status }) => {
+    const onUpdate = ({ userId, status, awaySince }) => {
       setStatusMap((prev) => {
         const next = new Map(prev);
         if (status === 'offline') next.delete(userId);
         else next.set(userId, status);
+        return next;
+      });
+      setAwaySinceMap((prev) => {
+        if (status === 'away' && awaySince) {
+          const next = new Map(prev);
+          next.set(userId, awaySince);
+          return next;
+        }
+        if (!prev.has(userId)) return prev;
+        const next = new Map(prev);
+        next.delete(userId);
         return next;
       });
     };
@@ -99,7 +112,7 @@ export function SocketProvider({ children }) {
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, setStatus }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, awaySinceMap, setStatus }}>
       {children}
     </SocketContext.Provider>
   );

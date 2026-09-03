@@ -8,6 +8,7 @@ const { sendPushToUser } = require('../utils/push');
 const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
 const manualStatus = new Map(); // userId -> status the user explicitly chose, pins userStatus against automatic idle/active updates until they fully disconnect
+const awaySince = new Map(); // userId -> ms timestamp their status last became 'away', so the member list can show "Away for X"
 
 // Module-level (not just inside setupSocket) so background jobs like
 // PatchBot can push a notify: event to a user's open sockets too.
@@ -41,11 +42,14 @@ function setupSocket(io) {
     if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
     onlineUsers.get(userId).add(socket.id);
     userStatus.set(userId, 'online');
+    awaySince.delete(userId);
     io.emit('presence:update', { userId, username, status: 'online' });
 
     // Tell just this socket who's already online/away, since it missed
     // whatever presence:update events fired before it connected.
-    socket.emit('presence:snapshot', Array.from(userStatus.entries()).map(([id, status]) => ({ userId: id, status })));
+    socket.emit('presence:snapshot', Array.from(userStatus.entries()).map(([id, status]) => ({
+      userId: id, status, awaySince: status === 'away' ? awaySince.get(id) : undefined,
+    })));
 
     // Join a channel room
     socket.on('channel:join', async (channelId) => {
@@ -429,11 +433,13 @@ function setupSocket(io) {
     socket.on('presence:idle', () => {
       if (!onlineUsers.has(userId) || manualStatus.has(userId)) return;
       userStatus.set(userId, 'away');
-      io.emit('presence:update', { userId, username, status: 'away' });
+      awaySince.set(userId, Date.now());
+      io.emit('presence:update', { userId, username, status: 'away', awaySince: awaySince.get(userId) });
     });
     socket.on('presence:active', () => {
       if (!onlineUsers.has(userId) || manualStatus.has(userId)) return;
       userStatus.set(userId, 'online');
+      awaySince.delete(userId);
       io.emit('presence:update', { userId, username, status: 'online' });
     });
 
@@ -444,7 +450,9 @@ function setupSocket(io) {
       if (!['online', 'away', 'offline'].includes(status)) return;
       manualStatus.set(userId, status);
       userStatus.set(userId, status);
-      io.emit('presence:update', { userId, username, status });
+      if (status === 'away') awaySince.set(userId, Date.now());
+      else awaySince.delete(userId);
+      io.emit('presence:update', { userId, username, status, awaySince: status === 'away' ? awaySince.get(userId) : undefined });
     });
 
     socket.on('disconnect', () => {
@@ -455,7 +463,9 @@ function setupSocket(io) {
           onlineUsers.delete(userId);
           userStatus.delete(userId);
           manualStatus.delete(userId);
+          awaySince.delete(userId);
           io.emit('presence:update', { userId, username, status: 'offline' });
+          pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = $1', [userId]).catch(() => {});
         }
       }
     });
