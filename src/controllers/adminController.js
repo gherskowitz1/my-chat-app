@@ -180,9 +180,9 @@ async function getRecentMessages(req, res) {
   const limit = Math.min(parseInt(req.query.limit) || 50, 100);
   try {
     const { rows } = await pool.query(
-      `SELECT m.id, m.content, m.created_at, u.username, u.avatar_color, u.avatar_url, c.name AS channel_name
+      `SELECT m.id, m.content, m.created_at, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, c.name AS channel_name
        FROM messages m
-       JOIN users u ON u.id = m.user_id
+       LEFT JOIN users u ON u.id = m.user_id
        JOIN channels c ON c.id = m.channel_id
        ORDER BY m.created_at DESC LIMIT $1`,
       [limit]

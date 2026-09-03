@@ -97,8 +97,13 @@ export function AuthProvider({ children }) {
     return updated;
   };
 
+  const deleteAccount = async (password) => {
+    await api.delete('/auth/me', { password });
+    logout();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

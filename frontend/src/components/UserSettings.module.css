@@ -200,6 +200,21 @@
 
 .colorSwatch:hover { transform: scale(1.1); }
 
+.section h3.dangerTitle { color: var(--red); }
+
+.dangerBtn {
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
+  background: var(--red);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.dangerBtn:hover:not(:disabled) { background: #c62828; }
+.dangerBtn:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .testBtn {
   display: flex;
   align-items: center;

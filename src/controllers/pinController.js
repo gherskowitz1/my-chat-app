@@ -10,10 +10,10 @@ async function getPinnedMessages(req, res) {
       return res.status(403).json({ error: 'Not authorized' });
     }
     const { rows } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, p.created_at AS pinned_at
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, p.created_at AS pinned_at
        FROM pinned_messages p
        JOIN messages m ON m.id = p.message_id
-       JOIN users u ON u.id = m.user_id
+       LEFT JOIN users u ON u.id = m.user_id
        WHERE p.channel_id = $1
        ORDER BY p.created_at DESC`,
       [channelId]

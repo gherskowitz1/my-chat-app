@@ -144,7 +144,7 @@ const AVATAR_COLORS = ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#
 
 // ── Account Tab ──────────────────────────────────────────────
 function AccountTab() {
-  const { user, updateUsername, updatePassword, updateAvatarColor } = useAuth();
+  const { user, updateUsername, updatePassword, updateAvatarColor, deleteAccount } = useAuth();
 
   const [username, setUsername] = useState(user?.username || '');
   const [usernameSaving, setUsernameSaving] = useState(false);
@@ -159,6 +159,10 @@ function AccountTab() {
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   const saveUsername = async (e) => {
     e.preventDefault();
@@ -184,6 +188,23 @@ function AccountTab() {
       // swallow — a failed color change just leaves the old one selected
     } finally {
       setColorSaving(false);
+    }
+  };
+
+  const submitDelete = async (e) => {
+    e.preventDefault();
+    setDeleteError('');
+    if (!confirm('Delete your account? This can’t be undone — your login stops working immediately. Your past messages stay visible to others, just relabeled as from a "Deleted User".')) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await deleteAccount(deletePassword);
+      // No further UI to update — deleteAccount() logs out, and the app
+      // itself swaps to the login screen once `user` goes null.
+    } catch (err) {
+      setDeleteError(err.message || 'Failed to delete account');
+      setDeleting(false);
     }
   };
 
@@ -291,6 +312,31 @@ function AccountTab() {
           </div>
         </form>
         <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in.</p>
+      </section>
+
+      <section className={styles.section}>
+        <h3 className={styles.dangerTitle}>⚠️ Delete Account</h3>
+        <p className={styles.hint}>
+          Permanently deletes your account. Your past messages stay visible to everyone else, just relabeled as
+          from a "Deleted User" — they aren't removed.
+        </p>
+        <form onSubmit={submitDelete}>
+          <input
+            className={styles.input}
+            type="password"
+            placeholder="Enter your password to confirm"
+            value={deletePassword}
+            onChange={(e) => setDeletePassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+          <div className={styles.footer}>
+            <button type="submit" className={styles.dangerBtn} disabled={deleting || !deletePassword}>
+              {deleting ? 'Deleting…' : 'Delete My Account'}
+            </button>
+            {deleteError && <div className={styles.avatarError}>{deleteError}</div>}
+          </div>
+        </form>
       </section>
     </>
   );

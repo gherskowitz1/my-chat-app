@@ -135,12 +135,12 @@ async function getMessages(req, res) {
     }
 
     const query = before
-      ? `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
-         JOIN users u ON u.id = m.user_id
+      ? `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+         LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
-         JOIN users u ON u.id = m.user_id
+      : `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+         LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;
 
@@ -173,15 +173,15 @@ async function getMessagesAround(req, res) {
     const targetTime = targetRows[0].created_at;
 
     const { rows: before } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
-       JOIN users u ON u.id = m.user_id
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+       LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at <= $2
        ORDER BY m.created_at DESC LIMIT 26`,
       [channelId, targetTime]
     );
     const { rows: after } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
-       JOIN users u ON u.id = m.user_id
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+       LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at > $2
        ORDER BY m.created_at ASC LIMIT 25`,
       [channelId, targetTime]
@@ -262,8 +262,8 @@ async function sendMessageWithAttachments(req, res) {
     }
 
     const { rows: fullRows } = await pool.query(
-      `SELECT m.*, u.username, u.avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}
-       FROM messages m JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}
+       FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
       [messageId]
     );
     const newMessage = fullRows[0];

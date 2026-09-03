@@ -16,9 +16,9 @@ async function searchMessages(req, res) {
     let channelResults = [];
     if (scope === 'channel' && channelId) {
       const { rows } = await pool.query(
-        `SELECT m.id, m.channel_id, m.content, m.created_at, u.username, u.avatar_color, u.avatar_url, c.name AS channel_name
+        `SELECT m.id, m.channel_id, m.content, m.created_at, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, c.name AS channel_name
          FROM messages m
-         JOIN users u ON u.id = m.user_id
+         LEFT JOIN users u ON u.id = m.user_id
          JOIN channels c ON c.id = m.channel_id
          WHERE m.channel_id = $1
            AND (c.is_private = false OR $2 = 'admin' OR EXISTS (
@@ -31,9 +31,9 @@ async function searchMessages(req, res) {
       channelResults = rows;
     } else if (scope !== 'dms') {
       const { rows } = await pool.query(
-        `SELECT m.id, m.channel_id, m.content, m.created_at, u.username, u.avatar_color, u.avatar_url, c.name AS channel_name
+        `SELECT m.id, m.channel_id, m.content, m.created_at, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, c.name AS channel_name
          FROM messages m
-         JOIN users u ON u.id = m.user_id
+         LEFT JOIN users u ON u.id = m.user_id
          JOIN channels c ON c.id = m.channel_id
          WHERE (c.is_private = false OR $1 = 'admin' OR EXISTS (
              SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2
@@ -48,9 +48,9 @@ async function searchMessages(req, res) {
     let dmResults = [];
     if (scope === 'dms' || scope === 'all') {
       const { rows } = await pool.query(
-        `SELECT m.id, m.conversation_id, m.content, m.created_at, u.username, u.avatar_color, u.avatar_url
+        `SELECT m.id, m.conversation_id, m.content, m.created_at, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url
          FROM dm_messages m
-         JOIN users u ON u.id = m.user_id
+         LEFT JOIN users u ON u.id = m.user_id
          JOIN dm_participants p ON p.conversation_id = m.conversation_id
          WHERE p.user_id = $1 AND m.content_tsv @@ websearch_to_tsquery('english', $2)
          ORDER BY m.created_at DESC LIMIT $3`,

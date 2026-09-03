@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
+const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
+
 // Public — read by the signup form before it knows whether to show the
 // invite-code field at all. Only ever set once at startup, so it's safe to
 // read process.env directly on every request rather than caching it.
@@ -166,7 +168,10 @@ async function updatePassword(req, res) {
     const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
     const user = rows[0];
     if (!user || !(await bcrypt.compare(currentPassword, user.password_hash))) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
+      // 403, not 401 — the frontend treats any 401 on an authenticated
+      // request as a dead token and force-reloads to the login screen,
+      // which a mistyped current password should never trigger.
+      return res.status(403).json({ error: 'Current password is incorrect' });
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
@@ -209,4 +214,39 @@ async function updateAvatarColor(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor };
+// Self-service account deletion — the account is gone, but messages stay
+// (see the LEFT JOIN + COALESCE(..., 'Deleted User') in every message-fetch
+// query, so history doesn't just vanish for everyone else in the channel).
+async function deleteAccount(req, res) {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ error: 'Password required' });
+
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      // 403, not 401 — see the identical comment in updatePassword above.
+      return res.status(403).json({ error: 'Incorrect password' });
+    }
+
+    const { rows: serverRows } = await pool.query('SELECT owner_id FROM servers WHERE id = $1', [DEFAULT_SERVER]);
+    if (serverRows[0]?.owner_id === user.id) {
+      return res.status(400).json({ error: 'Transfer server ownership to someone else before deleting your account.' });
+    }
+
+    if (user.role === 'admin') {
+      const { rows: countRows } = await pool.query("SELECT COUNT(*) FROM users WHERE role = 'admin'");
+      if (Number(countRows[0].count) <= 1) {
+        return res.status(400).json({ error: 'You’re the only admin — promote someone else before deleting your account.' });
+      }
+    }
+
+    await pool.query('DELETE FROM users WHERE id = $1', [user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, deleteAccount };
