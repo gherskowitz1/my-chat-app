@@ -12,6 +12,19 @@ export default function DMSidebar({ activeConversation, onConversationSelect, un
     api.get('/dm/conversations').then(setConversations).catch(() => {});
   }, []);
 
+  // Removes it from just this device's/account's list — the other person's
+  // copy and the message history are untouched, and it reappears the moment
+  // either side sends a new message.
+  const deleteConversation = async (e, conv) => {
+    e.stopPropagation();
+    if (!confirm(`Remove your conversation with ${conv.other_username} from this list? It'll come back if either of you sends a new message.`)) return;
+    try {
+      await api.delete(`/dm/conversations/${conv.id}`);
+      setConversations((prev) => prev.filter((c) => c.id !== conv.id));
+      if (activeConversation?.id === conv.id) onConversationSelect(null);
+    } catch {}
+  };
+
   const openNewDM = async () => {
     const data = await api.get('/users');
     setUsers(data);
@@ -60,6 +73,14 @@ export default function DMSidebar({ activeConversation, onConversationSelect, un
               {!!unreadCount && (
                 <span className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
+              <button
+                type="button"
+                className={styles.deleteBtn}
+                onClick={(e) => deleteConversation(e, conv)}
+                title={`Remove conversation with ${conv.other_username}`}
+              >
+                ✕
+              </button>
             </div>
           );
         })}

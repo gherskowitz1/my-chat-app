@@ -43,6 +43,7 @@ export default function ChatLayout() {
   const [serverOwnerId, setServerOwnerId] = useState(null);
   const [categoryLabels, setCategoryLabels] = useState({ text: 'TEXT CHANNELS', voice: 'VOICE CHANNELS' });
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
+  const [dmRefreshKey, setDmRefreshKey] = useState(0);
   const [unreadChannels, setUnreadChannels] = useState(new Map()); // channelId -> { count, mentioned }
   const [unreadDMs, setUnreadDMs] = useState(new Map()); // conversationId -> count
   const [toasts, setToasts] = useState([]);
@@ -232,6 +233,10 @@ export default function ChatLayout() {
       const full = list.find((c) => c.id === conv.id) || conv;
       setActiveConversation(full);
       setActiveSection('dm');
+      // Opening a conversation can un-hide it server-side (see
+      // getOrCreateConversation) — remount DMSidebar so its own list
+      // reflects that instead of waiting for some other refresh trigger.
+      setDmRefreshKey((k) => k + 1);
     } catch {}
   }, []);
 
@@ -245,6 +250,7 @@ export default function ChatLayout() {
       if (conv) {
         setActiveConversation(conv);
         setActiveSection('dm');
+        setDmRefreshKey((k) => k + 1);
       }
     } catch {}
   }, []);
@@ -332,6 +338,7 @@ export default function ChatLayout() {
           />
         ) : (
           <DMSidebar
+            key={dmRefreshKey}
             activeConversation={activeConversation}
             onConversationSelect={selectConversation}
             unreadDMs={unreadDMs}

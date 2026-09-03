@@ -4,7 +4,7 @@ const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../m
 const { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, deleteAccount } = require('../controllers/authController');
 const { loginLimiter, signupLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
 const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments } = require('../controllers/channelController');
-const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments } = require('../controllers/dmController');
+const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments, hideConversation } = require('../controllers/dmController');
 const { getAttachment } = require('../controllers/attachmentController');
 const { searchMessages } = require('../controllers/searchController');
 const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
@@ -64,6 +64,7 @@ router.post('/dm/conversations/:targetUserId', authMiddleware, getOrCreateConver
 router.get('/dm/conversations/:conversationId/messages', authMiddleware, getDmMessages);
 router.post('/dm/conversations/:conversationId/messages', authMiddleware, sendDmMessageWithAttachments);
 router.get('/dm/conversations/:conversationId/messages/around/:messageId', authMiddleware, getDmMessagesAround);
+router.delete('/dm/conversations/:conversationId', authMiddleware, hideConversation);
 
 // Attachments — served by a plain <img>/<a> URL, which can't carry an
 // Authorization header, so this route accepts the token as a query param too.

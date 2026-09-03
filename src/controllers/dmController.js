@@ -44,6 +44,11 @@ async function getOrCreateConversation(req, res) {
     );
 
     if (existing[0]) {
+      // Reopening a conversation you'd previously hidden un-hides it again.
+      await pool.query(
+        'UPDATE dm_participants SET hidden_at = NULL WHERE conversation_id = $1 AND user_id = $2',
+        [existing[0].id, myId]
+      );
       return res.json({ id: existing[0].id });
     }
 
@@ -77,11 +82,28 @@ async function getMyConversations(req, res) {
         (SELECT content FROM dm_messages WHERE conversation_id = dc.id ORDER BY created_at DESC LIMIT 1) AS last_message
        FROM dm_conversations dc
        JOIN dm_participants dp ON dp.conversation_id = dc.id
-       WHERE dp.user_id = $1
+       WHERE dp.user_id = $1 AND dp.hidden_at IS NULL
        ORDER BY dc.created_at DESC`,
       [req.user.id]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Hides a conversation from just the caller's own DM list — the other
+// participant's copy and the message history itself are untouched, and it
+// reappears (for the caller) the moment anyone sends a new message in it.
+async function hideConversation(req, res) {
+  const { conversationId } = req.params;
+  try {
+    const { rowCount } = await pool.query(
+      'UPDATE dm_participants SET hidden_at = NOW() WHERE conversation_id = $1 AND user_id = $2',
+      [conversationId, req.user.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Conversation not found' });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -203,6 +225,10 @@ async function sendDmMessageWithAttachments(req, res) {
     );
     if (!check[0]) return res.status(403).json({ error: 'Forbidden' });
 
+    // A new message un-hides the conversation for anyone who'd previously
+    // removed it from their own DM list.
+    await pool.query('UPDATE dm_participants SET hidden_at = NULL WHERE conversation_id = $1', [conversationId]);
+
     const { rows: insertedRows } = await pool.query(
       `INSERT INTO dm_messages (conversation_id, user_id, content, reply_to_id, client_id)
        VALUES ($1, $2, $3, $4, $5)
@@ -272,5 +298,5 @@ async function sendDmMessageWithAttachments(req, res) {
 
 module.exports = {
   getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers,
-  sendDmMessageWithAttachments,
+  sendDmMessageWithAttachments, hideConversation,
 };

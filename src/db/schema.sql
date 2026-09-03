@@ -118,6 +118,12 @@ CREATE TABLE IF NOT EXISTS dm_participants (
   PRIMARY KEY (conversation_id, user_id)
 );
 
+-- Set when a user "deletes" a DM from their own list — hides it from their
+-- conversation list only (the other participant's copy, and the message
+-- history itself, are untouched) until a new message in it clears this back
+-- to NULL for everyone.
+ALTER TABLE dm_participants ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
+
 -- DM messages
 CREATE TABLE IF NOT EXISTS dm_messages (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -245,6 +245,10 @@ function setupSocket(io) {
           return;
         }
 
+        // A new message un-hides the conversation for anyone who'd
+        // previously removed it from their own DM list.
+        await pool.query('UPDATE dm_participants SET hidden_at = NULL WHERE conversation_id = $1', [conversationId]);
+
         const { rows: insertedRows } = await pool.query(
           `INSERT INTO dm_messages (conversation_id, user_id, content, reply_to_id, client_id)
            VALUES ($1, $2, $3, $4, $5)
