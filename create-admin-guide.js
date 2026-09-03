@@ -631,6 +631,7 @@ const doc = new Document({
           dataRow(['Users not getting push notifications', 'Verify VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT are set in Railway backend Variables'], [3600, 5760], true),
           dataRow(['Link previews / images blocked in console (CSP)', 'Check the Content-Security-Policy in frontend/serve.js allows the domain in question'], [3600, 5760]),
           dataRow(['Desktop release publish fails', 'Confirm GH_TOKEN has repo scope and hasn’t expired; Linux builds need WSL/Docker (see Section 13)'], [3600, 5760], true),
+          dataRow(['User says they never got a password reset email', 'If RESEND_API_KEY is unset or the send fails, the reset link is printed to the backend’s Railway logs instead — search logs for "password-reset"'], [3600, 5760]),
         ],
       }),
       spacer(200),

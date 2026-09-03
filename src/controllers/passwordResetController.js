@@ -41,31 +41,44 @@ async function forgotPassword(req, res) {
 
     const resetUrl = `${APP_URL}/reset-password?token=${token}`;
 
-    const emailResult = await getResend().emails.send({
-      from: FROM_EMAIL,
-      to: email,
-      subject: 'Reset your Crows Nest password',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #313338; color: #f2f3f5; padding: 32px; border-radius: 12px;">
-          <img src="https://www.thecrowsnesttalk.com/crowsnest.png" width="48" height="48" style="border-radius: 8px; margin-bottom: 16px;" alt="The Crows Nest" />
-          <h1 style="font-size: 22px; margin: 0 0 8px;">Reset your password</h1>
-          <p style="color: #b5bac1; margin: 0 0 24px;">Hi ${user.username}, we received a request to reset your Crows Nest password.</p>
-          <a href="${resetUrl}" style="display: inline-block; background: #5865f2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset Password</a>
-          <p style="color: #80848e; font-size: 13px; margin: 24px 0 0;">This link expires in ${TOKEN_EXPIRY_MINUTES} minutes. If you didn't request this, you can safely ignore this email.</p>
-          <p style="color: #80848e; font-size: 12px; margin: 8px 0 0;">Or copy this link: <span style="color: #5865f2;">${resetUrl}</span></p>
-        </div>
-      `,
-    });
+    // No email configured at all — this is the only path a self-hosted
+    // instance without RESEND_API_KEY has, so the reset link itself goes to
+    // the server log instead of an inbox. An admin with log access can read
+    // it off to whoever's locked out; it's the same one-time link either way.
+    if (!process.env.RESEND_API_KEY) {
+      console.log(`[password-reset] No email configured — ${user.username}'s reset link: ${resetUrl}`);
+      return res.json({ message: 'If that email exists, a reset link has been sent.' });
+    }
 
-    if (emailResult.error) {
-      console.error('Resend error:', emailResult.error);
-      return res.status(500).json({ error: `Email failed: ${emailResult.error.message}` });
+    try {
+      const emailResult = await getResend().emails.send({
+        from: FROM_EMAIL,
+        to: email,
+        subject: 'Reset your Crows Nest password',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #313338; color: #f2f3f5; padding: 32px; border-radius: 12px;">
+            <img src="https://www.thecrowsnesttalk.com/crowsnest.png" width="48" height="48" style="border-radius: 8px; margin-bottom: 16px;" alt="The Crows Nest" />
+            <h1 style="font-size: 22px; margin: 0 0 8px;">Reset your password</h1>
+            <p style="color: #b5bac1; margin: 0 0 24px;">Hi ${user.username}, we received a request to reset your Crows Nest password.</p>
+            <a href="${resetUrl}" style="display: inline-block; background: #5865f2; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset Password</a>
+            <p style="color: #80848e; font-size: 13px; margin: 24px 0 0;">This link expires in ${TOKEN_EXPIRY_MINUTES} minutes. If you didn't request this, you can safely ignore this email.</p>
+            <p style="color: #80848e; font-size: 12px; margin: 8px 0 0;">Or copy this link: <span style="color: #5865f2;">${resetUrl}</span></p>
+          </div>
+        `,
+      });
+      if (emailResult.error) throw new Error(emailResult.error.message);
+    } catch (sendErr) {
+      // Email is configured but the actual send failed (bad key, Resend
+      // outage, etc.) — fall back to the log rather than leaving the user
+      // with no way to recover their password at all.
+      console.error('Resend send failed, falling back to log:', sendErr.message);
+      console.log(`[password-reset] Email failed — ${user.username}'s reset link: ${resetUrl}`);
     }
 
     res.json({ message: 'If that email exists, a reset link has been sent.' });
   } catch (err) {
     console.error('forgotPassword error:', err);
-    res.status(500).json({ error: `Failed to send reset email: ${err.message}` });
+    res.status(500).json({ error: 'Failed to process reset request' });
   }
 }
 
