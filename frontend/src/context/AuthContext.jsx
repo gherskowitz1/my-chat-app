@@ -102,8 +102,14 @@ export function AuthProvider({ children }) {
     logout();
   };
 
+  const updateStatusText = async (statusText) => {
+    const data = await api.patch('/auth/status-text', { statusText });
+    setUser((u) => (u ? { ...u, status_text: data.statusText } : u));
+    return data.statusText;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, deleteAccount }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

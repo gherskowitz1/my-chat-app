@@ -186,7 +186,7 @@ async function getDmMessagesAround(req, res) {
 async function getUsers(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, avatar_color, avatar_url, role, last_seen_at, invisible FROM users WHERE id != $1 ORDER BY username',
+      'SELECT id, username, avatar_color, avatar_url, role, last_seen_at, invisible, status_text FROM users WHERE id != $1 ORDER BY username',
       [req.user.id]
     );
     res.json(rows);

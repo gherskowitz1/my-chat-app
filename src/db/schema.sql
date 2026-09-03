@@ -26,6 +26,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ;
 -- else (mentions, DMs, friends, private-channel pickers).
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invisible BOOLEAN NOT NULL DEFAULT false;
 
+-- A short, user-set status message (e.g. "brb", "at the gym") — separate
+-- from the automatic online/away/offline detection, purely opt-in text.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS status_text VARCHAR(100);
+
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

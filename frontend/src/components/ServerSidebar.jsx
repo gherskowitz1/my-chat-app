@@ -9,7 +9,7 @@ import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
 
-export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
+export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, onMarkAllRead, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
   const { canInstall, promptInstall } = usePwaInstall();
@@ -72,6 +72,15 @@ export default function ServerSidebar({ serverName, serverIcon, activeSection, o
         </svg>
         {pendingFriendRequests > 0 && <span className={styles.navDot} />}
       </button>
+
+      {/* Mark all as read — only shown when there's actually something unread */}
+      {(hasUnreadDMs || hasUnreadChannels) && (
+        <button className={styles.iconBtn} onClick={onMarkAllRead} title="Mark all as read">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M18 7l-1.41-1.41-6.34 6.34 1.41 1.41L18 7zm4.24-1.41L11.66 16.17 7.48 12l-1.41 1.41L11.66 19l12-12-1.42-1.41zM.41 13.41L6 19l1.41-1.41L1.83 12 .41 13.41z"/>
+          </svg>
+        </button>
+      )}
 
       {/* Install as an app — only shown when the browser says it's installable */}
       {canInstall && (

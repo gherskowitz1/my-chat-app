@@ -281,6 +281,11 @@ export default function ChatLayout() {
     }
   }, []);
 
+  const markAllRead = useCallback(() => {
+    setUnreadChannels(new Map());
+    setUnreadDMs(new Map());
+  }, []);
+
   // Search result click — switch to the right channel/DM, then hand it a
   // pending jump target; ChatArea/DMArea resolve it (scrolling directly if
   // already loaded, or fetching a window of history centered on it).
@@ -319,6 +324,7 @@ export default function ChatLayout() {
         onOpenSettings={() => setShowSettings(true)}
         onOpenSearch={() => setShowSearch(true)}
         onOpenFriends={() => setShowFriends(true)}
+        onMarkAllRead={markAllRead}
         hasUnreadDMs={unreadDMs.size > 0}
         hasUnreadChannels={unreadChannels.size > 0}
         pendingFriendRequests={pendingFriendRequests}

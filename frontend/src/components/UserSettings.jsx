@@ -570,14 +570,32 @@ const STATUS_OPTIONS = [
 ];
 
 function StatusTab() {
-  const { user } = useAuth();
+  const { user, updateStatusText } = useAuth();
   const { statusMap, setStatus } = useSocket();
   const [pending, setPending] = useState(null);
   const current = pending || statusMap.get(user.id) || 'online';
 
+  const [statusText, setStatusText] = useState(user.status_text || '');
+  const [textSaving, setTextSaving] = useState(false);
+  const [textSuccess, setTextSuccess] = useState('');
+
   const choose = (value) => {
     setStatus(value);
     setPending(value); // reflect the choice immediately rather than waiting on the round-trip
+  };
+
+  const saveStatusText = async (e) => {
+    e.preventDefault();
+    setTextSaving(true);
+    setTextSuccess('');
+    try {
+      await updateStatusText(statusText);
+      setTextSuccess('Saved.');
+    } catch {
+      // swallow — a failed status text save just leaves the field as typed
+    } finally {
+      setTextSaving(false);
+    }
   };
 
   return (
@@ -605,6 +623,26 @@ function StatusTab() {
           </button>
         ))}
       </div>
+
+      <h3 style={{ marginTop: 20 }}>💬 Custom Status Message</h3>
+      <p className={styles.hint} style={{ marginBottom: 12 }}>
+        A short note others see next to your name, like "brb" or "at the gym". Leave it blank to clear it.
+      </p>
+      <form onSubmit={saveStatusText}>
+        <input
+          className={styles.input}
+          value={statusText}
+          onChange={(e) => { setStatusText(e.target.value); setTextSuccess(''); }}
+          maxLength={100}
+          placeholder="What's on your mind?"
+        />
+        <div className={styles.footer}>
+          <button type="submit" className={styles.saveBtn} disabled={textSaving || statusText === (user.status_text || '')}>
+            {textSaving ? 'Saving…' : 'Save'}
+          </button>
+          {textSuccess && <div className={styles.hint}>{textSuccess}</div>}
+        </div>
+      </form>
     </section>
   );
 }

@@ -8,7 +8,7 @@ import styles from './MemberList.module.css';
 
 export default function MemberList({ serverId, ownerId, onClose }) {
   const { user } = useAuth();
-  const { statusMap, awaySinceMap } = useSocket();
+  const { statusMap, awaySinceMap, statusTextMap } = useSocket();
   const [members, setMembers] = useState([]);
   const [, setTick] = useState(0);
 
@@ -28,6 +28,9 @@ export default function MemberList({ serverId, ownerId, onClose }) {
   }, []);
 
   const statusOf = (id) => statusMap.get(id) || 'offline';
+  // A live presence:statusText event (someone else editing theirs while you
+  // have the list open) wins over whatever the initial /users fetch had.
+  const statusTextOf = (m) => (statusTextMap.has(m.id) ? statusTextMap.get(m.id) : m.status_text);
 
   const online = members.filter((m) => statusOf(m.id) !== 'offline');
   const offline = members.filter((m) => statusOf(m.id) === 'offline');
@@ -38,20 +41,20 @@ export default function MemberList({ serverId, ownerId, onClose }) {
       <div className={styles.section}>
         <div className={styles.sectionTitle}>Online — {online.length}</div>
         {online.map((m) => (
-          <MemberItem key={m.id} member={m} status={statusOf(m.id)} isOwner={m.id === ownerId} awaySince={awaySinceMap.get(m.id)} />
+          <MemberItem key={m.id} member={m} status={statusOf(m.id)} isOwner={m.id === ownerId} awaySince={awaySinceMap.get(m.id)} statusText={statusTextOf(m)} />
         ))}
       </div>
       {offline.length > 0 && (
         <div className={styles.section}>
           <div className={styles.sectionTitle}>Offline — {offline.length}</div>
-          {offline.map((m) => <MemberItem key={m.id} member={m} status="offline" isOwner={m.id === ownerId} />)}
+          {offline.map((m) => <MemberItem key={m.id} member={m} status="offline" isOwner={m.id === ownerId} statusText={statusTextOf(m)} />)}
         </div>
       )}
     </div>
   );
 }
 
-function MemberItem({ member, status, isOwner, awaySince }) {
+function MemberItem({ member, status, isOwner, awaySince, statusText }) {
   const dimmed = status === 'offline';
   return (
     <div className={styles.member}>
@@ -72,6 +75,7 @@ function MemberItem({ member, status, isOwner, awaySince }) {
             ? <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>👑 Owner</span>
             : member.role === 'admin' && <span className={styles.badge}>Admin</span>}
         </div>
+        {statusText && <span className={styles.lastSeen}>{statusText}</span>}
         {dimmed && member.last_seen_at && (
           <span className={styles.lastSeen}>{formatLastSeen(member.last_seen_at)}</span>
         )}

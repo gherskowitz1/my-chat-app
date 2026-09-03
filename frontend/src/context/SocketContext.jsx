@@ -11,6 +11,7 @@ export function SocketProvider({ children }) {
   const [connected, setConnected] = useState(false);
   const [statusMap, setStatusMap] = useState(new Map()); // userId -> 'online' | 'away' | 'offline'
   const [awaySinceMap, setAwaySinceMap] = useState(new Map()); // userId -> ms timestamp status became 'away'
+  const [statusTextMap, setStatusTextMap] = useState(new Map()); // userId -> custom status text, only for live updates after initial load
 
   useEffect(() => {
     if (!user) {
@@ -93,8 +94,16 @@ export function SocketProvider({ children }) {
         return next;
       });
     };
+    const onStatusText = ({ userId, statusText }) => {
+      setStatusTextMap((prev) => {
+        const next = new Map(prev);
+        next.set(userId, statusText);
+        return next;
+      });
+    };
     socket.on('presence:snapshot', onSnapshot);
     socket.on('presence:update', onUpdate);
+    socket.on('presence:statusText', onStatusText);
 
     socketRef.current = socket;
 
@@ -112,7 +121,7 @@ export function SocketProvider({ children }) {
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, awaySinceMap, setStatus }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, awaySinceMap, statusTextMap, setStatus }}>
       {children}
     </SocketContext.Provider>
   );

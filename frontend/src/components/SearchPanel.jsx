@@ -16,9 +16,15 @@ function snippet(content) {
 export default function SearchPanel({ onClose, onJumpToChannel, onJumpToDm }) {
   const [query, setQuery] = useState('');
   const [scope, setScope] = useState('all');
+  const [fromUserId, setFromUserId] = useState('');
+  const [users, setUsers] = useState([]);
   const [results, setResults] = useState({ channelResults: [], dmResults: [] });
   const [searching, setSearching] = useState(false);
   const debounceRef = useRef(null);
+
+  useEffect(() => {
+    api.get('/users').then(setUsers).catch(() => {});
+  }, []);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
@@ -29,7 +35,8 @@ export default function SearchPanel({ onClose, onJumpToChannel, onJumpToDm }) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const data = await api.get(`/search?q=${encodeURIComponent(query.trim())}&scope=${scope}`);
+        const fromParam = fromUserId ? `&fromUserId=${fromUserId}` : '';
+        const data = await api.get(`/search?q=${encodeURIComponent(query.trim())}&scope=${scope}${fromParam}`);
         setResults(data);
       } catch {
         setResults({ channelResults: [], dmResults: [] });
@@ -38,7 +45,7 @@ export default function SearchPanel({ onClose, onJumpToChannel, onJumpToDm }) {
       }
     }, 350);
     return () => clearTimeout(debounceRef.current);
-  }, [query, scope]);
+  }, [query, scope, fromUserId]);
 
   const noResults = !searching && query.trim() && results.channelResults.length === 0 && results.dmResults.length === 0;
 
@@ -67,6 +74,16 @@ export default function SearchPanel({ onClose, onJumpToChannel, onJumpToDm }) {
               {s.label}
             </button>
           ))}
+          <select
+            className={styles.fromSelect}
+            value={fromUserId}
+            onChange={(e) => setFromUserId(e.target.value)}
+          >
+            <option value="">From: Anyone</option>
+            {users.map((u) => (
+              <option key={u.id} value={u.id}>From: {u.username}</option>
+            ))}
+          </select>
         </div>
 
         <div className={styles.results}>

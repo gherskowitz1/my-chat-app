@@ -85,7 +85,7 @@ async function login(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color, avatar_url FROM users WHERE id = $1',
+      'SELECT id, username, email, role, avatar_color, avatar_url, status_text FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -214,6 +214,24 @@ async function updateAvatarColor(req, res) {
   }
 }
 
+// A short opt-in status message ("brb", "at the gym") — separate from
+// automatic online/away/offline detection. Broadcast live so anyone already
+// viewing the member list sees it update without needing to refresh.
+async function updateStatusText(req, res) {
+  let { statusText } = req.body;
+  if (typeof statusText !== 'string') return res.status(400).json({ error: 'statusText must be a string' });
+  statusText = statusText.trim().slice(0, 100) || null;
+
+  try {
+    await pool.query('UPDATE users SET status_text = $1 WHERE id = $2', [statusText, req.user.id]);
+    req.app.get('io')?.emit('presence:statusText', { userId: req.user.id, statusText });
+    res.json({ statusText });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 // Self-service account deletion — the account is gone, but messages stay
 // (see the LEFT JOIN + COALESCE(..., 'Deleted User') in every message-fetch
 // query, so history doesn't just vanish for everyone else in the channel).
@@ -249,4 +267,4 @@ async function deleteAccount(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, deleteAccount };
+module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, deleteAccount };

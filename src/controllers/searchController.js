@@ -10,6 +10,7 @@ async function searchMessages(req, res) {
   const q = req.query.q?.trim();
   const scope = req.query.scope || 'all'; // 'channel' | 'server' | 'dms' | 'all'
   const channelId = req.query.channelId;
+  const fromUserId = req.query.fromUserId || null; // optional "from:" filter, applied to both channel and DM results
   if (!q) return res.json({ channelResults: [], dmResults: [] });
 
   try {
@@ -25,8 +26,9 @@ async function searchMessages(req, res) {
              SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $3
            ))
            AND m.content_tsv @@ websearch_to_tsquery('english', $4)
+           AND ($6::uuid IS NULL OR m.user_id = $6)
          ORDER BY m.created_at DESC LIMIT $5`,
-        [channelId, role, userId, q, RESULT_LIMIT]
+        [channelId, role, userId, q, RESULT_LIMIT, fromUserId]
       );
       channelResults = rows;
     } else if (scope !== 'dms') {
@@ -39,8 +41,9 @@ async function searchMessages(req, res) {
              SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2
            ))
            AND m.content_tsv @@ websearch_to_tsquery('english', $3)
+           AND ($5::uuid IS NULL OR m.user_id = $5)
          ORDER BY m.created_at DESC LIMIT $4`,
-        [role, userId, q, RESULT_LIMIT]
+        [role, userId, q, RESULT_LIMIT, fromUserId]
       );
       channelResults = rows;
     }
@@ -53,8 +56,9 @@ async function searchMessages(req, res) {
          LEFT JOIN users u ON u.id = m.user_id
          JOIN dm_participants p ON p.conversation_id = m.conversation_id
          WHERE p.user_id = $1 AND m.content_tsv @@ websearch_to_tsquery('english', $2)
+           AND ($4::uuid IS NULL OR m.user_id = $4)
          ORDER BY m.created_at DESC LIMIT $3`,
-        [userId, q, RESULT_LIMIT]
+        [userId, q, RESULT_LIMIT, fromUserId]
       );
       dmResults = rows;
     }
