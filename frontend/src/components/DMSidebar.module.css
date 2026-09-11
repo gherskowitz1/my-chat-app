@@ -56,6 +56,8 @@
 
 .item:hover { background: var(--bg-hover); }
 .item.active { background: var(--bg-active); }
+.item.longPressed { background: var(--bg-hover); }
+.item.longPressed .deleteBtn { opacity: 1; }
 
 .avatar {
   width: 36px;
@@ -117,6 +119,10 @@
 
 .item:hover .deleteBtn { opacity: 1; }
 .deleteBtn:hover { background: var(--bg-active); color: var(--red); }
+
+@media (max-width: 768px) {
+  .deleteBtn { width: 36px; height: 36px; font-size: 14px; }
+}
 
 .preview {
   font-size: 12px;

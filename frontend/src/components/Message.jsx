@@ -160,11 +160,37 @@ export default function Message({
   const { user } = useAuth();
   const { emojiByName } = useCustomEmoji();
   const [hovered, setHovered] = useState(false);
+  // Touch has no hover state at all, so the action bar (reply/react/edit/
+  // etc.) would otherwise be unreachable on phones/tablets — a long-press
+  // reveals it there instead, dismissed by tapping anywhere else.
+  const [longPressed, setLongPressed] = useState(false);
+  const pressTimerRef = useRef(null);
+  const rootRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(msg.content);
   const [pickerAnchor, setPickerAnchor] = useState(null);
   const [lightboxSrc, setLightboxSrc] = useState(null);
   const textareaRef = useRef(null);
+  const showActions = hovered || longPressed;
+
+  useEffect(() => {
+    if (!longPressed) return;
+    const onOutside = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setLongPressed(false);
+    };
+    document.addEventListener('touchstart', onOutside);
+    document.addEventListener('mousedown', onOutside);
+    return () => {
+      document.removeEventListener('touchstart', onOutside);
+      document.removeEventListener('mousedown', onOutside);
+    };
+  }, [longPressed]);
+
+  const startPressTimer = () => {
+    clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => setLongPressed(true), 450);
+  };
+  const cancelPressTimer = () => clearTimeout(pressTimerRef.current);
 
   const replyToMsg = msg.reply_to_id ? allMessages.find((m) => m.id === msg.reply_to_id) : null;
 
@@ -210,11 +236,15 @@ export default function Message({
 
   return (
     <div
+      ref={rootRef}
       id={`msg-${msg.id}`}
-      className={`${styles.message} ${grouped ? styles.grouped : ''} ${isPinned ? styles.pinnedMessage : ''} ${msg.pending ? styles.pendingMessage : ''} ${msg.failed ? styles.failedMessage : ''}`}
+      className={`${styles.message} ${grouped ? styles.grouped : ''} ${isPinned ? styles.pinnedMessage : ''} ${msg.pending ? styles.pendingMessage : ''} ${msg.failed ? styles.failedMessage : ''} ${longPressed ? styles.longPressed : ''}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={msg.failed ? () => onRetry?.(msg) : undefined}
+      onTouchStart={startPressTimer}
+      onTouchEnd={cancelPressTimer}
+      onTouchMove={cancelPressTimer}
       title={msg.failed ? 'Click to retry sending' : undefined}
     >
       {!grouped ? (
@@ -226,7 +256,7 @@ export default function Message({
         />
       ) : (
         <div className={styles.timeStub}>
-          {hovered && <span>{formatTime(msg.created_at)}</span>}
+          {showActions && <span>{formatTime(msg.created_at)}</span>}
         </div>
       )}
 
@@ -342,7 +372,7 @@ export default function Message({
         )}
       </div>
 
-      {hovered && !editing && !msg.pending && !msg.failed && (
+      {showActions && !editing && !msg.pending && !msg.failed && (
         <div className={styles.actions}>
           <button
             className={styles.actionBtn}
@@ -353,13 +383,13 @@ export default function Message({
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm3.5-9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-7 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 17.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z"/>
             </svg>
           </button>
-          <button className={styles.actionBtn} onClick={() => onReply?.(msg)} title="Reply">
+          <button className={styles.actionBtn} onClick={() => { setLongPressed(false); onReply?.(msg); }} title="Reply">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 9V5l-7 7 7 7v-4.1c5 0 8.5 1.6 11 5.1-1-5-4-10-11-11z"/></svg>
           </button>
           {canPin && (
             isPinned
-              ? <button className={styles.actionBtn} onClick={() => onUnpin?.(msg.id)} title="Unpin message">📌</button>
-              : <button className={styles.actionBtn} onClick={() => onPin?.(msg.id)} title="Pin message">📌</button>
+              ? <button className={styles.actionBtn} onClick={() => { setLongPressed(false); onUnpin?.(msg.id); }} title="Unpin message">📌</button>
+              : <button className={styles.actionBtn} onClick={() => { setLongPressed(false); onPin?.(msg.id); }} title="Pin message">📌</button>
           )}
           {canEdit && (
             <button className={styles.actionBtn} onClick={startEdit} title="Edit message">
@@ -369,7 +399,7 @@ export default function Message({
             </button>
           )}
           {canDelete && (
-            <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => onDelete(msg.id)} title="Delete message">
+            <button className={`${styles.actionBtn} ${styles.deleteBtn}`} onClick={() => { setLongPressed(false); onDelete(msg.id); }} title="Delete message">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 4h-3.5l-1-1h-5l-1 1H5v2h14M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6v12z"/>
               </svg>

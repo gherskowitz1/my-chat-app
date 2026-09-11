@@ -27,6 +27,12 @@
     padding-top: 48px;
     z-index: 50;
     box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
+    animation: memberListSlideIn 0.25s ease;
+  }
+
+  @keyframes memberListSlideIn {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
   }
 
   .closeBtn {

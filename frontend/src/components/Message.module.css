@@ -7,6 +7,7 @@
 }
 
 .message:hover { background: var(--bg-hover); }
+.message.longPressed { background: var(--bg-hover); }
 
 .message.grouped {
   padding-top: 2px;
@@ -379,3 +380,9 @@
 
 .actionBtn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .deleteBtn:hover { background: rgba(242,63,66,0.2); color: var(--red); }
+
+/* Touch targets below ~44px are fiddly to tap accurately — bump them up
+   only where a finger (not a mouse cursor) is doing the tapping. */
+@media (max-width: 768px) {
+  .actionBtn { width: 40px; height: 40px; }
+}

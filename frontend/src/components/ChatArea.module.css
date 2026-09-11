@@ -252,6 +252,12 @@
   max-height: 200px;
 }
 
+/* Any input under 16px makes Safari auto-zoom the whole page in on focus —
+   a jarring, very recognizable "this is just a website" tell on iPhone. */
+@media (max-width: 768px) {
+  .input { font-size: 16px; }
+}
+
 .sendBtn {
   width: 36px;
   height: 36px;

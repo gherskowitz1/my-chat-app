@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../services/api';
 import Avatar from './Avatar';
 import styles from './DMSidebar.module.css';
@@ -50,40 +50,16 @@ export default function DMSidebar({ activeConversation, onConversationSelect, un
       </div>
 
       <div className={styles.list}>
-        {conversations.map((conv) => {
-          const unreadCount = unreadDMs?.get(conv.id);
-          return (
-            <div
-              key={conv.id}
-              className={`${styles.item} ${activeConversation?.id === conv.id ? styles.active : ''}`}
-              onClick={() => onConversationSelect(conv)}
-            >
-              <Avatar
-                url={conv.other_avatar_url}
-                color={conv.other_avatar_color}
-                username={conv.other_username}
-                className={styles.avatar}
-              />
-              <div className={styles.info}>
-                <span className={styles.name}>{conv.other_username}</span>
-                {conv.last_message && (
-                  <span className={styles.preview}>{conv.last_message}</span>
-                )}
-              </div>
-              {!!unreadCount && (
-                <span className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
-              )}
-              <button
-                type="button"
-                className={styles.deleteBtn}
-                onClick={(e) => deleteConversation(e, conv)}
-                title={`Remove conversation with ${conv.other_username}`}
-              >
-                ✕
-              </button>
-            </div>
-          );
-        })}
+        {conversations.map((conv) => (
+          <ConversationItem
+            key={conv.id}
+            conv={conv}
+            active={activeConversation?.id === conv.id}
+            unreadCount={unreadDMs?.get(conv.id)}
+            onSelect={() => onConversationSelect(conv)}
+            onDelete={(e) => deleteConversation(e, conv)}
+          />
+        ))}
 
         {conversations.length === 0 && (
           <p className={styles.empty}>No conversations yet.<br />Click + to start one.</p>
@@ -109,6 +85,69 @@ export default function DMSidebar({ activeConversation, onConversationSelect, un
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Splits out from the main list so the delete button's hover-or-long-press
+// visibility (no hover state at all on touch) is scoped to just this row —
+// see the identical pattern in Message.jsx for why.
+function ConversationItem({ conv, active, unreadCount, onSelect, onDelete }) {
+  const [longPressed, setLongPressed] = useState(false);
+  const pressTimerRef = useRef(null);
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    if (!longPressed) return;
+    const onOutside = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setLongPressed(false);
+    };
+    document.addEventListener('touchstart', onOutside);
+    document.addEventListener('mousedown', onOutside);
+    return () => {
+      document.removeEventListener('touchstart', onOutside);
+      document.removeEventListener('mousedown', onOutside);
+    };
+  }, [longPressed]);
+
+  const startPressTimer = () => {
+    clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => setLongPressed(true), 450);
+  };
+  const cancelPressTimer = () => clearTimeout(pressTimerRef.current);
+
+  return (
+    <div
+      ref={rootRef}
+      className={`${styles.item} ${active ? styles.active : ''} ${longPressed ? styles.longPressed : ''}`}
+      onClick={onSelect}
+      onTouchStart={startPressTimer}
+      onTouchEnd={cancelPressTimer}
+      onTouchMove={cancelPressTimer}
+    >
+      <Avatar
+        url={conv.other_avatar_url}
+        color={conv.other_avatar_color}
+        username={conv.other_username}
+        className={styles.avatar}
+      />
+      <div className={styles.info}>
+        <span className={styles.name}>{conv.other_username}</span>
+        {conv.last_message && (
+          <span className={styles.preview}>{conv.last_message}</span>
+        )}
+      </div>
+      {!!unreadCount && (
+        <span className={styles.unreadBadge}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+      )}
+      <button
+        type="button"
+        className={styles.deleteBtn}
+        onClick={(e) => { setLongPressed(false); onDelete(e); }}
+        title={`Remove conversation with ${conv.other_username}`}
+      >
+        ✕
+      </button>
     </div>
   );
 }

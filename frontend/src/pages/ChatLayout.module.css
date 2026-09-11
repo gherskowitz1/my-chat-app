@@ -4,6 +4,10 @@
   overflow: hidden;
 }
 
+.mobileStack {
+  display: contents;
+}
+
 .navPane {
   display: flex;
   flex-shrink: 0;
@@ -17,12 +21,28 @@
 
 /* Below this width there isn't room for the channel/DM list and the chat
    pane side by side (a fixed-width sidebar alone can already exceed a phone
-   screen's width) — show exactly one at a time instead, toggled by whether
-   a channel/conversation is open. The server icon rail stays visible in
-   both states since it's the only way to switch between DMs and the server. */
+   screen's width) — show exactly one at a time instead, sliding between them
+   rather than an instant display:none cut, so opening a channel actually
+   feels like drilling into it instead of the screen just changing. The
+   server icon rail stays visible in both states since it's the only way to
+   switch between DMs and the server. */
 @media (max-width: 768px) {
-  .layout.chatOpen .navPane { display: none; }
-  .layout:not(.chatOpen) .main { display: none; }
+  .mobileStack {
+    display: block;
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+  }
+  .navPane, .main {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    transition: transform 0.28s ease;
+  }
+  .navPane { transform: translateX(0); }
+  .main { transform: translateX(100%); }
+  .layout.chatOpen .navPane { transform: translateX(-100%); }
+  .layout.chatOpen .main { transform: translateX(0); }
 }
 
 .membersBackdrop {
@@ -39,6 +59,12 @@
     inset: 0;
     background: rgba(0, 0, 0, 0.5);
     z-index: 49;
+    animation: backdropFadeIn 0.25s ease;
+  }
+
+  @keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
   }
 }
 

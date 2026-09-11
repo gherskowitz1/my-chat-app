@@ -330,6 +330,7 @@ export default function ChatLayout() {
         pendingFriendRequests={pendingFriendRequests}
       />
 
+      <div className={styles.mobileStack}>
       <div className={styles.navPane}>
         {activeSection === 'server' ? (
           <ChannelSidebar
@@ -376,6 +377,7 @@ export default function ChatLayout() {
         ) : (
           <EmptyState section={activeSection} />
         )}
+      </div>
       </div>
 
       {/* Pinned member list — visible across text channels, voice channels, and DMs alike.
