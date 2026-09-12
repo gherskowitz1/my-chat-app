@@ -246,15 +246,16 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
         <div className={styles.sidebar}>
           <div className={styles.sidebarTitle}>Admin Settings</div>
-          {['server', 'channels', 'games', 'emoji', 'sounds', 'users'].map(t => (
+          {['server', 'channels', 'games', 'emoji', 'sounds', 'announce', 'users'].map(t => (
             <button key={t} className={`${styles.tabBtn} ${tab === t ? styles.active : ''}`} onClick={() => setTab(t)}>
               {t === 'server' && <ServerIcon />}
               {t === 'channels' && <ChannelIcon />}
               {t === 'games' && <GameIcon />}
               {t === 'emoji' && <span>😀</span>}
               {t === 'sounds' && <span>🔊</span>}
+              {t === 'announce' && <span>📣</span>}
               {t === 'users' && <UsersIcon />}
-              {t === 'games' ? 'Games' : t === 'sounds' ? 'Soundboard' : t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'games' ? 'Games' : t === 'sounds' ? 'Soundboard' : t === 'announce' ? 'Announce' : t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
           <div className={styles.spacer} />
@@ -421,6 +422,15 @@ export default function AdminPanel({ onClose, onServerRenamed, onChannelRenamed,
               <h2>Soundboard</h2>
               <p className={styles.subtitle}>Upload short audio clips members can play into a voice channel.</p>
               <SoundboardTab flash={flash} />
+            </div>
+          )}
+
+          {/* ANNOUNCE TAB */}
+          {tab === 'announce' && (
+            <div className={styles.section}>
+              <h2>Announcements</h2>
+              <p className={styles.subtitle}>Push a message every user sees in a popup the next time they sign in. Only the most recent announcement is shown to a given user, once.</p>
+              <AnnounceTab flash={flash} />
             </div>
           )}
 
@@ -860,6 +870,89 @@ function SoundboardTab({ flash }) {
           <div key={s.id} className={styles.channelRow}>
             <span className={styles.channelName}>🔊 {s.name}</span>
             <button className={styles.deleteBtn} style={{ opacity: 1 }} onClick={() => removeSound(s)} title="Delete sound">
+              <TrashIcon />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const ANNOUNCEMENT_MAX_LENGTH = 2000;
+
+function AnnounceTab({ flash }) {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(() => {
+    get('/admin/announcements').then(setHistory).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const push = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    setSending(true);
+    try {
+      await post('/admin/announcements', { message: message.trim() });
+      setMessage('');
+      load();
+      flash('Announcement pushed — users will see it next time they sign in');
+    } catch (err) {
+      flash(err.message, 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const remove = async (a) => {
+    if (!confirm('Delete this announcement? Anyone who hasn’t seen it yet no longer will.')) return;
+    try {
+      await del(`/admin/announcements/${a.id}`);
+      setHistory(prev => prev.filter(h => h.id !== a.id));
+      flash('Announcement deleted');
+    } catch (err) {
+      flash(err.message, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>NEW ANNOUNCEMENT</div>
+        <form onSubmit={push}>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            maxLength={ANNOUNCEMENT_MAX_LENGTH}
+            rows={4}
+            placeholder="What should everyone know?"
+            style={{ width: '100%', padding: '10px 12px', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', borderRadius: 'var(--radius-sm)', fontSize: 14, fontFamily: 'inherit', resize: 'vertical', marginBottom: 8 }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span className={styles.hint}>{message.length} / {ANNOUNCEMENT_MAX_LENGTH}</span>
+            <button type="submit" className={styles.saveSmall} disabled={sending || !message.trim()}>
+              {sending ? 'Pushing…' : 'Push Announcement'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div className={styles.channelGroup}>
+        <div className={styles.groupLabel}>HISTORY</div>
+        {loading && <p className={styles.hint}>Loading…</p>}
+        {!loading && history.length === 0 && <p className={styles.hint}>No announcements sent yet.</p>}
+        {history.map(a => (
+          <div key={a.id} className={styles.channelRow} style={{ alignItems: 'flex-start' }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className={styles.channelName} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{a.message}</div>
+              <div className={styles.hint}>{new Date(a.created_at).toLocaleString()} · {a.created_by_username}</div>
+            </div>
+            <button className={styles.deleteBtn} style={{ opacity: 1 }} onClick={() => remove(a)} title="Delete announcement">
               <TrashIcon />
             </button>
           </div>

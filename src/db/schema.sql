@@ -167,6 +167,20 @@ CREATE TABLE IF NOT EXISTS dm_message_reactions (
   UNIQUE (message_id, user_id, emoji)
 );
 
+-- Admin-authored announcements shown to every user once, the next time they
+-- sign in — same "show once" idea as the What's New modal above, but
+-- admin-triggered on demand instead of tied to an app-version bump, and
+-- tracked server-side (users.last_seen_announcement_id) so it follows the
+-- account across devices instead of one browser's localStorage.
+CREATE TABLE IF NOT EXISTS announcements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message TEXT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_announcement_id UUID REFERENCES announcements(id) ON DELETE SET NULL;
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

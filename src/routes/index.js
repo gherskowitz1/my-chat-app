@@ -25,6 +25,10 @@ const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiCont
 const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
 const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
 const { getGifs } = require('../controllers/giphyController');
+const {
+  createAnnouncement, getAnnouncements, deleteAnnouncement,
+  getLatestAnnouncement, markAnnouncementSeen,
+} = require('../controllers/announcementController');
 
 // Auth
 router.get('/auth/config', getAuthConfig);
@@ -109,6 +113,13 @@ router.delete('/admin/users/:userId', authMiddleware, adminMiddleware, deleteUse
 router.post('/admin/users/:userId/force-reset', authMiddleware, adminMiddleware, forcePasswordReset);
 router.patch('/admin/users/:userId/password', authMiddleware, adminMiddleware, setUserPassword);
 router.get('/admin/messages/recent', authMiddleware, adminMiddleware, getRecentMessages);
+
+// Announcements
+router.get('/announcements/latest', authMiddleware, getLatestAnnouncement);
+router.post('/announcements/seen', authMiddleware, markAnnouncementSeen);
+router.get('/admin/announcements', authMiddleware, adminMiddleware, getAnnouncements);
+router.post('/admin/announcements', authMiddleware, adminMiddleware, createAnnouncement);
+router.delete('/admin/announcements/:id', authMiddleware, adminMiddleware, deleteAnnouncement);
 
 // LiveKit
 router.get('/livekit/token/:roomName', authMiddleware, getToken);

@@ -9,6 +9,7 @@ import AdminPanel from '../components/AdminPanel';
 import UserSettings, { STORAGE_KEY_DM_SOUND_MUTED } from '../components/UserSettings';
 import ToastStack from '../components/ToastStack';
 import WhatsNewModal from '../components/WhatsNewModal';
+import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
 import { mentionsUser } from '../utils/mentions';
@@ -48,6 +49,7 @@ export default function ChatLayout() {
   const [unreadDMs, setUnreadDMs] = useState(new Map()); // conversationId -> count
   const [toasts, setToasts] = useState([]);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [announcement, setAnnouncement] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
@@ -68,6 +70,21 @@ export default function ChatLayout() {
   const dismissWhatsNew = () => {
     localStorage.setItem(WHATS_NEW_KEY, CURRENT_VERSION);
     setShowWhatsNew(false);
+  };
+
+  // Admin-pushed announcement, shown once per account (tracked server-side,
+  // not localStorage, so it follows the user across devices). Fetched after
+  // the What's New check so the two never stack on top of each other.
+  useEffect(() => {
+    api.get('/announcements/latest')
+      .then(({ announcement: a }) => { if (a) setAnnouncement(a); })
+      .catch(() => {});
+  }, []);
+
+  const dismissAnnouncement = () => {
+    const id = announcement?.id;
+    setAnnouncement(null);
+    if (id) api.post('/announcements/seen', { announcementId: id }).catch(() => {});
   };
 
   const pushToast = useCallback((toast) => {
@@ -407,6 +424,7 @@ export default function ChatLayout() {
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 
       {showWhatsNew && <WhatsNewModal onClose={dismissWhatsNew} />}
+      {!showWhatsNew && announcement && <AnnouncementModal announcement={announcement} onClose={dismissAnnouncement} />}
 
       {showSearch && (
         <SearchPanel
