@@ -54,6 +54,7 @@ export default function AdminDashboard() {
             { id: 'games', label: 'Games (PatchBot)', icon: '🎮' },
             { id: 'emoji', label: 'Custom Emoji', icon: '😀' },
             { id: 'sounds', label: 'Soundboard', icon: '🔊' },
+            { id: 'announce', label: 'Announcements', icon: '📣' },
             { id: 'messages', label: 'Recent Messages', icon: '📝' },
             { id: 'server', label: 'Server Settings', icon: '⚙️' },
           ].map(t => (
@@ -92,6 +93,7 @@ export default function AdminDashboard() {
         {tab === 'games' && <GamesTab />}
         {tab === 'emoji' && <EmojiTab />}
         {tab === 'sounds' && <SoundboardTab />}
+        {tab === 'announce' && <AnnounceTab />}
         {tab === 'messages' && <MessagesTab />}
         {tab === 'server' && <ServerTab />}
       </main>
@@ -798,6 +800,94 @@ function SoundboardTab() {
             <span className={styles.userCell}>🔊 {s.name}</span>
             <span className={styles.actions}>
               <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => removeSound(s)} title="Delete sound">🗑️</button>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Announcements Tab ────────────────────────────────────────
+const ANNOUNCEMENT_MAX_LENGTH = 2000;
+
+function AnnounceTab() {
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [flash, setFlash] = useState(null);
+
+  const showFlash = (msg, type = 'success') => { setFlash({ msg, type }); setTimeout(() => setFlash(null), 3000); };
+
+  const load = useCallback(() => {
+    authFetch('/admin/announcements').then(setHistory).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const push = async (e) => {
+    e.preventDefault();
+    if (!message.trim()) return;
+    setSending(true);
+    try {
+      const res = await authFetch('/admin/announcements', { method: 'POST', body: JSON.stringify({ message: message.trim() }) });
+      if (res.error) throw new Error(res.error);
+      setMessage('');
+      load();
+      showFlash('Announcement pushed — users will see it next time they sign in');
+    } catch (err) {
+      showFlash(err.message || 'Failed to push announcement', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const remove = async (a) => {
+    if (!confirm('Delete this announcement? Anyone who hasn’t seen it yet no longer will.')) return;
+    const res = await authFetch(`/admin/announcements/${a.id}`, { method: 'DELETE' });
+    if (res.error) return showFlash(res.error, 'error');
+    setHistory(prev => prev.filter(h => h.id !== a.id));
+    showFlash('Announcement deleted');
+  };
+
+  return (
+    <div className={styles.content}>
+      <h1>Announcements</h1>
+      <p className={styles.subtitle}>Push a message every user sees in a popup the next time they sign in. Only the most recent announcement is shown to a given user, once.</p>
+      {flash && <div className={`${styles.flash} ${styles[flash.type]}`}>{flash.msg}</div>}
+
+      <h2 className={styles.sectionTitle}>New Announcement</h2>
+      <form onSubmit={push}>
+        <textarea
+          className={styles.input}
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          maxLength={ANNOUNCEMENT_MAX_LENGTH}
+          rows={4}
+          placeholder="What should everyone know?"
+          style={{ width: '100%', maxWidth: 520, resize: 'vertical', fontFamily: 'inherit', marginBottom: 8, display: 'block' }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button type="submit" className={styles.primaryBtn} disabled={sending || !message.trim()}>
+            {sending ? 'Pushing…' : 'Push Announcement'}
+          </button>
+          <span className={styles.subtitle} style={{ margin: 0 }}>{message.length} / {ANNOUNCEMENT_MAX_LENGTH}</span>
+        </div>
+      </form>
+
+      <h2 className={styles.sectionTitle} style={{ marginTop: 24 }}>History</h2>
+      {loading && <p className={styles.subtitle}>Loading…</p>}
+      {!loading && history.length === 0 && <p className={styles.subtitle}>No announcements sent yet.</p>}
+      <div className={styles.table}>
+        {history.map(a => (
+          <div key={a.id} className={styles.tableRow} style={{ gridTemplateColumns: '3fr 1fr' }}>
+            <span className={styles.userCell} style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+              {a.message}
+              <div className={styles.subtitle} style={{ margin: 0 }}>{new Date(a.created_at).toLocaleString()} · {a.created_by_username}</div>
+            </span>
+            <span className={styles.actions}>
+              <button className={`${styles.actionBtn} ${styles.danger}`} onClick={() => remove(a)} title="Delete announcement">🗑️</button>
             </span>
           </div>
         ))}
