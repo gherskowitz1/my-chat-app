@@ -567,14 +567,27 @@ function AccessPanel({ users, draft, onTogglePrivate, onToggleMember, onSave, on
   );
 }
 
+const PATCHBOT_CHANNEL_KEY = 'crowsnest_patchbot_channel';
+
 function GamesPanel({ channels, flash }) {
-  const [selectedId, setSelectedId] = useState(channels[0]?.id || '');
+  const [selectedId, setSelectedId] = useState(() => localStorage.getItem(PATCHBOT_CHANNEL_KEY) || '');
   const [pollMinutes, setPollMinutes] = useState(180);
   const [savingFreq, setSavingFreq] = useState(false);
 
+  // Falls back to the first channel once the list loads, but only when
+  // there's no remembered selection (or it's since been deleted) — otherwise
+  // this would silently reset to whichever channel happens to be oldest
+  // every time the tab reopens.
   useEffect(() => {
-    if (!selectedId && channels[0]) setSelectedId(channels[0].id);
+    if (channels.length === 0) return;
+    if (channels.some(c => c.id === selectedId)) return;
+    setSelectedId(channels[0].id);
   }, [channels, selectedId]);
+
+  const selectChannel = (id) => {
+    setSelectedId(id);
+    localStorage.setItem(PATCHBOT_CHANNEL_KEY, id);
+  };
 
   useEffect(() => {
     get('/admin/patchbot/settings').then(s => {
@@ -621,7 +634,7 @@ function GamesPanel({ channels, flash }) {
           <>
             <select
               value={selectedId}
-              onChange={e => setSelectedId(e.target.value)}
+              onChange={e => selectChannel(e.target.value)}
               style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 14, marginBottom: 12, width: '100%', maxWidth: 320 }}
             >
               {channels.map(c => <option key={c.id} value={c.id}>#{c.name}{c.is_private ? ' (private)' : ''}</option>)}
