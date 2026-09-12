@@ -569,10 +569,22 @@ function AccessPanel({ users, draft, onTogglePrivate, onToggleMember, onSave, on
 
 const PATCHBOT_CHANNEL_KEY = 'crowsnest_patchbot_channel';
 
+const GAME_POLL_OPTIONS = [
+  { minutes: 1, label: 'Every 1 minute' },
+  { minutes: 2, label: 'Every 2 minutes' },
+  { minutes: 5, label: 'Every 5 minutes' },
+  { minutes: 10, label: 'Every 10 minutes' },
+  { minutes: 15, label: 'Every 15 minutes' },
+  { minutes: 30, label: 'Every 30 minutes' },
+];
+
 function GamesPanel({ channels, flash }) {
   const [selectedId, setSelectedId] = useState(() => localStorage.getItem(PATCHBOT_CHANNEL_KEY) || '');
   const [pollMinutes, setPollMinutes] = useState(180);
   const [savingFreq, setSavingFreq] = useState(false);
+  const [steamEnabled, setSteamEnabled] = useState(false);
+  const [gamePollMinutes, setGamePollMinutes] = useState(2);
+  const [savingGameFreq, setSavingGameFreq] = useState(false);
 
   // Falls back to the first channel once the list loads, but only when
   // there's no remembered selection (or it's since been deleted) — otherwise
@@ -592,7 +604,9 @@ function GamesPanel({ channels, flash }) {
   useEffect(() => {
     get('/admin/patchbot/settings').then(s => {
       if (s?.pollIntervalMinutes) setPollMinutes(s.pollIntervalMinutes);
+      if (s?.gamePollIntervalMinutes) setGamePollMinutes(s.gamePollIntervalMinutes);
     }).catch(() => {});
+    get('/auth/config').then(c => setSteamEnabled(!!c.steamEnabled)).catch(() => {});
   }, []);
 
   const saveFrequency = async () => {
@@ -604,6 +618,18 @@ function GamesPanel({ channels, flash }) {
       flash(err.message, 'error');
     } finally {
       setSavingFreq(false);
+    }
+  };
+
+  const saveGameFrequency = async () => {
+    setSavingGameFreq(true);
+    try {
+      await patch('/admin/patchbot/settings', { gamePollIntervalMinutes: gamePollMinutes });
+      flash('Check frequency updated');
+    } catch (err) {
+      flash(err.message, 'error');
+    } finally {
+      setSavingGameFreq(false);
     }
   };
 
@@ -626,6 +652,25 @@ function GamesPanel({ channels, flash }) {
           </button>
         </div>
       </div>
+
+      {steamEnabled && (
+        <div className={styles.channelGroup}>
+          <div className={styles.groupLabel}>"CURRENTLY PLAYING" CHECK FREQUENCY</div>
+          <p className={styles.hint} style={{ marginTop: -4, marginBottom: 8 }}>How often to refresh what linked members are playing in the member list.</p>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <select
+              value={gamePollMinutes}
+              onChange={e => setGamePollMinutes(Number(e.target.value))}
+              style={{ padding: '8px 10px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', color: 'var(--text-primary)', fontSize: 14 }}
+            >
+              {GAME_POLL_OPTIONS.map(o => <option key={o.minutes} value={o.minutes}>{o.label}</option>)}
+            </select>
+            <button className={styles.saveSmall} onClick={saveGameFrequency} disabled={savingGameFreq}>
+              {savingGameFreq ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className={styles.channelGroup}>
         <div className={styles.groupLabel}>TRACKED GAMES</div>

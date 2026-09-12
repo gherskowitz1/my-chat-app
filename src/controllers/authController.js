@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
+const { resolveSteamId } = require('../services/steamPlayers');
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
@@ -8,7 +9,7 @@ const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 // invite-code field at all. Only ever set once at startup, so it's safe to
 // read process.env directly on every request rather than caching it.
 function getAuthConfig(req, res) {
-  res.json({ signupCodeRequired: !!process.env.SIGNUP_CODE });
+  res.json({ signupCodeRequired: !!process.env.SIGNUP_CODE, steamEnabled: !!process.env.STEAM_API_KEY });
 }
 
 async function signup(req, res) {
@@ -85,7 +86,7 @@ async function login(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color, avatar_url, status_text FROM users WHERE id = $1',
+      'SELECT id, username, email, role, avatar_color, avatar_url, status_text, steam_id, current_game FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -232,6 +233,30 @@ async function updateStatusText(req, res) {
   }
 }
 
+// Links (or unlinks) a Steam account for the "currently playing" indicator.
+// current_game is reset on every link/unlink — it's a cache the game
+// presence poll job refreshes, not something meaningful to carry over.
+async function updateSteamId(req, res) {
+  const { steamId } = req.body;
+
+  if (!steamId) {
+    await pool.query('UPDATE users SET steam_id = NULL, current_game = NULL WHERE id = $1', [req.user.id]);
+    req.app.get('io')?.emit('presence:playing', { userId: req.user.id, game: null });
+    return res.json({ steamId: null });
+  }
+
+  if (typeof steamId !== 'string') return res.status(400).json({ error: 'steamId must be a string' });
+  if (!process.env.STEAM_API_KEY) return res.status(503).json({ error: 'Steam integration is not configured' });
+
+  try {
+    const resolved = await resolveSteamId(steamId);
+    await pool.query('UPDATE users SET steam_id = $1, current_game = NULL WHERE id = $2', [resolved, req.user.id]);
+    res.json({ steamId: resolved });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Could not link that Steam account' });
+  }
+}
+
 // Self-service account deletion — the account is gone, but messages stay
 // (see the LEFT JOIN + COALESCE(..., 'Deleted User') in every message-fetch
 // query, so history doesn't just vanish for everyone else in the channel).
@@ -267,4 +292,4 @@ async function deleteAccount(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, deleteAccount };
+module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount };

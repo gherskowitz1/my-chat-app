@@ -65,21 +65,45 @@ const MAX_POLL_MINUTES = 24 * 60;
 
 async function getPatchBotSettings(req, res) {
   try {
-    const { rows } = await pool.query('SELECT patch_poll_minutes FROM bot_settings WHERE id = 1');
-    res.json({ pollIntervalMinutes: rows[0]?.patch_poll_minutes ?? 180 });
+    const { rows } = await pool.query('SELECT patch_poll_minutes, game_poll_minutes FROM bot_settings WHERE id = 1');
+    res.json({
+      pollIntervalMinutes: rows[0]?.patch_poll_minutes ?? 180,
+      gamePollIntervalMinutes: rows[0]?.game_poll_minutes ?? 2,
+    });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }
 }
 
+// Accepts either field independently (the admin UI has two separate
+// dropdowns — patch notes and "currently playing" — that save on their own).
 async function updatePatchBotSettings(req, res) {
-  const minutes = parseInt(req.body.pollIntervalMinutes, 10);
-  if (!Number.isFinite(minutes) || minutes < MIN_POLL_MINUTES || minutes > MAX_POLL_MINUTES) {
-    return res.status(400).json({ error: `pollIntervalMinutes must be between ${MIN_POLL_MINUTES} and ${MAX_POLL_MINUTES}` });
+  const { pollIntervalMinutes, gamePollIntervalMinutes } = req.body;
+  const sets = [];
+  const params = [];
+
+  if (pollIntervalMinutes !== undefined) {
+    const minutes = parseInt(pollIntervalMinutes, 10);
+    if (!Number.isFinite(minutes) || minutes < MIN_POLL_MINUTES || minutes > MAX_POLL_MINUTES) {
+      return res.status(400).json({ error: `pollIntervalMinutes must be between ${MIN_POLL_MINUTES} and ${MAX_POLL_MINUTES}` });
+    }
+    params.push(minutes);
+    sets.push(`patch_poll_minutes = $${params.length}`);
   }
+  if (gamePollIntervalMinutes !== undefined) {
+    const minutes = parseInt(gamePollIntervalMinutes, 10);
+    if (!Number.isFinite(minutes) || minutes < MIN_POLL_MINUTES || minutes > MAX_POLL_MINUTES) {
+      return res.status(400).json({ error: `gamePollIntervalMinutes must be between ${MIN_POLL_MINUTES} and ${MAX_POLL_MINUTES}` });
+    }
+    params.push(minutes);
+    sets.push(`game_poll_minutes = $${params.length}`);
+  }
+  if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+
   try {
-    await pool.query('UPDATE bot_settings SET patch_poll_minutes = $1 WHERE id = 1', [minutes]);
-    res.json({ pollIntervalMinutes: minutes });
+    await pool.query(`UPDATE bot_settings SET ${sets.join(', ')} WHERE id = 1`, params);
+    const { rows } = await pool.query('SELECT patch_poll_minutes, game_poll_minutes FROM bot_settings WHERE id = 1');
+    res.json({ pollIntervalMinutes: rows[0].patch_poll_minutes, gamePollIntervalMinutes: rows[0].game_poll_minutes });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
   }

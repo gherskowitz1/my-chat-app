@@ -108,8 +108,17 @@ export function AuthProvider({ children }) {
     return data.statusText;
   };
 
+  // Pass null/'' to unlink. A linked account's own current_game is refreshed
+  // separately by the game-presence poll job's presence:playing broadcast,
+  // not returned here.
+  const linkSteam = async (steamId) => {
+    const data = await api.patch('/auth/steam-id', { steamId });
+    setUser((u) => (u ? { ...u, steam_id: data.steamId, current_game: null } : u));
+    return data.steamId;
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, deleteAccount }}>
+    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, linkSteam, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

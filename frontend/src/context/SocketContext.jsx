@@ -12,6 +12,7 @@ export function SocketProvider({ children }) {
   const [statusMap, setStatusMap] = useState(new Map()); // userId -> 'online' | 'away' | 'offline'
   const [awaySinceMap, setAwaySinceMap] = useState(new Map()); // userId -> ms timestamp status became 'away'
   const [statusTextMap, setStatusTextMap] = useState(new Map()); // userId -> custom status text, only for live updates after initial load
+  const [currentGameMap, setCurrentGameMap] = useState(new Map()); // userId -> Steam game name, only for live updates after initial load
 
   useEffect(() => {
     if (!user) {
@@ -101,9 +102,18 @@ export function SocketProvider({ children }) {
         return next;
       });
     };
+    const onPlaying = ({ userId, game }) => {
+      setCurrentGameMap((prev) => {
+        const next = new Map(prev);
+        if (game) next.set(userId, game);
+        else next.delete(userId);
+        return next;
+      });
+    };
     socket.on('presence:snapshot', onSnapshot);
     socket.on('presence:update', onUpdate);
     socket.on('presence:statusText', onStatusText);
+    socket.on('presence:playing', onPlaying);
 
     socketRef.current = socket;
 
@@ -121,7 +131,7 @@ export function SocketProvider({ children }) {
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, awaySinceMap, statusTextMap, setStatus }}>
+    <SocketContext.Provider value={{ socket: socketRef.current, connected, statusMap, awaySinceMap, statusTextMap, currentGameMap, setStatus }}>
       {children}
     </SocketContext.Provider>
   );

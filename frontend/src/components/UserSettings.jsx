@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
+import { api } from '../services/api';
 import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import { playTestChime } from '../utils/testChime';
@@ -144,7 +145,8 @@ const AVATAR_COLORS = ['#5865F2', '#57F287', '#FEE75C', '#EB459E', '#ED4245', '#
 
 // ── Account Tab ──────────────────────────────────────────────
 function AccountTab() {
-  const { user, updateUsername, updatePassword, updateAvatarColor, deleteAccount } = useAuth();
+  const { user, updateUsername, updatePassword, updateAvatarColor, linkSteam, deleteAccount } = useAuth();
+  const { currentGameMap } = useSocket();
 
   const [username, setUsername] = useState(user?.username || '');
   const [usernameSaving, setUsernameSaving] = useState(false);
@@ -152,6 +154,15 @@ function AccountTab() {
   const [usernameSuccess, setUsernameSuccess] = useState('');
 
   const [colorSaving, setColorSaving] = useState(false);
+
+  const [steamEnabled, setSteamEnabled] = useState(false);
+  const [steamInput, setSteamInput] = useState('');
+  const [steamSaving, setSteamSaving] = useState(false);
+  const [steamError, setSteamError] = useState('');
+
+  useEffect(() => {
+    api.get('/auth/config').then((c) => setSteamEnabled(!!c.steamEnabled)).catch(() => {});
+  }, []);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -188,6 +199,32 @@ function AccountTab() {
       // swallow — a failed color change just leaves the old one selected
     } finally {
       setColorSaving(false);
+    }
+  };
+
+  const submitSteam = async (e) => {
+    e.preventDefault();
+    setSteamError('');
+    setSteamSaving(true);
+    try {
+      await linkSteam(steamInput.trim());
+      setSteamInput('');
+    } catch (err) {
+      setSteamError(err.message || 'Failed to link Steam account');
+    } finally {
+      setSteamSaving(false);
+    }
+  };
+
+  const unlinkSteam = async () => {
+    setSteamSaving(true);
+    setSteamError('');
+    try {
+      await linkSteam(null);
+    } catch (err) {
+      setSteamError(err.message || 'Failed to unlink');
+    } finally {
+      setSteamSaving(false);
     }
   };
 
@@ -270,6 +307,42 @@ function AccountTab() {
         </div>
         <p className={styles.hint}>Used for your default avatar when you don't have a profile picture.</p>
       </section>
+
+      {steamEnabled && (
+        <section className={styles.section}>
+          <h3>🎮 Steam Account</h3>
+          {user?.steam_id ? (
+            <>
+              <p className={styles.hint}>
+                Linked — {(currentGameMap.has(user.id) ? currentGameMap.get(user.id) : user.current_game) || 'not currently playing anything'}.
+              </p>
+              <div className={styles.footer}>
+                <button type="button" className={styles.dangerBtn} onClick={unlinkSteam} disabled={steamSaving}>
+                  {steamSaving ? 'Unlinking…' : 'Unlink Steam Account'}
+                </button>
+                {steamError && <div className={styles.avatarError}>{steamError}</div>}
+              </div>
+            </>
+          ) : (
+            <form onSubmit={submitSteam}>
+              <input
+                className={styles.input}
+                value={steamInput}
+                onChange={(e) => setSteamInput(e.target.value)}
+                placeholder="Steam profile URL or custom URL name"
+                required
+              />
+              <div className={styles.footer}>
+                <button type="submit" className={styles.saveBtn} disabled={steamSaving || !steamInput.trim()}>
+                  {steamSaving ? 'Linking…' : 'Link Steam Account'}
+                </button>
+                {steamError && <div className={styles.avatarError}>{steamError}</div>}
+              </div>
+            </form>
+          )}
+          <p className={styles.hint}>Shows what you're playing in the member list. Your Steam privacy settings must allow "game details" to be visible for this to work.</p>
+        </section>
+      )}
 
       <section className={styles.section}>
         <h3>🔒 Change Password</h3>

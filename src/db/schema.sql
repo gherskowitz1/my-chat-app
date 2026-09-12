@@ -30,6 +30,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS invisible BOOLEAN NOT NULL DEFAULT fa
 -- from the automatic online/away/offline detection, purely opt-in text.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS status_text VARCHAR(100);
 
+-- Linked Steam account (SteamID64) and the game it was last seen playing —
+-- current_game is cache, refreshed by the game-presence poll job, not
+-- something a user sets directly. NULL means "not linked" / "not playing".
+ALTER TABLE users ADD COLUMN IF NOT EXISTS steam_id VARCHAR(32);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS current_game VARCHAR(200);
+
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -218,6 +224,11 @@ CREATE TABLE IF NOT EXISTS bot_settings (
   patch_poll_minutes INTEGER NOT NULL DEFAULT 180
 );
 INSERT INTO bot_settings (id, patch_poll_minutes) VALUES (1, 180) ON CONFLICT (id) DO NOTHING;
+
+-- How often (in minutes) the Steam "currently playing" poller checks linked
+-- accounts. Same single-row config table/pattern as patch_poll_minutes
+-- above, just a separate column since the two jobs run independently.
+ALTER TABLE bot_settings ADD COLUMN IF NOT EXISTS game_poll_minutes INTEGER NOT NULL DEFAULT 2;
 
 -- Friendships — one row per pair, direction preserved via requester/addressee
 -- so a pending request can be told apart from an accepted friendship.

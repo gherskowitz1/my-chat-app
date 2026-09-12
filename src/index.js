@@ -8,6 +8,7 @@ const { initDb } = require('./db');
 const routes = require('./routes');
 const { setupSocket } = require('./socket');
 const { startPatchBot } = require('./jobs/patchBot');
+const { startGamePresence } = require('./jobs/gamePresence');
 const push = require('./utils/push');
 
 push.configure();
@@ -66,7 +67,12 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`Server running on :${PORT}`);
   initDb()
-    .then(() => startPatchBot(io))
+    .then(() => {
+      startPatchBot(io);
+      // Only worth running if there's a key to call Steam's API with — no
+      // linked account can exist otherwise (linking itself 503s without one).
+      if (process.env.STEAM_API_KEY) startGamePresence(io);
+    })
     .catch((err) => {
       console.error('Failed to initialize database:', err);
       process.exit(1);
