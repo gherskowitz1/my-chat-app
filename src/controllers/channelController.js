@@ -25,8 +25,33 @@ const ATTACHMENTS_SUBQUERY = `(
   WHERE a.message_id = m.id
 ) AS attachments`;
 
+// NULL for a plain message (the scalar subquery returns no row) — no CASE
+// needed. voterIds lets each client compute "did I vote for this" locally,
+// the same shape REACTIONS_SUBQUERY uses for "did I react with this".
+const POLL_SUBQUERY = `(
+  SELECT json_build_object(
+    'id', p.id,
+    'question', p.question,
+    'allowMultiple', p.allow_multiple,
+    'options', (
+      SELECT COALESCE(json_agg(json_build_object(
+        'id', o.id,
+        'label', o.label,
+        'voteCount', (SELECT COUNT(*)::int FROM poll_votes v WHERE v.option_id = o.id),
+        'voterIds', (SELECT COALESCE(json_agg(v2.user_id), '[]'::json) FROM poll_votes v2 WHERE v2.option_id = o.id)
+      ) ORDER BY o.position), '[]'::json)
+      FROM poll_options o WHERE o.poll_id = p.id
+    )
+  )
+  FROM polls p WHERE p.message_id = m.id
+) AS poll`;
+
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 const MAX_TOTAL_ATTACHMENT_BASE64_LENGTH = 11_000_000; // ~8MB raw, combined, once base64 overhead is accounted for
+const MIN_POLL_OPTIONS = 2;
+const MAX_POLL_OPTIONS = 6;
+const MAX_POLL_QUESTION_LENGTH = 300;
+const MAX_POLL_OPTION_LENGTH = 120;
 
 async function getChannels(req, res) {
   const { serverId } = req.params;
@@ -135,11 +160,11 @@ async function getMessages(req, res) {
     }
 
     const query = before
-      ? `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+      ? `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
          LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+      : `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
          LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;
@@ -173,14 +198,14 @@ async function getMessagesAround(req, res) {
     const targetTime = targetRows[0].created_at;
 
     const { rows: before } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at <= $2
        ORDER BY m.created_at DESC LIMIT 26`,
       [channelId, targetTime]
     );
     const { rows: after } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY} FROM messages m
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at > $2
        ORDER BY m.created_at ASC LIMIT 25`,
@@ -262,7 +287,7 @@ async function sendMessageWithAttachments(req, res) {
     }
 
     const { rows: fullRows } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}
        FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
       [messageId]
     );
@@ -309,7 +334,83 @@ async function sendMessageWithAttachments(req, res) {
   }
 }
 
+// Deliberately REST rather than the message:send socket path — creating a
+// poll is a multi-field, "review before you commit" action (like pinning),
+// not a quick type-and-hit-enter message, so it doesn't need the offline
+// outbox's optimistic-bubble/retry machinery. The poll still shows up for
+// everyone (including its own creator) purely through the same message:new
+// broadcast every other message uses, since a poll is just a message row
+// with a `polls` row attached — no separate client-side handling required.
+async function createPoll(req, res) {
+  const { channelId } = req.params;
+  const { id: userId, username, role } = req.user;
+  const { question, options, allowMultiple } = req.body;
+
+  const q = (question || '').trim();
+  const opts = Array.isArray(options) ? options.map((o) => (o || '').trim()).filter(Boolean) : [];
+
+  if (!q || q.length > MAX_POLL_QUESTION_LENGTH) {
+    return res.status(400).json({ error: `Question is required (max ${MAX_POLL_QUESTION_LENGTH} characters)` });
+  }
+  if (opts.length < MIN_POLL_OPTIONS || opts.length > MAX_POLL_OPTIONS) {
+    return res.status(400).json({ error: `Provide between ${MIN_POLL_OPTIONS} and ${MAX_POLL_OPTIONS} options` });
+  }
+  if (opts.some((o) => o.length > MAX_POLL_OPTION_LENGTH)) {
+    return res.status(400).json({ error: `Each option must be ${MAX_POLL_OPTION_LENGTH} characters or fewer` });
+  }
+
+  try {
+    const channel = await getChannelById(channelId);
+    if (!(await canAccessChannel(channel, userId, role))) {
+      return res.status(403).json({ error: 'Not authorized to post in this channel' });
+    }
+
+    const { rows: msgRows } = await pool.query(
+      'INSERT INTO messages (channel_id, user_id, content) VALUES ($1, $2, $3) RETURNING id',
+      [channelId, userId, q]
+    );
+    const messageId = msgRows[0].id;
+
+    const { rows: pollRows } = await pool.query(
+      'INSERT INTO polls (message_id, question, allow_multiple) VALUES ($1, $2, $3) RETURNING id',
+      [messageId, q, !!allowMultiple]
+    );
+    const pollId = pollRows[0].id;
+
+    const values = opts.map((_, i) => `($1, $${i * 2 + 2}, $${i * 2 + 3})`).join(', ');
+    const params = [pollId, ...opts.flatMap((label, i) => [label, i])];
+    await pool.query(`INSERT INTO poll_options (poll_id, label, position) VALUES ${values}`, params);
+
+    const { rows: fullRows } = await pool.query(
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}
+       FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
+      [messageId]
+    );
+    const newMessage = fullRows[0];
+    res.status(201).json(newMessage);
+
+    const io = req.app.get('io');
+    io?.to(`channel:${channelId}`).emit('message:new', newMessage);
+
+    if (io) {
+      const { emitToUser } = require('../socket');
+      const { rows: members } = channel.is_private
+        ? await pool.query('SELECT user_id FROM channel_members WHERE channel_id = $1 AND user_id != $2', [channelId, userId])
+        : await pool.query(
+            `SELECT sm.user_id FROM server_members sm JOIN channels c ON c.server_id = sm.server_id WHERE c.id = $1 AND sm.user_id != $2`,
+            [channelId, userId]
+          );
+      members.forEach(({ user_id }) => {
+        emitToUser(io, user_id, 'notify:message', { channelId, channelName: channel.name, username, content: `📊 ${q}` });
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 module.exports = {
   getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess,
-  sendMessageWithAttachments,
+  sendMessageWithAttachments, createPoll,
 };

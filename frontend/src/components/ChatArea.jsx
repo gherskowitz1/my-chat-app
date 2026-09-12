@@ -12,6 +12,7 @@ import MentionDropdown from './MentionDropdown';
 import UserProfileCard from './UserProfileCard';
 import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
+import PollComposer from './PollComposer';
 import TrackedGamesPanel from './TrackedGamesPanel';
 import PinnedMessagesPanel from './PinnedMessagesPanel';
 import styles from './ChatArea.module.css';
@@ -66,6 +67,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const fileInputRef = useRef(null);
   const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
   const [gifPickerAnchor, setGifPickerAnchor] = useState(null);
+  const [pollComposerAnchor, setPollComposerAnchor] = useState(null);
 
   // Inserts at the cursor rather than always appending, so picking an emoji
   // partway through a sentence you're editing lands where you'd expect.
@@ -255,6 +257,17 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       if (channelId !== channel.id) return;
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
     };
+    const onPollResults = ({ messageId, channelId, options }) => {
+      if (channelId !== channel.id) return;
+      setMessages((prev) => prev.map((m) => {
+        if (m.id !== messageId || !m.poll) return m;
+        const updated = m.poll.options.map((o) => {
+          const match = options.find((r) => r.id === o.id);
+          return match ? { ...o, voteCount: match.voteCount, voterIds: match.voterIds } : o;
+        });
+        return { ...m, poll: { ...m.poll, options: updated } };
+      }));
+    };
     const onPinned = ({ channelId, messageId }) => {
       if (channelId !== channel.id) return;
       setPinnedIds((prev) => new Set(prev).add(messageId));
@@ -273,6 +286,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     socket.on('message:edited', onEdited);
     socket.on('typing:update', onTyping);
     socket.on('message:reactions', onReactions);
+    socket.on('poll:results', onPollResults);
     socket.on('message:pinned', onPinned);
     socket.on('message:unpinned', onUnpinned);
     return () => {
@@ -281,6 +295,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       socket.off('message:edited', onEdited);
       socket.off('typing:update', onTyping);
       socket.off('message:reactions', onReactions);
+      socket.off('poll:results', onPollResults);
       socket.off('message:pinned', onPinned);
       socket.off('message:unpinned', onUnpinned);
     };
@@ -531,6 +546,22 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
     socket?.emit('message:react', { messageId, channelId: channel.id, emoji });
   };
 
+  // The server derives the poll's actual message/channel from optionId
+  // itself (see socket/index.js's poll:vote) rather than trusting a
+  // claimed channelId, so nothing else needs to go in this payload.
+  const votePoll = (optionId) => {
+    socket?.emit('poll:vote', { optionId });
+  };
+
+  // REST rather than the composer/outbox — the poll itself shows up for
+  // everyone (including the creator) via the same message:new broadcast
+  // every other message uses, since a poll is just a message with a `polls`
+  // row attached (see channelController.js's createPoll).
+  const createPoll = async ({ question, options, allowMultiple }) => {
+    await api.post(`/channels/${channel.id}/polls`, { question, options, allowMultiple });
+    shouldStickToBottomRef.current = true;
+  };
+
   const startReply = (msg) => {
     setReplyingTo({ id: msg.id, username: msg.username, content: msg.content });
     inputRef.current?.focus();
@@ -645,6 +676,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
               onReact={reactToMessage}
               onJumpToMessage={scrollToMessage}
               onRetry={retryMessage}
+              onVote={votePoll}
             />
           );
         })}
@@ -750,6 +782,21 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
               anchorRect={gifPickerAnchor}
               onClose={() => setGifPickerAnchor(null)}
               onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); }}
+            />
+          )}
+          <button
+            type="button"
+            className={styles.attachBtn}
+            onClick={(e) => setPollComposerAnchor(e.currentTarget.getBoundingClientRect())}
+            title="Create a poll"
+          >
+            <span style={{ fontSize: 16 }}>📊</span>
+          </button>
+          {pollComposerAnchor && (
+            <PollComposer
+              anchorRect={pollComposerAnchor}
+              onClose={() => setPollComposerAnchor(null)}
+              onSubmit={createPoll}
             />
           )}
           <button type="submit" className={styles.sendBtn} disabled={!input.trim() && stagedAttachments.length === 0}>

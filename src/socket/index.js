@@ -221,6 +221,60 @@ function setupSocket(io) {
       }
     });
 
+    // Vote on a poll option — same toggle-and-rebroadcast idea as
+    // message:react. Derives the poll, its message/channel, and whether it's
+    // single/multi-choice all from the option itself rather than trusting
+    // the client's own messageId/channelId — otherwise a user could vote on
+    // a private channel's poll just by lying about which channel it's in,
+    // since only the claimed channelId (not the poll's real one) would ever
+    // get access-checked.
+    socket.on('poll:vote', async ({ optionId }) => {
+      if (!optionId) return;
+      try {
+        const { rows: optionRows } = await pool.query(
+          `SELECT o.poll_id, p.allow_multiple, p.message_id, m.channel_id
+           FROM poll_options o
+           JOIN polls p ON p.id = o.poll_id
+           JOIN messages m ON m.id = p.message_id
+           WHERE o.id = $1`,
+          [optionId]
+        );
+        if (!optionRows[0]) return;
+        const { poll_id: pollId, allow_multiple: allowMultiple, message_id: messageId, channel_id: channelId } = optionRows[0];
+
+        const channel = await getChannelById(channelId);
+        if (!(await canAccessChannel(channel, userId, role))) return;
+
+        const { rows: existing } = await pool.query(
+          'SELECT 1 FROM poll_votes WHERE option_id = $1 AND user_id = $2',
+          [optionId, userId]
+        );
+        if (existing[0]) {
+          await pool.query('DELETE FROM poll_votes WHERE option_id = $1 AND user_id = $2', [optionId, userId]);
+        } else {
+          if (!allowMultiple) {
+            await pool.query(
+              'DELETE FROM poll_votes WHERE user_id = $1 AND option_id IN (SELECT id FROM poll_options WHERE poll_id = $2)',
+              [userId, pollId]
+            );
+          }
+          await pool.query('INSERT INTO poll_votes (option_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [optionId, userId]);
+        }
+
+        const { rows: optionSummary } = await pool.query(
+          `SELECT o.id,
+                  (SELECT COUNT(*)::int FROM poll_votes v WHERE v.option_id = o.id) AS vote_count,
+                  (SELECT COALESCE(json_agg(v2.user_id), '[]'::json) FROM poll_votes v2 WHERE v2.option_id = o.id) AS voter_ids
+           FROM poll_options o WHERE o.poll_id = $1 ORDER BY o.position`,
+          [pollId]
+        );
+        const options = optionSummary.map((o) => ({ id: o.id, voteCount: o.vote_count, voterIds: o.voter_ids }));
+        io.to(`channel:${channelId}`).emit('poll:results', { messageId, channelId, pollId, options });
+      } catch (err) {
+        console.error('poll:vote error', err);
+      }
+    });
+
     // Pin/unpin relay — the REST endpoints (admin-only) are the actual
     // source of truth; this just tells other connected clients to refresh.
     socket.on('message:pinned', ({ channelId, messageId }) => {

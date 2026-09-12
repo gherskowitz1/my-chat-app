@@ -3,7 +3,7 @@ const router = express.Router();
 const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
 const { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount } = require('../controllers/authController');
 const { loginLimiter, signupLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
-const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments } = require('../controllers/channelController');
+const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments, createPoll } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments, hideConversation } = require('../controllers/dmController');
 const { getAttachment } = require('../controllers/attachmentController');
 const { searchMessages } = require('../controllers/searchController');
@@ -57,6 +57,7 @@ router.post('/servers/:serverId/channels', authMiddleware, adminMiddleware, crea
 router.delete('/channels/:channelId', authMiddleware, adminMiddleware, deleteChannel);
 router.get('/channels/:channelId/messages', authMiddleware, getMessages);
 router.post('/channels/:channelId/messages', authMiddleware, sendMessageWithAttachments);
+router.post('/channels/:channelId/polls', authMiddleware, createPoll);
 router.get('/channels/:channelId/messages/around/:messageId', authMiddleware, getMessagesAround);
 router.get('/channels/:channelId/members', authMiddleware, adminMiddleware, getChannelMembers);
 router.patch('/channels/:channelId/access', authMiddleware, adminMiddleware, updateChannelAccess);

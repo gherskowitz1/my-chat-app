@@ -187,6 +187,36 @@ CREATE TABLE IF NOT EXISTS announcements (
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_announcement_id UUID REFERENCES announcements(id) ON DELETE SET NULL;
 
+-- Polls — a poll IS a message (message_id references it 1:1), the same way
+-- an attachment attaches to a message, rather than a separately-ordered
+-- entity: this lets a poll ride the existing message list/pagination/
+-- reply/pin machinery for free instead of needing its own merge-by-timestamp
+-- logic. The question is also stored as the message's own `content` so it's
+-- full-text searchable and shows up in notification previews like any other
+-- message; poll_options/poll_votes carry only the interactive part.
+CREATE TABLE IF NOT EXISTS polls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID REFERENCES messages(id) ON DELETE CASCADE UNIQUE,
+  question VARCHAR(300) NOT NULL,
+  allow_multiple BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS poll_options (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  poll_id UUID REFERENCES polls(id) ON DELETE CASCADE,
+  label VARCHAR(120) NOT NULL,
+  position INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS poll_votes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  option_id UUID REFERENCES poll_options(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (option_id, user_id)
+);
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
