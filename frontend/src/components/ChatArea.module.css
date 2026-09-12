@@ -27,9 +27,17 @@
   font-size: 15px;
   font-weight: 600;
   flex: 1;
+  /* Without min-width: 0, a flex item won't shrink below its own text
+     width, so a long-enough channel name pushes the action icons past the
+     edge of the screen instead of the name just truncating — exactly what
+     was happening on narrower phones. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.headerActions { display: flex; gap: 4px; }
+.headerActions { display: flex; gap: 4px; flex-shrink: 0; }
 
 .iconBtn {
   width: 32px;

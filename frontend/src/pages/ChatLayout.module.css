@@ -8,6 +8,10 @@
   display: contents;
 }
 
+.serverRail {
+  display: contents;
+}
+
 .navPane {
   display: flex;
   flex-shrink: 0;
@@ -43,6 +47,20 @@
   .main { transform: translateX(100%); }
   .layout.chatOpen .navPane { transform: translateX(-100%); }
   .layout.chatOpen .main { transform: translateX(0); }
+
+  /* The server/DM icon rail only matters for switching between them, which
+     you can't do mid-conversation anyway (the back button already covers
+     that) — hiding it while a channel/DM is open gives the chat pane the
+     full screen width instead of permanently losing ~72px to a rail with
+     nothing to do there, which was also what caused the chat header's own
+     icons to get clipped on narrower phones. */
+  .serverRail {
+    display: flex;
+    flex-shrink: 0;
+  }
+  .layout.chatOpen .serverRail {
+    display: none;
+  }
 }
 
 .membersBackdrop {

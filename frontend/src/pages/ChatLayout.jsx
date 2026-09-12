@@ -332,20 +332,22 @@ export default function ChatLayout() {
 
   return (
     <div className={`${styles.layout} ${mobileChatOpen ? styles.chatOpen : ''}`}>
-      <ServerSidebar
-        serverName={serverName}
-        serverIcon={serverIcon}
-        activeSection={activeSection}
-        onSectionChange={setActiveSection}
-        onOpenAdmin={() => setShowAdmin(true)}
-        onOpenSettings={() => setShowSettings(true)}
-        onOpenSearch={() => setShowSearch(true)}
-        onOpenFriends={() => setShowFriends(true)}
-        onMarkAllRead={markAllRead}
-        hasUnreadDMs={unreadDMs.size > 0}
-        hasUnreadChannels={unreadChannels.size > 0}
-        pendingFriendRequests={pendingFriendRequests}
-      />
+      <div className={styles.serverRail}>
+        <ServerSidebar
+          serverName={serverName}
+          serverIcon={serverIcon}
+          activeSection={activeSection}
+          onSectionChange={setActiveSection}
+          onOpenAdmin={() => setShowAdmin(true)}
+          onOpenSettings={() => setShowSettings(true)}
+          onOpenSearch={() => setShowSearch(true)}
+          onOpenFriends={() => setShowFriends(true)}
+          onMarkAllRead={markAllRead}
+          hasUnreadDMs={unreadDMs.size > 0}
+          hasUnreadChannels={unreadChannels.size > 0}
+          pendingFriendRequests={pendingFriendRequests}
+        />
+      </div>
 
       <div className={styles.mobileStack}>
       <div className={styles.navPane}>
