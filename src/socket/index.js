@@ -9,6 +9,7 @@ const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
 const manualStatus = new Map(); // userId -> status the user explicitly chose, pins userStatus against automatic idle/active updates until they fully disconnect
 const awaySince = new Map(); // userId -> ms timestamp their status last became 'away', so the member list can show "Away for X"
+const voiceUsers = new Set(); // userIds currently connected to a voice channel — see presence:idle below
 
 // Module-level (not just inside setupSocket) so background jobs like
 // PatchBot can push a notify: event to a user's open sockets too.
@@ -483,9 +484,12 @@ function setupSocket(io) {
 
     // Idle/away — client reports after ~30min with no mouse/keyboard activity.
     // Skipped entirely once the user has set a manual status override, so
-    // automatic detection can't stomp on a status they explicitly chose.
+    // automatic detection can't stomp on a status they explicitly chose —
+    // and likewise skipped while they're in a voice channel, since talking
+    // in a call is real activity even if nothing in the app itself is being
+    // clicked (e.g. deep in a Steam game with voice chat open).
     socket.on('presence:idle', () => {
-      if (!onlineUsers.has(userId) || manualStatus.has(userId)) return;
+      if (!onlineUsers.has(userId) || manualStatus.has(userId) || voiceUsers.has(userId)) return;
       userStatus.set(userId, 'away');
       awaySince.set(userId, Date.now());
       io.emit('presence:update', { userId, username, status: 'away', awaySince: awaySince.get(userId) });
@@ -495,6 +499,23 @@ function setupSocket(io) {
       userStatus.set(userId, 'online');
       awaySince.delete(userId);
       io.emit('presence:update', { userId, username, status: 'online' });
+    });
+
+    // Joining/leaving a voice channel — see presence:idle above. Joining
+    // also immediately clears any existing away status (mirrors
+    // presence:active) rather than waiting for the next mouse/keyboard
+    // event, since the whole point is that voice activity isn't mouse/
+    // keyboard activity.
+    socket.on('voice:joined', () => {
+      voiceUsers.add(userId);
+      if (onlineUsers.has(userId) && !manualStatus.has(userId) && userStatus.get(userId) !== 'online') {
+        userStatus.set(userId, 'online');
+        awaySince.delete(userId);
+        io.emit('presence:update', { userId, username, status: 'online' });
+      }
+    });
+    socket.on('voice:left', () => {
+      voiceUsers.delete(userId);
     });
 
     // Manual status override — e.g. appearing offline while still fully
@@ -518,6 +539,7 @@ function setupSocket(io) {
           userStatus.delete(userId);
           manualStatus.delete(userId);
           awaySince.delete(userId);
+          voiceUsers.delete(userId);
           io.emit('presence:update', { userId, username, status: 'offline' });
           pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = $1', [userId]).catch(() => {});
         }

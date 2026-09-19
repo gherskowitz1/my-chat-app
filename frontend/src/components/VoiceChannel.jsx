@@ -10,7 +10,9 @@ import VoiceControls from './VoiceControls';
 import VoiceChimes from './VoiceChimes';
 import VoiceReliability from './VoiceReliability';
 import ScreenShareWindow from './ScreenShareWindow';
+import VoiceParticipantList from './VoiceParticipantList';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import styles from './VoiceChannel.module.css';
 
 const INACTIVITY_LIMIT_MS = 4 * 60 * 60 * 1000; // 4 hours
@@ -24,6 +26,7 @@ const RECONNECT_RETRY_DELAYS = [0, 500, 1000, 1500, 2000, 2500, 3000, 4500];
 
 export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchChannel }) {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const [token, setToken] = useState(null);
   const [livekitUrl, setLivekitUrl] = useState(null);
   const [error, setError] = useState(null);
@@ -51,6 +54,11 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
       setLivekitUrl(data.url);
       setAudioPrefs(prefs);
       setJoined(true);
+      // Being in a call is itself activity — without this, someone deep in
+      // a Steam game with a controller in hand (no mouse/keyboard touched
+      // inside the app) gets marked "away" after 30 minutes despite
+      // actively talking. See socket/index.js's presence:idle handler.
+      socket?.emit('voice:joined');
     } catch (err) {
       setError(err.message === 'LiveKit not configured'
         ? 'Voice chat requires LiveKit configuration. Add LIVEKIT_* env vars to enable.'
@@ -64,6 +72,7 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
     setJoined(false);
     setToken(null);
     setAudioPrefs(null);
+    socket?.emit('voice:left');
     onLeave();
   };
 
@@ -142,6 +151,7 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
         <VoiceReliability />
         <ScreenShareWindow />
         <VolumeMixer />
+        <VoiceParticipantList />
         <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
       </LiveKitRoom>
 
