@@ -18,6 +18,7 @@ const STORAGE_KEY_NOISE_SUPPRESSION = 'chatter_noise_suppression';
 const STORAGE_KEY_BITRATE = 'chatter_bitrate_cap';
 const STORAGE_KEY_MIC_MODE = 'crowsnest_mic_mode';
 const STORAGE_KEY_VAD_SENSITIVITY = 'crowsnest_vad_sensitivity';
+const STORAGE_KEY_AI_NOISE_CANCELLATION = 'crowsnest_ai_noise_cancellation';
 
 export default function UserSettings({ onClose }) {
   const { user, updateAvatar } = useAuth();
@@ -422,6 +423,7 @@ function AudioTab() {
   const [selectedInput, setSelectedInput] = useState(localStorage.getItem(STORAGE_KEY_IN) || '');
   const [selectedOutput, setSelectedOutput] = useState(localStorage.getItem(STORAGE_KEY_OUT) || '');
   const [noiseSuppression, setNoiseSuppression] = useState(localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false');
+  const [aiNoiseCancellation, setAiNoiseCancellation] = useState(localStorage.getItem(STORAGE_KEY_AI_NOISE_CANCELLATION) === 'true');
   const [bitrateCap, setBitrateCap] = useState(localStorage.getItem(STORAGE_KEY_BITRATE) || '');
   const [micMode, setMicMode] = useState(localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open');
   const [vadSensitivity, setVadSensitivity] = useState(Number(localStorage.getItem(STORAGE_KEY_VAD_SENSITIVITY)) || 50);
@@ -446,6 +448,7 @@ function AudioTab() {
     localStorage.setItem(STORAGE_KEY_IN, selectedInput);
     localStorage.setItem(STORAGE_KEY_OUT, selectedOutput);
     localStorage.setItem(STORAGE_KEY_NOISE_SUPPRESSION, String(noiseSuppression));
+    localStorage.setItem(STORAGE_KEY_AI_NOISE_CANCELLATION, String(aiNoiseCancellation));
     localStorage.setItem(STORAGE_KEY_BITRATE, bitrateCap);
     localStorage.setItem(STORAGE_KEY_MIC_MODE, micMode);
     localStorage.setItem(STORAGE_KEY_VAD_SENSITIVITY, String(vadSensitivity));
@@ -540,7 +543,15 @@ function AudioTab() {
           <input type="checkbox" checked={noiseSuppression} onChange={e => setNoiseSuppression(e.target.checked)} />
           <span>Noise suppression</span>
         </label>
-        <p className={styles.hint} style={{ marginTop: -4, marginBottom: 10 }}>Filters out background noise from your microphone.</p>
+        <p className={styles.hint} style={{ marginTop: -4, marginBottom: 10 }}>Your browser's built-in noise filtering. Light-touch, works fine for steady background noise like a fan.</p>
+
+        <label className={styles.checkboxRow}>
+          <input type="checkbox" checked={aiNoiseCancellation} onChange={e => setAiNoiseCancellation(e.target.checked)} />
+          <span>🤖 AI noise cancellation (RNNoise)</span>
+        </label>
+        <p className={styles.hint} style={{ marginTop: -4, marginBottom: 10 }}>
+          A stronger, open-source noise-removal model — much better at cutting keyboard clicks and background chatter than the option above. Uses a bit more CPU. Takes effect next time you join a voice channel.
+        </p>
 
         <h3 style={{ marginTop: 4 }}>Bitrate Cap</h3>
         <select className={styles.select} value={bitrateCap} onChange={e => setBitrateCap(e.target.value)}>
@@ -904,6 +915,7 @@ export function getAudioPreferences() {
     inputDeviceId: localStorage.getItem(STORAGE_KEY_IN) || undefined,
     outputDeviceId: localStorage.getItem(STORAGE_KEY_OUT) || undefined,
     noiseSuppression: localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false',
+    aiNoiseCancellation: localStorage.getItem(STORAGE_KEY_AI_NOISE_CANCELLATION) === 'true',
     bitrateCap: bitrate ? parseInt(bitrate, 10) : undefined,
     micMode: localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open',
     vadSensitivity: sensitivity ? Number(sensitivity) : 50,

@@ -3,6 +3,7 @@ import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { Track, TrackEvent } from 'livekit-client';
 import { useKeyboardShortcuts, loadShortcuts, formatCombo } from '../hooks/useKeyboardShortcuts';
 import { getAudioPreferences } from './UserSettings';
+import { createRnnoiseProcessor } from '../utils/rnnoiseProcessor';
 import Soundboard from './Soundboard';
 import VoiceEffects from './VoiceEffects';
 import styles from './VoiceControls.module.css';
@@ -78,6 +79,34 @@ export default function VoiceControls({ onLeave, forceMuted }) {
   }, [forceMuted, localParticipant]);
 
   useEffect(() => { deafenedRef.current = deafened; }, [deafened]);
+
+  // AI noise cancellation (RNNoise) — opt-in, applied once per join rather
+  // than hot-toggleable mid-call, same as every other audio preference here.
+  // The mic publication may not exist the instant this effect runs (same
+  // reasoning as the VAD retry loop below), so poll briefly for it.
+  useEffect(() => {
+    if (!getAudioPreferences().aiNoiseCancellation || !localParticipant) return;
+
+    let cancelled = false;
+    let retryTimer;
+    const tryApply = () => {
+      const pub = localParticipant.getTrackPublication(Track.Source.Microphone);
+      if (!pub?.track) {
+        retryTimer = setTimeout(tryApply, 200);
+        return;
+      }
+      if (cancelled) return;
+      pub.track.setProcessor(createRnnoiseProcessor()).catch((err) => {
+        console.error('Failed to enable AI noise cancellation', err);
+      });
+    };
+    tryApply();
+
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+  }, [localParticipant]);
 
   // Push-to-talk and voice-activity modes both start a voice session muted —
   // LiveKitRoom auto-unmutes on connect, so this has to run after that.
