@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -44,7 +44,7 @@ function toOptimisticMessage(entry, user) {
   };
 }
 
-export default function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM, onBack, ownerId, jumpToMessageId, onJumpHandled }) {
+const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMembers, onOpenDM, onBack, ownerId, jumpToMessageId, onJumpHandled }, ref) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -68,6 +68,19 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
   const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
   const [gifPickerAnchor, setGifPickerAnchor] = useState(null);
   const [pollComposerAnchor, setPollComposerAnchor] = useState(null);
+  const emojiBtnRef = useRef(null);
+  const gifBtnRef = useRef(null);
+  const pollBtnRef = useRef(null);
+
+  // Lets ChatLayout's global keyboard shortcuts reach into whichever
+  // composer is actually mounted (see useGlobalShortcuts in ChatLayout.jsx)
+  // without lifting all this picker/anchor state up a level.
+  useImperativeHandle(ref, () => ({
+    focusComposer: () => inputRef.current?.focus(),
+    toggleEmojiPicker: () => setEmojiPickerAnchor((prev) => (prev ? null : emojiBtnRef.current?.getBoundingClientRect())),
+    toggleGifPicker: () => setGifPickerAnchor((prev) => (prev ? null : gifBtnRef.current?.getBoundingClientRect())),
+    togglePollComposer: () => setPollComposerAnchor((prev) => (prev ? null : pollBtnRef.current?.getBoundingClientRect())),
+  }), []);
 
   // Inserts at the cursor rather than always appending, so picking an emoji
   // partway through a sentence you're editing lands where you'd expect.
@@ -753,6 +766,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
           </button>
           <input ref={fileInputRef} type="file" multiple hidden onChange={handleFileInputChange} />
           <button
+            ref={emojiBtnRef}
             type="button"
             className={styles.attachBtn}
             onClick={(e) => setEmojiPickerAnchor(e.currentTarget.getBoundingClientRect())}
@@ -770,6 +784,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
             />
           )}
           <button
+            ref={gifBtnRef}
             type="button"
             className={styles.attachBtn}
             onClick={(e) => setGifPickerAnchor(e.currentTarget.getBoundingClientRect())}
@@ -785,6 +800,7 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
             />
           )}
           <button
+            ref={pollBtnRef}
             type="button"
             className={styles.attachBtn}
             onClick={(e) => setPollComposerAnchor(e.currentTarget.getBoundingClientRect())}
@@ -808,4 +824,6 @@ export default function ChatArea({ channel, onToggleMembers, showMembers, onOpen
       </div>
     </div>
   );
-}
+});
+
+export default ChatArea;

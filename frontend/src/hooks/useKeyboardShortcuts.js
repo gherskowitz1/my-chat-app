@@ -17,6 +17,10 @@ export const DEFAULT_SHORTCUTS = {
   toggleFriends: { label: 'Toggle Friends',      description: 'Open the friends panel',                 group: 'app',   combo: combo('f', { ctrl: true, shift: true }) },
   openSettings:  { label: 'Open Settings',       description: 'Open User Settings',                     group: 'app',   combo: combo(',', { ctrl: true }) },
   markAllRead:   { label: 'Mark All Read',       description: 'Clear every unread channel/DM badge',    group: 'app',   combo: combo('escape', { shift: true }) },
+  focusComposer:      { label: 'Focus Message Box',  description: 'Jump the cursor into the message box',           group: 'app', combo: combo('/') },
+  toggleEmojiPicker:  { label: 'Toggle Emoji Picker', description: 'Open the emoji picker (channels & DMs)',          group: 'app', combo: combo('e', { ctrl: true }) },
+  toggleGifPicker:    { label: 'Toggle GIF Picker',   description: 'Open the GIF picker (channels & DMs)',            group: 'app', combo: combo('g', { ctrl: true }) },
+  togglePollComposer: { label: 'Create a Poll',       description: 'Open the poll composer (channels only)',          group: 'app', combo: combo('p', { ctrl: true }) },
 };
 
 export function loadShortcuts() {

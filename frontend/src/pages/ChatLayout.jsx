@@ -57,6 +57,9 @@ export default function ChatLayout() {
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [pendingJump, setPendingJump] = useState(null); // { type: 'channel'|'dm', targetId, messageId }
   const toastIdRef = useRef(0);
+  // Whichever of ChatArea/DMArea is currently mounted — they're mutually
+  // exclusive in .main, so one ref safely covers both (see useGlobalShortcuts below).
+  const composerRef = useRef(null);
 
   // Show the changelog once to a returning user whose last-seen version is
   // behind — never to a brand-new sign-up, who has nothing to catch up on.
@@ -344,6 +347,13 @@ export default function ChatLayout() {
     toggleFriends: () => setShowFriends((v) => !v),
     openSettings: () => setShowSettings((v) => !v),
     markAllRead,
+    // Reach into whichever of ChatArea/DMArea is currently mounted — see
+    // composerRef above. DMArea has no togglePollComposer (polls are
+    // channels-only), so that one no-ops via optional chaining in DMs.
+    focusComposer: () => composerRef.current?.focusComposer(),
+    toggleEmojiPicker: () => composerRef.current?.toggleEmojiPicker(),
+    toggleGifPicker: () => composerRef.current?.toggleGifPicker(),
+    togglePollComposer: () => composerRef.current?.togglePollComposer?.(),
   });
 
   // Search result click — switch to the right channel/DM, then hand it a
@@ -420,6 +430,7 @@ export default function ChatLayout() {
       <div className={styles.main}>
         {activeSection === 'server' && activeChannel ? (
           <ChatArea
+            ref={composerRef}
             channel={activeChannel}
             onToggleMembers={() => setShowMembers((v) => !v)}
             showMembers={showMembers}
@@ -431,6 +442,7 @@ export default function ChatLayout() {
           />
         ) : activeSection === 'dm' && activeConversation ? (
           <DMArea
+            ref={composerRef}
             conversation={activeConversation}
             onOpenDM={openDM}
             onBack={backToNav}

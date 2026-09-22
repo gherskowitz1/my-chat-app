@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -38,7 +38,7 @@ function toOptimisticMessage(entry, user) {
   };
 }
 
-export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpToMessageId, onJumpHandled }) {
+const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpToMessageId, onJumpHandled }, ref) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -57,6 +57,17 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
   const fileInputRef = useRef(null);
   const [emojiPickerAnchor, setEmojiPickerAnchor] = useState(null);
   const [gifPickerAnchor, setGifPickerAnchor] = useState(null);
+  const emojiBtnRef = useRef(null);
+  const gifBtnRef = useRef(null);
+
+  // Same idea as ChatArea.jsx's identical handle — lets ChatLayout's global
+  // shortcuts reach this composer without lifting its state up a level. No
+  // togglePollComposer here: polls are channels-only.
+  useImperativeHandle(ref, () => ({
+    focusComposer: () => inputRef.current?.focus(),
+    toggleEmojiPicker: () => setEmojiPickerAnchor((prev) => (prev ? null : emojiBtnRef.current?.getBoundingClientRect())),
+    toggleGifPicker: () => setGifPickerAnchor((prev) => (prev ? null : gifBtnRef.current?.getBoundingClientRect())),
+  }), []);
 
   // Inserts at the cursor rather than always appending, so picking an emoji
   // partway through a sentence you're editing lands where you'd expect.
@@ -601,6 +612,7 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
           </button>
           <input ref={fileInputRef} type="file" multiple hidden onChange={handleFileInputChange} />
           <button
+            ref={emojiBtnRef}
             type="button"
             className={styles.attachBtn}
             onClick={(e) => setEmojiPickerAnchor(e.currentTarget.getBoundingClientRect())}
@@ -618,6 +630,7 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
             />
           )}
           <button
+            ref={gifBtnRef}
             type="button"
             className={styles.attachBtn}
             onClick={(e) => setGifPickerAnchor(e.currentTarget.getBoundingClientRect())}
@@ -641,4 +654,6 @@ export default function DMArea({ conversation, onOpenDM, onBack, ownerId, jumpTo
       </div>
     </div>
   );
-}
+});
+
+export default DMArea;
