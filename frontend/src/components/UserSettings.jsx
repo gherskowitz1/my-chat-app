@@ -20,6 +20,15 @@ const STORAGE_KEY_MIC_MODE = 'crowsnest_mic_mode';
 const STORAGE_KEY_VAD_SENSITIVITY = 'crowsnest_vad_sensitivity';
 const STORAGE_KEY_AI_NOISE_CANCELLATION = 'crowsnest_ai_noise_cancellation';
 
+const TAB_TITLES = {
+  account: 'My Account',
+  status: 'Status',
+  audio: 'Voice & Video',
+  shortcuts: 'Keybinds',
+  appearance: 'Appearance',
+  notifications: 'Notifications',
+};
+
 export default function UserSettings({ onClose }) {
   const { user, updateAvatar } = useAuth();
   const [tab, setTab] = useState('account');
@@ -74,67 +83,79 @@ export default function UserSettings({ onClose }) {
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.panel} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
-          <div className={styles.avatarPickerWrap}>
-            <Avatar
-              url={user?.avatar_url}
-              color={user?.avatar_color}
-              username={user?.username}
-              className={styles.avatarLarge}
-              onClick={pickAvatar}
-              title="Change profile picture"
-            />
-            {uploading && <div className={styles.avatarOverlay}>…</div>}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={onAvatarSelected}
-              style={{ display: 'none' }}
-            />
-          </div>
-          <div>
-            <div className={styles.username}>{user?.username}</div>
-            <div className={styles.role}>{user?.role}</div>
-            <div className={styles.avatarActions}>
-              <button className={styles.avatarLink} onClick={pickAvatar} disabled={uploading}>Change photo</button>
-              {user?.avatar_url && (
-                <button className={styles.avatarLink} onClick={removeAvatar} disabled={uploading}>Remove</button>
-              )}
+        <div className={styles.sidebar}>
+          <div className={styles.sidebarHeader}>
+            <div className={styles.avatarPickerWrap}>
+              <Avatar
+                url={user?.avatar_url}
+                color={user?.avatar_color}
+                username={user?.username}
+                className={styles.avatarSmall}
+                onClick={pickAvatar}
+                title="Change profile picture"
+              />
+              {uploading && <div className={styles.avatarOverlay}>…</div>}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={onAvatarSelected}
+                style={{ display: 'none' }}
+              />
             </div>
-            {avatarError && <div className={styles.avatarError}>{avatarError}</div>}
+            <div className={styles.sidebarIdentity}>
+              <div className={styles.username}>{user?.username}</div>
+              <div className={styles.role}>{user?.role}</div>
+              <div className={styles.avatarActions}>
+                <button className={styles.avatarLink} onClick={pickAvatar} disabled={uploading}>Change</button>
+                {user?.avatar_url && (
+                  <button className={styles.avatarLink} onClick={removeAvatar} disabled={uploading}>Remove</button>
+                )}
+              </div>
+            </div>
           </div>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
+          {avatarError && <div className={styles.avatarError} style={{ padding: '0 16px 10px' }}>{avatarError}</div>}
+
+          <div className={styles.navGroups}>
+            <div className={styles.navGroup}>
+              <div className={styles.navGroupLabel}>User Settings</div>
+              <button className={`${styles.navItem} ${tab === 'account' ? styles.navItemActive : ''}`} onClick={() => setTab('account')}>
+                <span>👤</span><span>My Account</span>
+              </button>
+              <button className={`${styles.navItem} ${tab === 'status' ? styles.navItemActive : ''}`} onClick={() => setTab('status')}>
+                <StatusDotIcon /><span>Status</span>
+              </button>
+            </div>
+            <div className={styles.navDivider} />
+            <div className={styles.navGroup}>
+              <div className={styles.navGroupLabel}>App Settings</div>
+              <button className={`${styles.navItem} ${tab === 'audio' ? styles.navItemActive : ''}`} onClick={() => setTab('audio')}>
+                <MicIcon /><span>Voice &amp; Video</span>
+              </button>
+              <button className={`${styles.navItem} ${tab === 'shortcuts' ? styles.navItemActive : ''}`} onClick={() => setTab('shortcuts')}>
+                <span>⌨️</span><span>Keybinds</span>
+              </button>
+              <button className={`${styles.navItem} ${tab === 'appearance' ? styles.navItemActive : ''}`} onClick={() => setTab('appearance')}>
+                <span>🎨</span><span>Appearance</span>
+              </button>
+              <button className={`${styles.navItem} ${tab === 'notifications' ? styles.navItemActive : ''}`} onClick={() => setTab('notifications')}>
+                <span>🔔</span><span>Notifications</span>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <div className={styles.tabs}>
-          <button className={`${styles.tab} ${tab === 'account' ? styles.activeTab : ''}`} onClick={() => setTab('account')}>
-            👤 Account
-          </button>
-          <button className={`${styles.tab} ${tab === 'audio' ? styles.activeTab : ''}`} onClick={() => setTab('audio')}>
-            <MicIcon /> Audio
-          </button>
-          <button className={`${styles.tab} ${tab === 'shortcuts' ? styles.activeTab : ''}`} onClick={() => setTab('shortcuts')}>
-            ⌨️ Shortcuts
-          </button>
-          <button className={`${styles.tab} ${tab === 'status' ? styles.activeTab : ''}`} onClick={() => setTab('status')}>
-            <StatusDotIcon /> Status
-          </button>
-          <button className={`${styles.tab} ${tab === 'appearance' ? styles.activeTab : ''}`} onClick={() => setTab('appearance')}>
-            🎨 Appearance
-          </button>
-          <button className={`${styles.tab} ${tab === 'notifications' ? styles.activeTab : ''}`} onClick={() => setTab('notifications')}>
-            🔔 Notifications
-          </button>
-        </div>
-
-        <div className={styles.body}>
-          {tab === 'account' ? <AccountTab />
-            : tab === 'audio' ? <AudioTab />
-            : tab === 'shortcuts' ? <ShortcutsTab />
-            : tab === 'status' ? <StatusTab />
-            : tab === 'appearance' ? <AppearanceTab />
-            : <NotificationsTab />}
+        <div className={styles.content}>
+          <button className={styles.closeBtn} onClick={onClose} title="Close">✕</button>
+          <div className={styles.contentInner}>
+            <h2>{TAB_TITLES[tab]}</h2>
+            {tab === 'account' ? <AccountTab />
+              : tab === 'audio' ? <AudioTab />
+              : tab === 'shortcuts' ? <ShortcutsTab />
+              : tab === 'status' ? <StatusTab />
+              : tab === 'appearance' ? <AppearanceTab />
+              : <NotificationsTab />}
+          </div>
         </div>
       </div>
       {cropFile && <ImageCropper file={cropFile} onCancel={() => setCropFile(null)} onCrop={onCropSave} />}
