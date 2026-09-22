@@ -28,6 +28,12 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('dashboard');
   const [showGuide, setShowGuide] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const selectTab = (id) => {
+    setTab(id);
+    setMobileNavOpen(false);
+  };
 
   useEffect(() => {
     if (user && user.role !== 'admin') navigate('/');
@@ -37,13 +43,22 @@ export default function AdminDashboard() {
 
   return (
     <div className={styles.shell}>
-      <aside className={styles.sidebar}>
+      {/* Only visible on narrow screens — the sidebar becomes an off-canvas
+          drawer there instead of a permanent column, since a fixed 240px
+          sidebar left almost no room for content on a phone. */}
+      <button className={styles.mobileMenuBtn} onClick={() => setMobileNavOpen(true)} title="Open menu">
+        ☰
+      </button>
+      {mobileNavOpen && <div className={styles.mobileBackdrop} onClick={() => setMobileNavOpen(false)} />}
+
+      <aside className={`${styles.sidebar} ${mobileNavOpen ? styles.sidebarOpen : ''}`}>
         <div className={styles.brand}>
           <img src="/crowsnest.png" width="36" height="36" style={{ borderRadius: 6 }} alt="" />
           <div>
             <div className={styles.brandName}>Crows Nest</div>
             <div className={styles.brandSub}>Admin Panel</div>
           </div>
+          <button className={styles.mobileCloseBtn} onClick={() => setMobileNavOpen(false)} title="Close menu">✕</button>
         </div>
 
         <nav className={styles.nav}>
@@ -61,12 +76,12 @@ export default function AdminDashboard() {
             <button
               key={t.id}
               className={`${styles.navBtn} ${tab === t.id ? styles.active : ''}`}
-              onClick={() => setTab(t.id)}
+              onClick={() => selectTab(t.id)}
             >
               <span>{t.icon}</span> {t.label}
             </button>
           ))}
-          <button className={styles.navBtn} onClick={() => setShowGuide(true)}>
+          <button className={styles.navBtn} onClick={() => { setShowGuide(true); setMobileNavOpen(false); }}>
             <span>📖</span> Admin Guide
           </button>
         </nav>
