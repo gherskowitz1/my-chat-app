@@ -228,6 +228,18 @@ CREATE TABLE IF NOT EXISTS channel_mutes (
   PRIMARY KEY (channel_id, user_id)
 );
 
+-- Cache for generic (non-platform-specific) link previews — a row with a
+-- NULL title means "fetched, nothing useful found" (still cached, so a dead
+-- or unhelpful link doesn't get re-fetched on every message render).
+CREATE TABLE IF NOT EXISTS link_previews (
+  url TEXT PRIMARY KEY,
+  title TEXT,
+  description TEXT,
+  image_url TEXT,
+  site_name TEXT,
+  fetched_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

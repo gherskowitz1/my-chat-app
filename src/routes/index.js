@@ -25,6 +25,7 @@ const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiCont
 const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
 const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
 const { getGifs } = require('../controllers/giphyController');
+const { getLinkPreview } = require('../controllers/linkPreviewController');
 const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
@@ -51,6 +52,7 @@ router.get('/users', authMiddleware, getUsers);
 
 // GIFs
 router.get('/giphy', authMiddleware, getGifs);
+router.get('/link-preview', authMiddleware, getLinkPreview);
 
 // Channels
 router.get('/servers/:serverId/channels', authMiddleware, getChannels);

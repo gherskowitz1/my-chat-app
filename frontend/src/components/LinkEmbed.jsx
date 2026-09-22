@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
 import styles from './LinkEmbed.module.css';
 
 const PlayIcon = () => (
@@ -70,7 +71,42 @@ function VideoEmbed({ embed }) {
   );
 }
 
+// Fetches server-side (avoids CORS, and keeps the target site from ever
+// seeing the requesting user directly) via /link-preview, which itself
+// caches by URL — repeatedly scrolling past the same message doesn't
+// re-fetch. Renders nothing at all if the fetch fails or the page has no
+// useful title, rather than a broken/empty-looking card.
+function GenericCard({ embed }) {
+  const [preview, setPreview] = useState(undefined); // undefined = loading, null = nothing to show
+
+  useEffect(() => {
+    let cancelled = false;
+    setPreview(undefined);
+    api.get(`/link-preview?url=${encodeURIComponent(embed.url)}`)
+      .then((data) => { if (!cancelled) setPreview(data?.title ? data : null); })
+      .catch(() => { if (!cancelled) setPreview(null); });
+    return () => { cancelled = true; };
+  }, [embed.url]);
+
+  if (!preview) return null;
+
+  return (
+    <a className={styles.genericCard} href={embed.url} target="_blank" rel="noopener noreferrer">
+      {preview.image && <img className={styles.genericCardImage} src={preview.image} alt="" loading="lazy" />}
+      <div className={styles.genericCardText}>
+        {preview.siteName && <span className={styles.genericCardSite}>{preview.siteName}</span>}
+        <span className={styles.genericCardTitle}>{preview.title}</span>
+        {preview.description && <span className={styles.genericCardDesc}>{preview.description}</span>}
+      </div>
+    </a>
+  );
+}
+
 export default function LinkEmbed({ embed }) {
+  if (embed.platform === 'generic') {
+    return <GenericCard embed={embed} />;
+  }
+
   if (embed.platform === 'image') {
     return <img className={styles.image} src={embed.url} alt="" loading="lazy" />;
   }

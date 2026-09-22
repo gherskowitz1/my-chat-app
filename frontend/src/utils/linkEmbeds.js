@@ -56,5 +56,22 @@ export function extractEmbeds(text) {
   const imgRe = /https?:\/\/\S+\.(?:png|jpe?g|gif|webp)(?:\?\S*)?/gi;
   while ((m = imgRe.exec(text))) add('image', m[0], { url: m[0] });
 
+  // Any other link gets a generic Open Graph preview card (fetched
+  // server-side by LinkEmbed itself, since the platforms above are the only
+  // ones with an official embeddable widget) — excludes hosts already
+  // handled above and bare image links, and caps how many a single message
+  // can trigger so a link-heavy message doesn't turn into a wall of cards.
+  const GENERIC_EXCLUDE_RE = /(?:youtube\.com|youtu\.be|twitch\.tv|vimeo\.com|open\.spotify\.com|soundcloud\.com)/i;
+  const IMAGE_EXT_RE = /\.(?:png|jpe?g|gif|webp)(?:\?.*)?$/i;
+  const genericUrlRe = /https?:\/\/[^\s<>"')\]]+/g;
+  const MAX_GENERIC_EMBEDS = 3;
+  let genericCount = 0;
+  while (genericCount < MAX_GENERIC_EMBEDS && (m = genericUrlRe.exec(text))) {
+    const url = m[0].replace(/[.,!?;:]+$/, ''); // trailing punctuation a URL regex often over-captures
+    if (GENERIC_EXCLUDE_RE.test(url) || IMAGE_EXT_RE.test(url)) continue;
+    add('generic', url, { url });
+    genericCount++;
+  }
+
   return embeds;
 }
