@@ -12,7 +12,7 @@ import styles from './ChannelSidebar.module.css';
 // until someone actually opens a voice channel.
 const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
 
-export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels }) {
+export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels, mutedChannelIds, onToggleMute }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -128,6 +128,7 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
           </div>
           {textChannels.map((ch) => {
             const unread = unreadChannels?.get(ch.id);
+            const isMuted = mutedChannelIds?.has(ch.id);
             return (
               <div
                 key={ch.id}
@@ -142,6 +143,13 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
                     ? <span className={styles.mentionBadge}>{unread.count > 99 ? '99+' : unread.count}</span>
                     : <span className={styles.unreadDot} />
                 )}
+                <button
+                  className={`${styles.muteBtn} ${isMuted ? styles.muted : ''}`}
+                  onClick={(e) => { e.stopPropagation(); onToggleMute?.(ch.id); }}
+                  title={isMuted ? 'Unmute channel' : 'Mute channel'}
+                >
+                  <BellIcon muted={isMuted} />
+                </button>
                 {user?.role === 'admin' && (
                   <button className={styles.deleteBtn} onClick={(e) => deleteChannel(e, ch.id)} title="Delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -242,6 +250,16 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
     </div>
   );
 }
+
+// A single bell glyph for both states — a struck-through diagonal line is
+// overlaid when muted, rather than hand-drawing a separate bell-slash path.
+const BellIcon = ({ muted }) => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 16v-5a6 6 0 0 0-4.5-5.81V4a1.5 1.5 0 0 0-3 0v1.19A6 6 0 0 0 6 11v5l-2 2h16z" fill="currentColor" stroke="none"/>
+    <path d="M9.5 20a2.5 2.5 0 0 0 5 0" fill="none"/>
+    {muted && <line x1="3" y1="3" x2="21" y2="21" />}
+  </svg>
+);
 
 const LockIcon = () => (
   <svg className={styles.lockIcon} width="12" height="12" viewBox="0 0 24 24" fill="currentColor" title="Private channel">

@@ -217,6 +217,17 @@ CREATE TABLE IF NOT EXISTS poll_votes (
   UNIQUE (option_id, user_id)
 );
 
+-- Per-user channel notification mute — suppresses the unread badge/dot and
+-- desktop notifications for a muted channel's non-mention messages; an
+-- @mention still gets through even while muted (same default Discord uses),
+-- since push/toast notifications are already mention-gated separately.
+CREATE TABLE IF NOT EXISTS channel_mutes (
+  channel_id UUID REFERENCES channels(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (channel_id, user_id)
+);
+
 -- Password reset tokens
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

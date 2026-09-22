@@ -25,6 +25,7 @@ const { getEmoji, createEmoji, deleteEmoji } = require('../controllers/emojiCont
 const { getSounds, createSound, deleteSound } = require('../controllers/soundController');
 const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushController');
 const { getGifs } = require('../controllers/giphyController');
+const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
   getLatestAnnouncement, markAnnouncementSeen,
@@ -58,6 +59,9 @@ router.delete('/channels/:channelId', authMiddleware, adminMiddleware, deleteCha
 router.get('/channels/:channelId/messages', authMiddleware, getMessages);
 router.post('/channels/:channelId/messages', authMiddleware, sendMessageWithAttachments);
 router.post('/channels/:channelId/polls', authMiddleware, createPoll);
+router.get('/channel-mutes', authMiddleware, getMutedChannels);
+router.post('/channels/:channelId/mute', authMiddleware, muteChannel);
+router.delete('/channels/:channelId/mute', authMiddleware, unmuteChannel);
 router.get('/channels/:channelId/messages/around/:messageId', authMiddleware, getMessagesAround);
 router.get('/channels/:channelId/members', authMiddleware, adminMiddleware, getChannelMembers);
 router.patch('/channels/:channelId/access', authMiddleware, adminMiddleware, updateChannelAccess);

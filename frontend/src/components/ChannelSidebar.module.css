@@ -195,6 +195,23 @@
 .channel:hover .deleteBtn { opacity: 1; }
 .deleteBtn:hover { color: var(--red); background: rgba(242,63,66,0.15); }
 
+.muteBtn {
+  opacity: 0;
+  color: var(--text-muted);
+  padding: 2px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Only reveal it on hover when unmuted (keeps the row uncluttered) — but
+   once muted, keep the struck-through bell visible at all times so it's
+   obvious which channels are muted without hovering each one. */
+.channel:hover .muteBtn { opacity: 1; }
+.muteBtn.muted { opacity: 1; }
+.muteBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
 .voiceChannelWrapper {
   display: flex;
   flex-direction: column;

@@ -46,6 +46,7 @@ export default function ChatLayout() {
   const [channelRefreshKey, setChannelRefreshKey] = useState(0);
   const [dmRefreshKey, setDmRefreshKey] = useState(0);
   const [unreadChannels, setUnreadChannels] = useState(new Map()); // channelId -> { count, mentioned }
+  const [mutedChannelIds, setMutedChannelIds] = useState(new Set());
   const [unreadDMs, setUnreadDMs] = useState(new Map()); // conversationId -> count
   const [toasts, setToasts] = useState([]);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -86,6 +87,33 @@ export default function ChatLayout() {
     setAnnouncement(null);
     if (id) api.post('/announcements/seen', { announcementId: id }).catch(() => {});
   };
+
+  useEffect(() => {
+    api.get('/channel-mutes').then((ids) => setMutedChannelIds(new Set(ids))).catch(() => {});
+  }, []);
+
+  // Optimistic toggle — reverted if the request fails, same pattern used
+  // elsewhere in this file for anything that hits the API from a click.
+  const toggleChannelMute = useCallback((channelId) => {
+    setMutedChannelIds((prev) => {
+      const wasMuted = prev.has(channelId);
+      const next = new Set(prev);
+      if (wasMuted) next.delete(channelId); else next.add(channelId);
+
+      const request = wasMuted
+        ? api.delete(`/channels/${channelId}/mute`)
+        : api.post(`/channels/${channelId}/mute`, {});
+      request.catch(() => {
+        setMutedChannelIds((cur) => {
+          const reverted = new Set(cur);
+          if (wasMuted) reverted.add(channelId); else reverted.delete(channelId);
+          return reverted;
+        });
+      });
+
+      return next;
+    });
+  }, []);
 
   const pushToast = useCallback((toast) => {
     const id = ++toastIdRef.current;
@@ -140,6 +168,10 @@ export default function ChatLayout() {
       if (isViewing) return;
 
       const mentioned = mentionsUser(content, user.username);
+      // A muted channel still notifies for an @mention — muting quiets the
+      // ambient noise of a chatty channel, it's not a blanket silence.
+      const isMuted = mutedChannelIds.has(channelId) && !mentioned;
+      if (isMuted) return;
 
       setUnreadChannels((prev) => {
         const next = new Map(prev);
@@ -195,7 +227,7 @@ export default function ChatLayout() {
       socket.off('notify:message', onMessageNotify);
       socket.off('notify:dm', onDmNotify);
     };
-  }, [socket, activeSection, activeChannel, activeConversation, user.username, pushToast]);
+  }, [socket, activeSection, activeChannel, activeConversation, user.username, pushToast, mutedChannelIds]);
 
   // Away status — report idle/active to the server after 30 minutes with no
   // mouse/keyboard activity anywhere in the app.
@@ -361,6 +393,8 @@ export default function ChatLayout() {
             activeChannel={activeChannel}
             onChannelSelect={selectChannel}
             unreadChannels={unreadChannels}
+            mutedChannelIds={mutedChannelIds}
+            onToggleMute={toggleChannelMute}
           />
         ) : (
           <DMSidebar
