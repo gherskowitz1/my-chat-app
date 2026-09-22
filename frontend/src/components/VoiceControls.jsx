@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { Track, TrackEvent } from 'livekit-client';
-import { useKeyboardShortcuts, loadShortcuts, formatKey } from '../hooks/useKeyboardShortcuts';
+import { useKeyboardShortcuts, loadShortcuts, formatCombo } from '../hooks/useKeyboardShortcuts';
 import { getAudioPreferences } from './UserSettings';
 import Soundboard from './Soundboard';
 import VoiceEffects from './VoiceEffects';
@@ -291,21 +291,21 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             className={`${styles.ctrl} ${muted ? styles.off : styles.on}`}
             onClick={toggleMute}
             disabled={forceMuted}
-            title={forceMuted ? 'Muted (AFK channel)' : `${muted ? 'Unmute' : 'Mute'} (${formatKey(shortcuts.toggleMute.key)})`}
+            title={forceMuted ? 'Muted (AFK channel)' : `${muted ? 'Unmute' : 'Mute'} (${formatCombo(shortcuts.toggleMute.combo)})`}
           >
             {muted ? <MicOffIcon /> : <MicIcon />}
             <span>{muted ? 'Unmute' : 'Mute'}</span>
-            <kbd>{formatKey(shortcuts.toggleMute.key)}</kbd>
+            <kbd>{formatCombo(shortcuts.toggleMute.combo)}</kbd>
           </button>
 
           <button
             className={`${styles.ctrl} ${deafened ? styles.off : styles.on}`}
             onClick={toggleDeafen}
-            title={`${deafened ? 'Undeafen' : 'Deafen'} (${formatKey(shortcuts.toggleDeafen.key)})`}
+            title={`${deafened ? 'Undeafen' : 'Deafen'} (${formatCombo(shortcuts.toggleDeafen.combo)})`}
           >
             {deafened ? <DeafenedIcon /> : <HeadphonesIcon />}
             <span>{deafened ? 'Undeafen' : 'Deafen'}</span>
-            <kbd>{formatKey(shortcuts.toggleDeafen.key)}</kbd>
+            <kbd>{formatCombo(shortcuts.toggleDeafen.combo)}</kbd>
           </button>
 
           {micMode === 'vad' ? (
@@ -320,11 +320,11 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             <button
               className={`${styles.ctrl} ${styles.ptt}`}
               disabled={forceMuted}
-              title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatKey(shortcuts.pushToTalk.key)}`}
+              title={forceMuted ? 'Muted (AFK channel)' : `Push to Talk — hold ${formatCombo(shortcuts.pushToTalk.combo)}`}
             >
               <PttIcon />
               <span>Push to Talk</span>
-              <kbd>{formatKey(shortcuts.pushToTalk.key)}</kbd>
+              <kbd>{formatCombo(shortcuts.pushToTalk.combo)}</kbd>
             </button>
           )}
 
@@ -344,11 +344,11 @@ export default function VoiceControls({ onLeave, forceMuted }) {
         <button
           className={styles.leave}
           onClick={handleLeave}
-          title={`Leave (${formatKey(shortcuts.leaveVoice.key)})`}
+          title={`Leave (${formatCombo(shortcuts.leaveVoice.combo)})`}
         >
           <LeaveIcon />
           <span>Leave</span>
-          <kbd>{formatKey(shortcuts.leaveVoice.key)}</kbd>
+          <kbd>{formatCombo(shortcuts.leaveVoice.combo)}</kbd>
         </button>
       </div>
     </>

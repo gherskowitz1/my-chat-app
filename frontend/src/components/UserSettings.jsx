@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import { useTheme } from '../context/ThemeContext';
 import { api } from '../services/api';
-import { loadShortcuts, saveShortcuts, formatKey, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
+import { loadShortcuts, saveShortcuts, formatCombo, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import { playTestChime } from '../utils/testChime';
 import Avatar from './Avatar';
@@ -561,6 +561,12 @@ function AudioTab() {
 }
 
 // ── Shortcuts Tab ────────────────────────────────────────────
+const MODIFIER_KEYS = new Set(['control', 'shift', 'alt', 'meta']);
+const SHORTCUT_GROUPS = [
+  { id: 'voice', title: '🎙️ Voice Channel', hint: 'Only active while connected to a voice channel.' },
+  { id: 'app', title: '⌨️ App', hint: 'Active anywhere in the app (not while typing in a message box).' },
+];
+
 function ShortcutsTab() {
   const [shortcuts, setShortcuts] = useState(loadShortcuts());
   const [binding, setBinding] = useState(null); // id currently being rebound
@@ -573,11 +579,13 @@ function ShortcutsTab() {
     e.preventDefault();
     e.stopPropagation();
     const key = e.key.toLowerCase();
-    if (key === 'escape' && binding !== 'leaveVoice') {
+    if (MODIFIER_KEYS.has(key)) return; // wait for a real key, not just the modifier on its own
+    if (key === 'escape' && binding !== 'leaveVoice' && !e.ctrlKey && !e.shiftKey && !e.altKey) {
       setBinding(null);
       return;
     }
-    setShortcuts(prev => ({ ...prev, [binding]: { ...prev[binding], key } }));
+    const newCombo = { key: key === ' ' ? 'space' : key, ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey, alt: e.altKey };
+    setShortcuts(prev => ({ ...prev, [binding]: { ...prev[binding], combo: newCombo } }));
     setBinding(null);
   };
 
@@ -589,41 +597,41 @@ function ShortcutsTab() {
 
   const reset = () => {
     const defaults = Object.fromEntries(
-      Object.entries(DEFAULT_SHORTCUTS).map(([id, s]) => [id, { ...shortcuts[id], key: s.key }])
+      Object.entries(DEFAULT_SHORTCUTS).map(([id, s]) => [id, { ...shortcuts[id], combo: s.combo }])
     );
     setShortcuts(defaults);
   };
 
   return (
     <div onKeyDown={handleKeyDown} tabIndex={-1} style={{ outline: 'none' }}>
-      <section className={styles.section}>
-        <h3>⌨️ Voice Channel Shortcuts</h3>
-        <p className={styles.hint} style={{ marginBottom: 12 }}>
-          Shortcuts only work while in a voice channel and not typing in a message box.
-        </p>
+      {SHORTCUT_GROUPS.map((group) => (
+        <section key={group.id} className={styles.section}>
+          <h3>{group.title} Shortcuts</h3>
+          <p className={styles.hint} style={{ marginBottom: 12 }}>{group.hint}</p>
 
-        <div className={styles.shortcutList}>
-          {Object.entries(shortcuts).map(([id, s]) => (
-            <div key={id} className={styles.shortcutRow}>
-              <div className={styles.shortcutInfo}>
-                <span className={styles.shortcutLabel}>{s.label}</span>
-                <span className={styles.shortcutDesc}>{s.description}</span>
+          <div className={styles.shortcutList}>
+            {Object.entries(shortcuts).filter(([, s]) => s.group === group.id).map(([id, s]) => (
+              <div key={id} className={styles.shortcutRow}>
+                <div className={styles.shortcutInfo}>
+                  <span className={styles.shortcutLabel}>{s.label}</span>
+                  <span className={styles.shortcutDesc}>{s.description}</span>
+                </div>
+                <button
+                  className={`${styles.keyBtn} ${binding === id ? styles.bindingActive : ''}`}
+                  onClick={() => startBinding(id)}
+                  title="Click to rebind"
+                >
+                  {binding === id ? 'Press keys…' : formatCombo(s.combo)}
+                </button>
               </div>
-              <button
-                className={`${styles.keyBtn} ${binding === id ? styles.bindingActive : ''}`}
-                onClick={() => startBinding(id)}
-                title="Click to rebind"
-              >
-                {binding === id ? 'Press a key…' : formatKey(s.key)}
-              </button>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      ))}
 
       {binding && (
         <div className={styles.bindingHint}>
-          Press any key to bind to <strong>{shortcuts[binding]?.label}</strong>. Press Escape to cancel (unless binding Leave Voice).
+          Press a key (optionally holding Ctrl/Shift/Alt) to bind to <strong>{shortcuts[binding]?.label}</strong>. Press Escape alone to cancel (unless binding Leave Voice).
         </div>
       )}
 

@@ -13,6 +13,7 @@ import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
 import { mentionsUser } from '../utils/mentions';
+import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -334,6 +335,16 @@ export default function ChatLayout() {
     setUnreadChannels(new Map());
     setUnreadDMs(new Map());
   }, []);
+
+  // App-wide keyboard shortcuts (rebindable in User Settings > Shortcuts) —
+  // separate from the voice-call ones, which only listen while in a channel.
+  useGlobalShortcuts({
+    toggleMembers: () => setShowMembers((v) => !v),
+    toggleSearch: () => setShowSearch((v) => !v),
+    toggleFriends: () => setShowFriends((v) => !v),
+    openSettings: () => setShowSettings((v) => !v),
+    markAllRead,
+  });
 
   // Search result click — switch to the right channel/DM, then hand it a
   // pending jump target; ChatArea/DMArea resolve it (scrolling directly if
