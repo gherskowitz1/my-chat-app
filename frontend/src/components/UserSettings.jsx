@@ -734,33 +734,75 @@ const THEME_OPTIONS = [
   { value: 'light', label: 'Light', desc: 'A brighter theme for daytime use.', swatch: '#ffffff' },
 ];
 
+// Swatch colors mirror global.css's [data-accent] blocks — 'blurple' has no
+// override block there (it's the original default baked into :root), so its
+// swatch color here is just that same original --accent value hardcoded.
+const ACCENT_OPTIONS = [
+  { value: 'blurple', label: 'Blurple', swatch: '#5865f2' },
+  { value: 'green',   label: 'Green',   swatch: '#23a55a' },
+  { value: 'purple',  label: 'Purple',  swatch: '#9c6ade' },
+  { value: 'red',     label: 'Red',     swatch: '#f23f42' },
+  { value: 'orange',  label: 'Orange',  swatch: '#f0763c' },
+  { value: 'pink',    label: 'Pink',    swatch: '#eb459e' },
+  { value: 'teal',    label: 'Teal',    swatch: '#11a8a0' },
+  { value: 'gold',    label: 'Gold',    swatch: '#e6b325' },
+  { value: 'sky',     label: 'Sky Blue', swatch: '#3ba1e0' },
+];
+
 function AppearanceTab() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, accent, setAccent } = useTheme();
 
   return (
-    <section className={styles.section}>
-      <h3>🎨 Theme</h3>
-      <div className={styles.shortcutList}>
-        {THEME_OPTIONS.map((opt) => (
-          <button
-            key={opt.value}
-            className={styles.shortcutRow}
-            style={{ border: theme === opt.value ? '1px solid var(--accent)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
-            onClick={() => setTheme(opt.value)}
-          >
-            <div className={styles.shortcutInfo}>
-              <span className={styles.shortcutLabel}>
-                <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: opt.swatch, border: '1px solid var(--border-light)', marginRight: 8, verticalAlign: 'middle' }} />
-                {opt.label}
-              </span>
-              <span className={styles.shortcutDesc}>{opt.desc}</span>
-            </div>
-            {theme === opt.value && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
-          </button>
-        ))}
-      </div>
-      <p className={styles.hint} style={{ marginTop: 12 }}>Applies instantly and only to this device. The standalone Admin Portal keeps its own fixed dark look.</p>
-    </section>
+    <>
+      <section className={styles.section}>
+        <h3>🎨 Theme</h3>
+        <div className={styles.shortcutList}>
+          {THEME_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              className={styles.shortcutRow}
+              style={{ border: theme === opt.value ? '1px solid var(--accent)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', width: '100%' }}
+              onClick={() => setTheme(opt.value)}
+            >
+              <div className={styles.shortcutInfo}>
+                <span className={styles.shortcutLabel}>
+                  <span style={{ display: 'inline-block', width: 14, height: 14, borderRadius: '50%', background: opt.swatch, border: '1px solid var(--border-light)', marginRight: 8, verticalAlign: 'middle' }} />
+                  {opt.label}
+                </span>
+                <span className={styles.shortcutDesc}>{opt.desc}</span>
+              </div>
+              {theme === opt.value && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>✓</span>}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h3>🌈 Color Theme</h3>
+        <p className={styles.hint} style={{ marginBottom: 10 }}>Recolors buttons, links, and highlights — works with either theme above.</p>
+        <div className={styles.colorRow}>
+          {ACCENT_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              className={styles.colorSwatch}
+              style={{
+                background: opt.swatch,
+                outline: accent === opt.value ? '2px solid var(--text-primary)' : 'none',
+                outlineOffset: 2,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              onClick={() => setAccent(opt.value)}
+              title={opt.label}
+            >
+              {accent === opt.value && <span style={{ color: 'white', fontWeight: 700, fontSize: 14, textShadow: '0 1px 2px rgba(0,0,0,0.4)' }}>✓</span>}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <p className={styles.hint}>Applies instantly and only to this device. The standalone Admin Portal keeps its own fixed dark look.</p>
+    </>
   );
 }
 

@@ -55,6 +55,19 @@
   --scrollbar-thumb: #c7c9cd;
 }
 
+/* Accent color themes — independent of light/dark (see data-theme above),
+   same relationship Discord's own theme picker uses: pick a base look, then
+   a color on top. "blurple" is the original default, so it has no block
+   here — the bare :root values above already are blurple. */
+:root[data-accent="green"]  { --accent: #23a55a; --accent-hover: #1a7f43; --accent-light: #3bc172; }
+:root[data-accent="purple"] { --accent: #9c6ade; --accent-hover: #8347c9; --accent-light: #b48be0; }
+:root[data-accent="red"]    { --accent: #f23f42; --accent-hover: #d7373a; --accent-light: #f56b6d; }
+:root[data-accent="orange"] { --accent: #f0763c; --accent-hover: #d4622d; --accent-light: #f5945f; }
+:root[data-accent="pink"]   { --accent: #eb459e; --accent-hover: #c93884; --accent-light: #f07dbb; }
+:root[data-accent="teal"]   { --accent: #11a8a0; --accent-hover: #0d857f; --accent-light: #2ec9c0; }
+:root[data-accent="gold"]   { --accent: #e6b325; --accent-hover: #c99a1c; --accent-light: #f0c850; }
+:root[data-accent="sky"]    { --accent: #3ba1e0; --accent-hover: #2f83b8; --accent-light: #6dbef0; }
+
 html, body, #root {
   height: 100%;
   background: var(--bg-primary);
