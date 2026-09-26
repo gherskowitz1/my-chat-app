@@ -48,6 +48,7 @@ function VideoEmbed({ embed }) {
           src={buildEmbedUrl(embed)}
           title={embed.platform}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
         />
       </div>
