@@ -19,7 +19,10 @@ function buildEmbedUrl(embed) {
   const parent = window.location.hostname;
   switch (embed.platform) {
     case 'youtube':
-      return `https://www.youtube.com/embed/${embed.videoId}?autoplay=1`;
+      // origin must match the embedding page's actual origin — YouTube's
+      // IFrame API uses it for a postMessage-based security check, and
+      // leaving it out (or mismatching it) is what surfaces as "Error 153".
+      return `https://www.youtube.com/embed/${embed.videoId}?autoplay=1&origin=${encodeURIComponent(window.location.origin)}`;
     case 'twitch-clip':
       return `https://clips.twitch.tv/embed?clip=${embed.slug}&parent=${parent}&autoplay=true`;
     case 'twitch-vod':
