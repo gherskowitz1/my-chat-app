@@ -11,6 +11,15 @@ const isDev = process.argv.includes('--dev');
 let mainWindow;
 let tray;
 
+// Electron's default user agent includes "Electron/x.y.z", which YouTube's
+// embedded-player validation is well known to reject or degrade — this is
+// what actually caused "Error 153" for every video in the desktop app
+// specifically (the web version's fix, an origin param on the embed URL,
+// was a real but separate issue and didn't touch this). Built from the
+// actual bundled Chromium version rather than hardcoded, so it doesn't go
+// stale as Electron itself gets upgraded.
+const DESKTOP_USER_AGENT = `Mozilla/5.0 (${process.platform === 'darwin' ? 'Macintosh; Intel Mac OS X 10_15_7' : 'Windows NT 10.0; Win64; x64'}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+
 // ── Auto-updater config ──────────────────────────────────────
 autoUpdater.autoDownload = true;          // download silently in background
 autoUpdater.autoInstallOnAppQuit = true;  // install when user quits
@@ -81,6 +90,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      userAgent: DESKTOP_USER_AGENT,
     },
     icon: fs.existsSync(path.join(__dirname, 'assets', 'icon.png'))
       ? path.join(__dirname, 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png')
@@ -164,6 +174,7 @@ function openAdminWindow(url) {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
+      userAgent: DESKTOP_USER_AGENT,
     },
   });
   adminWindow.setMenuBarVisibility(false);
