@@ -75,3 +75,19 @@
 
 .kick { color: var(--text-muted); }
 .kick:hover:not(:disabled) { color: var(--red); background: rgba(242,63,66,0.15); }
+
+.effectSelect {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  border: none;
+  text-align: center;
+  text-align-last: center;
+  font-size: 12px;
+  transition: background 0.1s, color 0.1s;
+}
+
+.effectSelect:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-hover); }
+.effectSelect:disabled { opacity: 0.4; cursor: not-allowed; }

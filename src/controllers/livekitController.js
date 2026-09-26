@@ -104,4 +104,29 @@ async function removeParticipant(req, res) {
   }
 }
 
-module.exports = { getToken, getParticipants, muteParticipant, removeParticipant };
+// POST /livekit/rooms/:roomName/effect/:identity — unlike mute/kick, this
+// isn't a LiveKit server API call: voice effects are pure client-side audio
+// processing (see VoiceEffects.jsx), so there's nothing for the SFU to do.
+// Instead this just relays the request over the target's own socket, and
+// their already-running client applies it to its own mic locally — the
+// LiveKit `identity` a room's participants list gives us for every user IS
+// their app user id (see getToken's AccessToken identity below), so this
+// reaches them directly with no separate id lookup needed.
+async function forceVoiceEffect(req, res) {
+  const { identity } = req.params;
+  const { effectId } = req.body;
+  if (!effectId || typeof effectId !== 'string' || effectId.length > 40) {
+    return res.status(400).json({ error: 'effectId required' });
+  }
+  try {
+    const { emitToUser } = require('../socket');
+    const io = req.app.get('io');
+    emitToUser(io, identity, 'voice:effectForced', { effectId });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to apply effect' });
+  }
+}
+
+module.exports = { getToken, getParticipants, muteParticipant, removeParticipant, forceVoiceEffect };

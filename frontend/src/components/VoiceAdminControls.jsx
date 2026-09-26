@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { VOICE_EFFECTS } from '../utils/voiceEffects';
 import styles from './VoiceAdminControls.module.css';
 
 const BASE = (import.meta.env.VITE_API_URL || '') + '/api';
@@ -44,6 +45,22 @@ export default function VoiceAdminControls({ roomName }) {
     finally { setBusy(b => ({ ...b, [identity]: false })); }
   };
 
+  // Unlike mute/kick, this never touches LiveKit — it's a plain socket
+  // relay (see forceVoiceEffect in livekitController.js) that the target's
+  // own already-running client acts on, applying it exactly as if they'd
+  // picked it themselves in their own Voice Effects menu.
+  const forceEffect = async (identity, effectId) => {
+    setBusy(b => ({ ...b, [identity]: true }));
+    try {
+      await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/effect/${encodeURIComponent(identity)}`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ effectId }),
+      });
+    } catch {}
+    finally { setBusy(b => ({ ...b, [identity]: false })); }
+  };
+
   const kick = async (identity, name) => {
     if (!confirm(`Remove ${name} from the voice channel?`)) return;
     setBusy(b => ({ ...b, [identity]: true }));
@@ -74,6 +91,23 @@ export default function VoiceAdminControls({ roomName }) {
         <div key={p.identity} className={styles.participant}>
           <div className={styles.name} title={p.name}>{p.name || p.identity.slice(0, 8)}</div>
           <div className={styles.actions}>
+            <select
+              className={styles.effectSelect}
+              defaultValue=""
+              onChange={(e) => {
+                const effectId = e.target.value;
+                if (effectId) forceEffect(p.identity, effectId);
+                e.target.value = ''; // one-shot action, not a persistent per-participant setting shown here
+              }}
+              disabled={busy[p.identity]}
+              title="Force a voice effect on this person"
+            >
+              <option value="" disabled>🎭</option>
+              <option value="none">🚫 None</option>
+              {VOICE_EFFECTS.map((e) => (
+                <option key={e.id} value={e.id}>{e.label}</option>
+              ))}
+            </select>
             <button
               className={`${styles.btn} ${p.isMuted ? styles.muted : styles.unmuted}`}
               onClick={() => mute(p.identity, p.isMuted)}

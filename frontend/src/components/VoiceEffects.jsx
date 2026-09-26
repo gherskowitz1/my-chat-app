@@ -3,6 +3,7 @@ import { useLocalParticipant } from '@livekit/components-react';
 import { Track, ParticipantEvent } from 'livekit-client';
 import { VOICE_EFFECTS, VoiceEffectProcessor, buildEffectGraph } from '../utils/voiceEffects';
 import { getAudioPreferences } from './UserSettings';
+import { useSocket } from '../context/SocketContext';
 import voiceStyles from './VoiceControls.module.css';
 import styles from './VoiceEffects.module.css';
 
@@ -13,6 +14,7 @@ const CAN_USE_EFFECTS = typeof window !== 'undefined'
 
 export default function VoiceEffects() {
   const { localParticipant } = useLocalParticipant();
+  const { socket } = useSocket();
   const [open, setOpen] = useState(false);
   const [effectId, setEffectId] = useState(() => localStorage.getItem(STORAGE_KEY) || 'none');
   const [error, setError] = useState('');
@@ -117,7 +119,12 @@ export default function VoiceEffects() {
 
   useEffect(() => () => stopPreview(), []);
 
-  const apply = async (id) => {
+  // persist: false is used for an admin-forced effect (see the
+  // voice:effectForced listener below) — it takes effect immediately just
+  // like picking it yourself, but doesn't get written to localStorage, so it
+  // doesn't silently override what you'd actually chosen the next time you
+  // join a call.
+  const apply = async (id, { persist = true } = {}) => {
     const micTrack = getMicTrack();
     if (!micTrack) {
       setError('Your microphone track is not ready yet — try again in a moment.');
@@ -139,13 +146,29 @@ export default function VoiceEffects() {
         await micTrack.setProcessor(new VoiceEffectProcessor(id));
       }
       setEffectId(id);
-      localStorage.setItem(STORAGE_KEY, id);
+      if (persist) localStorage.setItem(STORAGE_KEY, id);
       setOpen(false);
     } catch (err) {
       console.error('voice effect error', err);
       setError("Could not apply that effect in this browser.");
     }
   };
+
+  // An admin can force an effect onto another participant from
+  // VoiceAdminControls — since effects are pure client-side processing
+  // (nothing for the LiveKit SFU to do), this just applies it locally the
+  // same way clicking it yourself would.
+  useEffect(() => {
+    if (!socket) return;
+    const onForced = ({ effectId: forcedId }) => {
+      if (VOICE_EFFECTS.some((e) => e.id === forcedId) || forcedId === 'none') {
+        apply(forcedId, { persist: false });
+      }
+    };
+    socket.on('voice:effectForced', onForced);
+    return () => socket.off('voice:effectForced', onForced);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socket]);
 
   // Re-apply a previously-chosen effect once the mic track actually exists —
   // covers this component mounting before LiveKit finishes publishing the

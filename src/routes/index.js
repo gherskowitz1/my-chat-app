@@ -7,7 +7,7 @@ const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAroun
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments, hideConversation } = require('../controllers/dmController');
 const { getAttachment } = require('../controllers/attachmentController');
 const { searchMessages } = require('../controllers/searchController');
-const { getToken, getParticipants, muteParticipant, removeParticipant } = require('../controllers/livekitController');
+const { getToken, getParticipants, muteParticipant, removeParticipant, forceVoiceEffect } = require('../controllers/livekitController');
 const {
   updateServer, getServer, renameChannel, setServerOwner,
   getAllUsers, updateUserRole, deleteUser, setUserInvisible,
@@ -134,6 +134,7 @@ router.get('/livekit/token/:roomName', authMiddleware, getToken);
 router.get('/livekit/rooms/:roomName/participants', authMiddleware, getParticipants);
 router.post('/livekit/rooms/:roomName/mute/:identity', authMiddleware, adminMiddleware, muteParticipant);
 router.delete('/livekit/rooms/:roomName/participants/:identity', authMiddleware, adminMiddleware, removeParticipant);
+router.post('/livekit/rooms/:roomName/effect/:identity', authMiddleware, adminMiddleware, forceVoiceEffect);
 
 // Invites
 router.post('/invite', authMiddleware, sendInvite);
