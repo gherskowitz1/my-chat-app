@@ -100,3 +100,50 @@
 .emptyIcon {
   opacity: 0.4;
 }
+
+/* DM view while still in a voice call — the DM list on top, the call's
+   controls (moved here from the channel sidebar, see VoiceChannel.jsx)
+   docked underneath. */
+.dmNav {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+}
+
+.dmNav > :first-child {
+  flex: 1;
+  min-height: 0;
+}
+
+.voiceDock {
+  flex-shrink: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  padding: 6px 0;
+  width: 240px;
+}
+
+.voiceDockLabel {
+  padding: 2px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Holds the LiveKit room's non-visual parts (audio, chimes) plus the
+   fixed-position screen share window — takes no space in the layout. */
+.voiceRoot {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: visible;
+}
+
+@media (max-width: 768px) {
+  .dmNav { flex: 1; min-width: 0; }
+  .voiceDock { width: auto; }
+}

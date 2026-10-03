@@ -1,9 +1,8 @@
-import React, { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import VoiceParticipants from './VoiceParticipants';
-const VoiceChannel = lazy(() => import('./VoiceChannel'));
 import InviteModal from './InviteModal';
 import styles from './ChannelSidebar.module.css';
 
@@ -12,7 +11,7 @@ import styles from './ChannelSidebar.module.css';
 // until someone actually opens a voice channel.
 const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
 
-export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels, mutedChannelIds, onToggleMute }) {
+export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels, mutedChannelIds, onToggleMute, activeVoiceChannel, onVoiceChannelChange, onVoiceSlot, onAfkChannelChange }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -23,7 +22,6 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
   const [newType, setNewType] = useState('text');
   const [newIsPrivate, setNewIsPrivate] = useState(false);
   const [newMemberIds, setNewMemberIds] = useState([]);
-  const [activeVoiceChannel, setActiveVoiceChannel] = useState(null);
 
   const fetchChannels = useCallback(async () => {
     try {
@@ -106,6 +104,8 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
   const voiceChannels = channels.filter((c) => c.type === 'voice');
   const afkChannel = voiceChannels.find((c) => normalizeChannelName(c.name) === 'takingashit');
 
+  useEffect(() => { onAfkChannelChange?.(afkChannel || null); }, [afkChannel?.id, afkChannel?.name]);
+
   return (
     <div className={styles.sidebar}>
       <div className={styles.header}>
@@ -173,7 +173,7 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
             <div key={ch.id} className={styles.voiceChannelWrapper}>
               <div
                 className={`${styles.channel} ${activeVoiceChannel?.id === ch.id ? styles.activeVoice : ''}`}
-                onClick={() => setActiveVoiceChannel(activeVoiceChannel?.id === ch.id ? null : ch)}
+                onClick={() => onVoiceChannelChange(activeVoiceChannel?.id === ch.id ? null : ch)}
               >
                 <svg className={styles.voiceIcon} width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
@@ -193,16 +193,9 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
               {activeVoiceChannel?.id !== ch.id && (
                 <VoiceParticipants channelId={ch.id} />
               )}
-              {activeVoiceChannel?.id === ch.id && (
-                <Suspense fallback={<div style={{padding:'8px 16px',fontSize:12,color:'var(--text-muted)'}}>Loading…</div>}>
-                  <VoiceChannel
-                    channel={ch}
-                    onLeave={() => setActiveVoiceChannel(null)}
-                    afkChannel={afkChannel}
-                    onSwitchChannel={setActiveVoiceChannel}
-                  />
-                </Suspense>
-              )}
+              {/* The call itself is owned by ChatLayout (so it survives this
+                  sidebar unmounting) — this is just where its controls dock. */}
+              {activeVoiceChannel?.id === ch.id && <div ref={onVoiceSlot} />}
             </div>
           ))}
         </div>

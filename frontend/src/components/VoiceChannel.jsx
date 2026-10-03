@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
 import { DefaultReconnectPolicy } from 'livekit-client';
 import '@livekit/components-styles';
@@ -24,7 +25,16 @@ export const normalizeChannelName = (name) => (name || '').toLowerCase().replace
 // to the join screen.
 const RECONNECT_RETRY_DELAYS = [0, 500, 1000, 1500, 2000, 2500, 3000, 4500];
 
-export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchChannel }) {
+// Mounted by ChatLayout rather than ChannelSidebar, so the call survives
+// switching to DMs, clicking text channels, or the sidebar remounting. The
+// LiveKit room and its invisible parts (audio, chimes, the floating screen
+// share window) live here permanently; the visible controls render into
+// `host`, a detached div that gets physically moved into whichever `slot` is
+// on screen — under the channel in the sidebar, or the dock below the DM
+// list. Moving one DOM node (instead of portaling into a different container)
+// keeps VoiceControls and friends mounted, so mute/deafen/timer state isn't
+// reset every time you change views.
+export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, onSwitchChannel, slot, autoJoin }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [token, setToken] = useState(null);
@@ -34,6 +44,29 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
   const [joined, setJoined] = useState(false);
   const [audioPrefs, setAudioPrefs] = useState(null);
   const lastActivityRef = useRef(Date.now());
+  const unloadingRef = useRef(false);
+  const [host] = useState(() => document.createElement('div'));
+
+  useLayoutEffect(() => {
+    if (slot) slot.appendChild(host);
+    else host.remove();
+  }, [slot, host]);
+
+  useEffect(() => () => host.remove(), [host]);
+
+  // LiveKit disconnects on pagehide/beforeunload, which fires onDisconnected
+  // → leave(). These are registered at mount, before LiveKit adds its own on
+  // connect, so leave() can tell a reload apart from actually leaving and the
+  // saved channel survives for the rejoin.
+  useEffect(() => {
+    const onUnload = () => { unloadingRef.current = true; };
+    window.addEventListener('pagehide', onUnload);
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      window.removeEventListener('pagehide', onUnload);
+      window.removeEventListener('beforeunload', onUnload);
+    };
+  }, []);
 
   const roomOptions = useMemo(() => ({
     reconnectPolicy: new DefaultReconnectPolicy(RECONNECT_RETRY_DELAYS),
@@ -54,6 +87,7 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
       setLivekitUrl(data.url);
       setAudioPrefs(prefs);
       setJoined(true);
+      onJoined?.();
       // Being in a call is itself activity — without this, someone deep in
       // a Steam game with a controller in hand (no mouse/keyboard touched
       // inside the app) gets marked "away" after 30 minutes despite
@@ -69,12 +103,19 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
   };
 
   const leave = () => {
+    if (unloadingRef.current) return;
     setJoined(false);
     setToken(null);
     setAudioPrefs(null);
     socket?.emit('voice:left');
     onLeave();
   };
+
+  // Rejoining after a reload — see ChatLayout's ACTIVE_VOICE_KEY.
+  useEffect(() => {
+    if (autoJoin) join();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // AFK auto-move — after 4h with no mouse/keyboard activity anywhere in the
   // app, move to the AFK channel (which force-mutes on entry, see below).
@@ -99,18 +140,19 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
   }, [joined, afkChannel, channel.id, onSwitchChannel]);
 
   if (error) {
-    return (
+    return createPortal(
       <div className={styles.errorBanner}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
         </svg>
         {error}
-      </div>
+      </div>,
+      host
     );
   }
 
   if (!joined) {
-    return (
+    return createPortal(
       <div className={styles.joinPrompt}>
         <button className={styles.joinBtn} onClick={join} disabled={joining}>
           {joining ? 'Connecting…' : (
@@ -123,7 +165,8 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
             </>
           )}
         </button>
-      </div>
+      </div>,
+      host
     );
   }
 
@@ -135,29 +178,33 @@ export default function VoiceChannel({ channel, onLeave, afkChannel, onSwitchCha
   const isAfkChannel = normalizeChannelName(channel.name) === 'takingashit';
 
   return (
-    <div className={styles.roomWrapper}>
-      <LiveKitRoom
-        token={token}
-        serverUrl={livekitUrl}
-        connect={true}
-        video={false}
-        audio={audioConstraints}
-        options={roomOptions}
-        onDisconnected={leave}
-        style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
-      >
-        <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
-        <VoiceChimes />
-        <VoiceReliability />
-        <ScreenShareWindow />
-        <VolumeMixer />
-        <VoiceParticipantList />
-        <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
-      </LiveKitRoom>
+    <LiveKitRoom
+      token={token}
+      serverUrl={livekitUrl}
+      connect={true}
+      video={false}
+      audio={audioConstraints}
+      options={roomOptions}
+      onDisconnected={leave}
+    >
+      <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
+      <VoiceChimes />
+      <ScreenShareWindow />
+      {createPortal(
+        <div className={styles.roomWrapper}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <VoiceReliability />
+            <VolumeMixer />
+            <VoiceParticipantList />
+            <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
+          </div>
 
-      {user?.role === 'admin' && (
-        <VoiceAdminControls roomName={channel.id} />
+          {user?.role === 'admin' && (
+            <VoiceAdminControls roomName={channel.id} />
+          )}
+        </div>,
+        host
       )}
-    </div>
+    </LiveKitRoom>
   );
 }

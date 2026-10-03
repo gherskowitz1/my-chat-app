@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import ServerSidebar from '../components/ServerSidebar';
 import ChannelSidebar from '../components/ChannelSidebar';
 import ChatArea from '../components/ChatArea';
@@ -19,10 +19,21 @@ import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
 import styles from './ChatLayout.module.css';
+// Lazy so LiveKit's bundle only loads once someone actually opens a voice channel.
+const VoiceChannel = lazy(() => import('../components/VoiceChannel'));
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 const IDLE_THRESHOLD_MS = 30 * 60 * 1000; // 30 minutes
 const WHATS_NEW_KEY = 'crowsnest_whatsnew_seen';
+// The voice channel you're connected to, kept for the life of the window so
+// View > Reload (or any page reload) drops you straight back into the call.
+// sessionStorage, not localStorage, so quitting the app and reopening it
+// later doesn't auto-join you anywhere.
+const ACTIVE_VOICE_KEY = 'crowsnest_active_voice';
+
+function readSavedVoiceChannel() {
+  try { return JSON.parse(sessionStorage.getItem(ACTIVE_VOICE_KEY)); } catch { return null; }
+}
 
 function truncate(text, max = 120) {
   return text.length > max ? `${text.slice(0, max)}…` : text;
@@ -56,6 +67,13 @@ export default function ChatLayout() {
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [pendingJump, setPendingJump] = useState(null); // { type: 'channel'|'dm', targetId, messageId }
+  // Voice lives up here, not in ChannelSidebar, so switching to DMs (which
+  // unmounts the sidebar) doesn't hang up the call. See VoiceChannel.jsx.
+  const [activeVoiceChannel, setActiveVoiceChannel] = useState(readSavedVoiceChannel);
+  const [autoJoinVoiceId, setAutoJoinVoiceId] = useState(() => readSavedVoiceChannel()?.id || null);
+  const [afkChannel, setAfkChannel] = useState(null);
+  const [sidebarVoiceSlot, setSidebarVoiceSlot] = useState(null);
+  const [dmVoiceSlot, setDmVoiceSlot] = useState(null);
   const toastIdRef = useRef(0);
   // Whichever of ChatArea/DMArea is currently mounted — they're mutually
   // exclusive in .main, so one ref safely covers both (see useGlobalShortcuts below).
@@ -262,6 +280,23 @@ export default function ChatLayout() {
     };
   }, [socket]);
 
+  // Picking a different voice channel (or leaving) forgets the saved one —
+  // it's only written back once the new channel is actually joined.
+  const changeVoiceChannel = useCallback((channel) => {
+    try { sessionStorage.removeItem(ACTIVE_VOICE_KEY); } catch {}
+    setAutoJoinVoiceId(null);
+    setActiveVoiceChannel(channel);
+  }, []);
+
+  const leaveVoiceChannel = useCallback(() => changeVoiceChannel(null), [changeVoiceChannel]);
+
+  const handleVoiceJoined = useCallback(() => {
+    if (!activeVoiceChannel) return;
+    try {
+      sessionStorage.setItem(ACTIVE_VOICE_KEY, JSON.stringify({ id: activeVoiceChannel.id, name: activeVoiceChannel.name }));
+    } catch {}
+  }, [activeVoiceChannel]);
+
   const handleServerRenamed = useCallback((updatedServer) => {
     setServerName(updatedServer.name);
     setServerIcon(updatedServer.icon_url);
@@ -416,14 +451,27 @@ export default function ChatLayout() {
             unreadChannels={unreadChannels}
             mutedChannelIds={mutedChannelIds}
             onToggleMute={toggleChannelMute}
+            activeVoiceChannel={activeVoiceChannel}
+            onVoiceChannelChange={changeVoiceChannel}
+            onVoiceSlot={setSidebarVoiceSlot}
+            onAfkChannelChange={setAfkChannel}
           />
         ) : (
-          <DMSidebar
-            key={dmRefreshKey}
-            activeConversation={activeConversation}
-            onConversationSelect={selectConversation}
-            unreadDMs={unreadDMs}
-          />
+          <div className={styles.dmNav}>
+            <DMSidebar
+              key={dmRefreshKey}
+              activeConversation={activeConversation}
+              onConversationSelect={selectConversation}
+              unreadDMs={unreadDMs}
+            />
+            {/* Still in a call while browsing DMs — its controls dock here. */}
+            {activeVoiceChannel && (
+              <div className={styles.voiceDock}>
+                <div className={styles.voiceDockLabel}>Voice — {activeVoiceChannel.name}</div>
+                <div ref={setDmVoiceSlot} />
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -478,6 +526,23 @@ export default function ChatLayout() {
 
       {showSettings && (
         <UserSettings onClose={() => setShowSettings(false)} />
+      )}
+
+      {activeVoiceChannel && (
+        <div className={styles.voiceRoot}>
+          <Suspense fallback={null}>
+            <VoiceChannel
+              key={activeVoiceChannel.id}
+              channel={activeVoiceChannel}
+              slot={sidebarVoiceSlot || dmVoiceSlot}
+              autoJoin={activeVoiceChannel.id === autoJoinVoiceId}
+              onJoined={handleVoiceJoined}
+              onLeave={leaveVoiceChannel}
+              afkChannel={afkChannel}
+              onSwitchChannel={changeVoiceChannel}
+            />
+          </Suspense>
+        </div>
       )}
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
