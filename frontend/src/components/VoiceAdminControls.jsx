@@ -8,125 +8,113 @@ function authHeaders() {
   return { Authorization: `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' };
 }
 
-export default function VoiceAdminControls({ roomName }) {
-  const [participants, setParticipants] = useState([]);
-  const [loading, setLoading] = useState(false);
+// Admin-only voice controls — server mute, kick, and forcing a voice effect
+// on someone. Rendered inline in each VolumeMixer row (one list of people
+// for admins instead of two), so this file exports the data hook and the
+// per-person buttons rather than a panel of its own.
+//
+// Server mute state comes from LiveKit's server API (the client SDK can't
+// see whether *the server* muted someone), polled every 5 seconds.
+export function useVoiceAdmin(roomName, enabled) {
+  const [byIdentity, setByIdentity] = useState({}); // identity -> { isMuted, ... }
   const [busy, setBusy] = useState({}); // identity -> true while action in flight
 
   const fetchParticipants = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/participants`, {
         headers: authHeaders(),
       });
       const data = await res.json();
-      if (Array.isArray(data)) setParticipants(data);
+      if (Array.isArray(data)) setByIdentity(Object.fromEntries(data.map((p) => [p.identity, p])));
     } catch {}
-    finally { setLoading(false); }
   }, [roomName]);
 
-  // Poll every 5 seconds to keep participant list fresh
   useEffect(() => {
+    if (!enabled) return;
     fetchParticipants();
     const id = setInterval(fetchParticipants, 5000);
     return () => clearInterval(id);
-  }, [fetchParticipants]);
+  }, [enabled, fetchParticipants]);
 
-  const mute = async (identity, currentlyMuted) => {
-    setBusy(b => ({ ...b, [identity]: true }));
-    try {
-      await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/mute/${encodeURIComponent(identity)}`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ muted: !currentlyMuted }),
-      });
-      await fetchParticipants();
-    } catch {}
-    finally { setBusy(b => ({ ...b, [identity]: false })); }
+  const withBusy = async (identity, fn) => {
+    setBusy((b) => ({ ...b, [identity]: true }));
+    try { await fn(); } catch {}
+    finally { setBusy((b) => ({ ...b, [identity]: false })); }
   };
+
+  const mute = (identity, currentlyMuted) => withBusy(identity, async () => {
+    await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/mute/${encodeURIComponent(identity)}`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ muted: !currentlyMuted }),
+    });
+    await fetchParticipants();
+  });
 
   // Unlike mute/kick, this never touches LiveKit — it's a plain socket
   // relay (see forceVoiceEffect in livekitController.js) that the target's
   // own already-running client acts on, applying it exactly as if they'd
   // picked it themselves in their own Voice Effects menu.
-  const forceEffect = async (identity, effectId) => {
-    setBusy(b => ({ ...b, [identity]: true }));
-    try {
-      await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/effect/${encodeURIComponent(identity)}`, {
-        method: 'POST',
-        headers: authHeaders(),
-        body: JSON.stringify({ effectId }),
-      });
-    } catch {}
-    finally { setBusy(b => ({ ...b, [identity]: false })); }
-  };
+  const forceEffect = (identity, effectId) => withBusy(identity, async () => {
+    await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/effect/${encodeURIComponent(identity)}`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ effectId }),
+    });
+  });
 
-  const kick = async (identity, name) => {
+  const kick = (identity, name) => {
     if (!confirm(`Remove ${name} from the voice channel?`)) return;
-    setBusy(b => ({ ...b, [identity]: true }));
-    try {
+    withBusy(identity, async () => {
       await fetch(`${BASE}/livekit/rooms/${encodeURIComponent(roomName)}/participants/${encodeURIComponent(identity)}`, {
         method: 'DELETE',
         headers: authHeaders(),
       });
-      setParticipants(p => p.filter(x => x.identity !== identity));
-    } catch {}
-    finally { setBusy(b => ({ ...b, [identity]: false })); }
+    });
   };
 
-  if (participants.length === 0) return null;
+  return { byIdentity, busy, mute, forceEffect, kick };
+}
 
+// The effect picker, server mute, and kick buttons for one person.
+export function AdminActions({ identity, name, admin }) {
+  const isMuted = !!admin.byIdentity[identity]?.isMuted;
+  const busy = !!admin.busy[identity];
   return (
-    <div className={styles.panel}>
-      <div className={styles.header}>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-          <path d="M19 10a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V21H9v2h6v-2h-2v-2.06A9 9 0 0 0 21 10h-2z"/>
-        </svg>
-        <span>In Voice ({participants.length})</span>
-        <button className={styles.refresh} onClick={fetchParticipants} title="Refresh" disabled={loading}>↻</button>
-      </div>
-
-      {participants.map(p => (
-        <div key={p.identity} className={styles.participant}>
-          <div className={styles.name} title={p.name}>{p.name || p.identity.slice(0, 8)}</div>
-          <div className={styles.actions}>
-            <select
-              className={styles.effectSelect}
-              defaultValue=""
-              onChange={(e) => {
-                const effectId = e.target.value;
-                if (effectId) forceEffect(p.identity, effectId);
-                e.target.value = ''; // one-shot action, not a persistent per-participant setting shown here
-              }}
-              disabled={busy[p.identity]}
-              title="Force a voice effect on this person"
-            >
-              <option value="" disabled>🎭</option>
-              <option value="none">🚫 None</option>
-              {VOICE_EFFECTS.map((e) => (
-                <option key={e.id} value={e.id}>{e.label}</option>
-              ))}
-            </select>
-            <button
-              className={`${styles.btn} ${p.isMuted ? styles.muted : styles.unmuted}`}
-              onClick={() => mute(p.identity, p.isMuted)}
-              disabled={busy[p.identity]}
-              title={p.isMuted ? 'Unmute' : 'Mute'}
-            >
-              {p.isMuted ? <MutedIcon /> : <MicIcon />}
-            </button>
-            <button
-              className={`${styles.btn} ${styles.kick}`}
-              onClick={() => kick(p.identity, p.name)}
-              disabled={busy[p.identity]}
-              title="Remove from channel"
-            >
-              <KickIcon />
-            </button>
-          </div>
-        </div>
-      ))}
+    <div className={styles.actions}>
+      <select
+        className={styles.effectSelect}
+        defaultValue=""
+        onChange={(e) => {
+          const effectId = e.target.value;
+          if (effectId) admin.forceEffect(identity, effectId);
+          e.target.value = ''; // one-shot action, not a persistent per-participant setting shown here
+        }}
+        disabled={busy}
+        title="Force a voice effect on this person"
+      >
+        <option value="" disabled>🎭</option>
+        <option value="none">🚫 None</option>
+        {VOICE_EFFECTS.map((e) => (
+          <option key={e.id} value={e.id}>{e.label}</option>
+        ))}
+      </select>
+      <button
+        className={`${styles.btn} ${isMuted ? styles.muted : styles.unmuted}`}
+        onClick={() => admin.mute(identity, isMuted)}
+        disabled={busy}
+        title={isMuted ? 'Server unmute (for everyone)' : 'Server mute (for everyone)'}
+      >
+        {isMuted ? <MutedIcon /> : <MicIcon />}
+      </button>
+      <button
+        className={`${styles.btn} ${styles.kick}`}
+        onClick={() => admin.kick(identity, name)}
+        disabled={busy}
+        title="Remove from channel"
+      >
+        <KickIcon />
+      </button>
     </div>
   );
 }

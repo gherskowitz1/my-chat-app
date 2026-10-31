@@ -1,10 +1,16 @@
 import React, { useState } from 'react';
 import { useRemoteParticipants } from '@livekit/components-react';
+import { useVoiceAdmin, AdminActions } from './VoiceAdminControls';
 import styles from './VolumeMixer.module.css';
 
-export default function VolumeMixer() {
+// One row per person in the call. Everyone gets a personal volume slider;
+// admins also get that person's admin buttons (force effect, server mute,
+// kick) on the same row, so there's a single list instead of a separate
+// admin panel repeating the same names.
+export default function VolumeMixer({ roomName, isAdmin }) {
   const participants = useRemoteParticipants();
   const [volumes, setVolumes] = useState({}); // identity -> 0-100
+  const admin = useVoiceAdmin(roomName, isAdmin);
 
   if (participants.length === 0) return null;
 
@@ -32,39 +38,64 @@ export default function VolumeMixer() {
     <div className={styles.mixer}>
       <div className={styles.header}>
         <SpeakerIcon />
-        <span>Volume Mixer</span>
+        <span>{isAdmin ? 'Voice Controls' : 'Volume Mixer'}</span>
       </div>
       {participants.map(p => {
         const vol = getVolume(p.identity);
         const isMuted = vol === 0;
+        const name = p.name || p.identity.slice(0, 12);
+        const muteButton = (
+          <button
+            className={`${styles.muteBtn} ${isMuted ? styles.isMuted : ''}`}
+            onClick={() => toggleMute(p)}
+            title={isMuted ? 'Unmute' : 'Mute for me'}
+          >
+            {isMuted ? <MutedIcon /> : <SpeakerIcon />}
+          </button>
+        );
+        const slider = (
+          <div className={styles.sliderWrap}>
+            <input
+              type="range"
+              min="0"
+              max="200"
+              value={vol}
+              onChange={e => handleVolume(p, e.target.value)}
+              className={styles.slider}
+              style={{ '--pct': `${(vol / 200) * 100}%` }}
+            />
+            <span className={styles.pct}>{vol}%</span>
+          </div>
+        );
+
+        // Admins: name + admin buttons on top, volume slider underneath —
+        // everything on one line doesn't fit the sidebar's width.
+        if (isAdmin) {
+          return (
+            <div key={p.identity} className={`${styles.row} ${styles.adminRow}`}>
+              <div className={styles.adminTop}>
+                {muteButton}
+                <span className={`${styles.name} ${styles.adminName}`} title={p.name || p.identity}>{name}</span>
+                <AdminActions identity={p.identity} name={name} admin={admin} />
+              </div>
+              {slider}
+            </div>
+          );
+        }
+
         return (
           <div key={p.identity} className={styles.row}>
-            <button
-              className={`${styles.muteBtn} ${isMuted ? styles.isMuted : ''}`}
-              onClick={() => toggleMute(p)}
-              title={isMuted ? 'Unmute' : 'Mute locally'}
-            >
-              {isMuted ? <MutedIcon /> : <SpeakerIcon />}
-            </button>
-            <span className={styles.name} title={p.name || p.identity}>
-              {p.name || p.identity.slice(0, 12)}
-            </span>
-            <div className={styles.sliderWrap}>
-              <input
-                type="range"
-                min="0"
-                max="200"
-                value={vol}
-                onChange={e => handleVolume(p, e.target.value)}
-                className={styles.slider}
-                style={{ '--pct': `${(vol / 200) * 100}%` }}
-              />
-              <span className={styles.pct}>{vol}%</span>
-            </div>
+            {muteButton}
+            <span className={styles.name} title={p.name || p.identity}>{name}</span>
+            {slider}
           </div>
         );
       })}
-      <p className={styles.hint}>Volume changes only affect what you hear.</p>
+      <p className={styles.hint}>
+        {isAdmin
+          ? 'Speaker and slider: only what you hear. 🎭, mic, and kick: affect everyone.'
+          : 'Volume changes only affect what you hear.'}
+      </p>
     </div>
   );
 }

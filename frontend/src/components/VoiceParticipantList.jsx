@@ -3,8 +3,8 @@ import { useParticipants, useSpeakingParticipants } from '@livekit/components-re
 import { Track } from 'livekit-client';
 import styles from './VoiceParticipantList.module.css';
 
-// Shown to everyone in the call (not just admins, unlike VoiceAdminControls'
-// mute/kick panel) — a live roster driven by LiveKit's own real-time audio
+// Shown to everyone in the call (not just admins, unlike the admin buttons
+// in VolumeMixer's rows) — a live roster driven by LiveKit's own real-time audio
 // level detection, not a polled REST snapshot, so the highlight tracks
 // actual speech with no perceptible lag.
 export default function VoiceParticipantList() {

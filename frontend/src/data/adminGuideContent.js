@@ -194,7 +194,7 @@ export const ADMIN_GUIDE = {
     {
       num: '8', title: 'Voice Channel Admin Controls',
       blocks: [
-        { type: 'body', text: 'When you join a voice channel as an admin, an In Voice panel appears below the room showing all connected participants.' },
+        { type: 'body', text: 'When you join a voice channel as an admin, the Voice Controls panel below the room lists everyone else in the call. Each person has a speaker button and volume slider (these only change what you hear) plus the admin buttons — voice effect (🎭), server mute (mic), and remove — which affect everyone.' },
         { type: 'sub', num: '8.1', title: 'Muting and Unmuting Participants' },
         { type: 'bullets', items: [
           'Each participant shows a microphone icon (green = active, red = muted)',
@@ -292,7 +292,7 @@ export const ADMIN_GUIDE = {
           ['Force a password reset', 'Admin Portal > Users > envelope icon'],
           ['Set a user’s password', 'Admin Portal > Users > key icon'],
           ['Remove a user', 'Admin Settings > Users > trash icon'],
-          ['Mute / kick in voice', 'In Voice panel > mic / remove icon'],
+          ['Mute / kick in voice', 'Voice Controls panel > mic / remove icon'],
           ['Search all recent messages', 'Admin Portal > Recent Messages'],
           ['Upload / delete custom emoji', 'Admin Settings or Admin Portal > Custom Emoji'],
           ['Upload / delete a soundboard clip', 'Admin Settings or Admin Portal > Soundboard'],

@@ -5,7 +5,6 @@ import { DefaultReconnectPolicy } from 'livekit-client';
 import '@livekit/components-styles';
 import { api } from '../services/api';
 import { getAudioPreferences } from './UserSettings';
-import VoiceAdminControls from './VoiceAdminControls';
 import VolumeMixer from './VolumeMixer';
 import VoiceControls from './VoiceControls';
 import VoiceChimes from './VoiceChimes';
@@ -194,14 +193,11 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
         <div className={styles.roomWrapper}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             <VoiceReliability />
-            <VolumeMixer />
+            {/* Admins get their admin controls inside the mixer's rows. */}
+            <VolumeMixer roomName={channel.id} isAdmin={user?.role === 'admin'} />
             <VoiceParticipantList />
             <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
           </div>
-
-          {user?.role === 'admin' && (
-            <VoiceAdminControls roomName={channel.id} />
-          )}
         </div>,
         host
       )}
