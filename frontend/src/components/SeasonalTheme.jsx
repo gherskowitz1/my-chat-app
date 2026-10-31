@@ -21,7 +21,7 @@ const MOMENT_DURATION_MS = 8000;
 //   Extras    — edge pieces unique to that holiday
 const THEMES = {
   halloween: {
-    particles: { kind: 'drift', shape: 'bat', colors: ['#0b0710'], count: 3 },
+    particles: { kind: 'drift', shape: 'bat', colors: ['#0b0710'], count: 4 },
     Corner: HalloweenCorner,
     glow: '255, 140, 0',
     moment: { kind: 'moonRider', Rider: WitchSilhouette, flash: true },
@@ -156,7 +156,7 @@ export default function SeasonalTheme({ momentIntervalMs = MOMENT_INTERVAL_MS, h
 function Particles({ kind, shape, count, colors = [] }) {
   const particles = useMemo(() => Array.from({ length: count }, (_, i) => {
     const r1 = seeded(i + 1), r2 = seeded(i + 101), r3 = seeded(i + 211);
-    const size = kind === 'drift' ? 30 + Math.round(r3 * 18) : 14 + Math.round(r3 * 14);
+    const size = kind === 'drift' ? 60 + Math.round(r3 * 30) : 14 + Math.round(r3 * 14);
     return {
       key: i,
       size,
