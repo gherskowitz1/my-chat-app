@@ -12,6 +12,7 @@ import WhatsNewModal from '../components/WhatsNewModal';
 import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
+import HalloweenTheme from '../components/HalloweenTheme';
 import { mentionsUser } from '../utils/mentions';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import { CURRENT_VERSION } from '../data/changelog';
@@ -544,6 +545,8 @@ export default function ChatLayout() {
           </Suspense>
         </div>
       )}
+
+      <HalloweenTheme />
 
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
 

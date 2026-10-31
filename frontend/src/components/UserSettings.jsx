@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { loadShortcuts, saveShortcuts, formatCombo, DEFAULT_SHORTCUTS } from '../hooks/useKeyboardShortcuts';
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import { playTestChime } from '../utils/testChime';
+import { isHalloweenWeek, getHalloweenPrefs, setHalloweenPref, STORAGE_KEY_HALLOWEEN_OFF, STORAGE_KEY_HALLOWEEN_FLASH_OFF } from '../utils/halloween';
 import Avatar from './Avatar';
 import ImageCropper from './ImageCropper';
 import styles from './UserSettings.module.css';
@@ -833,8 +834,40 @@ function AppearanceTab() {
         </div>
       </section>
 
+      {isHalloweenWeek() && <HalloweenSection />}
+
       <p className={styles.hint}>Applies instantly and only to this device. The standalone Admin Portal keeps its own fixed dark look.</p>
     </>
+  );
+}
+
+// Only shown during Halloween week — see utils/halloween.js.
+function HalloweenSection() {
+  const [prefs, setPrefs] = useState(getHalloweenPrefs);
+
+  const toggle = (key, isOff) => {
+    setHalloweenPref(key, isOff);
+    setPrefs(getHalloweenPrefs());
+  };
+
+  return (
+    <section className={styles.section}>
+      <h3>🎃 Halloween Week</h3>
+      <label className={styles.checkboxRow}>
+        <input type="checkbox" checked={prefs.enabled} onChange={(e) => toggle(STORAGE_KEY_HALLOWEEN_OFF, !e.target.checked)} />
+        <span>Spooky theme and decorations</span>
+      </label>
+      <label className={styles.checkboxRow}>
+        <input
+          type="checkbox"
+          checked={prefs.enabled && prefs.flashEnabled}
+          disabled={!prefs.enabled}
+          onChange={(e) => toggle(STORAGE_KEY_HALLOWEEN_FLASH_OFF, !e.target.checked)}
+        />
+        <span>⚡ Lightning flash every 20 minutes</span>
+      </label>
+      <p className={styles.hint} style={{ marginTop: -4 }}>Turns itself off after Nov 1. Turn off the flash if bright flashes bother you.</p>
+    </section>
   );
 }
 

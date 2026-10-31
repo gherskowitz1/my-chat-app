@@ -68,6 +68,35 @@
 :root[data-accent="gold"]   { --accent: #e6b325; --accent-hover: #c99a1c; --accent-light: #f0c850; }
 :root[data-accent="sky"]    { --accent: #3ba1e0; --accent-hover: #2f83b8; --accent-light: #6dbef0; }
 
+/* Halloween week (see utils/halloween.js + HalloweenTheme.jsx) — overrides
+   both the light/dark base and the chosen accent while it's on, then steps
+   aside automatically after Nov 1. Purple-black backgrounds, pumpkin accent. */
+:root[data-seasonal="halloween"] {
+  --bg-primary: #1f1a29;
+  --bg-secondary: #19141f;
+  --bg-tertiary: #110d16;
+  --bg-hover: #2a2236;
+  --bg-active: #3a2a44;
+  --bg-input: #2a2236;
+  --bg-modal: #1f1a29;
+
+  --text-primary: #f6efe4;
+  --text-secondary: #c9b9d6;
+  --text-muted: #8c7d99;
+  --text-link: #ffa040;
+
+  --accent: #ff7518;
+  --accent-hover: #e0610b;
+  --accent-light: #ff9a4d;
+  --green: #7bd34f;
+
+  --border: #3a2d47;
+  --border-light: #4b3a5c;
+
+  --scrollbar-track: #19141f;
+  --scrollbar-thumb: #4b3a5c;
+}
+
 html, body, #root {
   height: 100%;
   background: var(--bg-primary);
