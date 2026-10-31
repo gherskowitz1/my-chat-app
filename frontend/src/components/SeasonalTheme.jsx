@@ -1,75 +1,81 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getActiveHoliday, getSeasonalPrefs, SEASONAL_PREFS_EVENT } from '../utils/seasonal';
+import {
+  ShapeSvg, Spark, Coin,
+  HalloweenCorner, ThanksgivingCorner, HanukkahCorner, ChristmasCorner, NewYearCorner,
+  ValentinesCorner, StPatricksCorner, EasterCorner, July4Corner,
+  GarlandSegment, BuntingFan, Cobweb, Spider, Mummy, Ghost,
+  Moon, WitchSilhouette, SleighSilhouette, Turkey, Bunny, CupidArrow, Rainbow,
+} from './seasonal/art';
 import styles from './SeasonalTheme.module.css';
 
 const MOMENT_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 const MOMENT_DURATION_MS = 8000;
 
 // What each holiday looks like. The palette swap is CSS (global.css, keyed
-// off data-seasonal); everything here is the decorative overlay on top:
-//   particles — ambient stuff that keeps drifting/falling/rising
-//   corner    — a little cluster glowing in the bottom-left corner
+// off data-seasonal); everything here is the decorative overlay on top, all
+// hand-drawn SVG from ./seasonal/art.jsx:
+//   particles — ambient shapes that keep drifting/falling/rising
+//   Corner    — a little scene glowing in the bottom-left corner
 //   moment    — the big thing that happens every 20 minutes
-//   Extras    — one-off pieces unique to that holiday
-// Emoji are limited to ones Windows' emoji font actually draws (no flags,
-// which render as plain letters there, and no very new emoji).
+//   Extras    — edge pieces unique to that holiday
 const THEMES = {
   halloween: {
-    particles: { kind: 'drift', items: ['🦇'], count: 3 },
-    corner: ['🎃', '🎃', '🕯️'],
+    particles: { kind: 'drift', shape: 'bat', colors: ['#0b0710'], count: 3 },
+    Corner: HalloweenCorner,
     glow: '255, 140, 0',
-    moment: { kind: 'fly', items: '🧙‍♀️🧹', flash: true },
+    moment: { kind: 'moonRider', Rider: WitchSilhouette, flash: true },
     Extras: HalloweenExtras,
   },
   thanksgiving: {
-    particles: { kind: 'fall', items: ['🍂', '🍁', '🍂'], count: 10 },
-    corner: ['🦃', '🥧', '🌽'],
+    particles: { kind: 'fall', shape: 'leaf', colors: ['#d9822b', '#b8401e', '#e6b325', '#9a3412'], count: 10 },
+    Corner: ThanksgivingCorner,
     glow: '230, 140, 50',
-    moment: { kind: 'walk', items: '🦃' },
+    moment: { kind: 'walk', Art: Turkey },
   },
   hanukkah: {
-    particles: { kind: 'rise', items: ['✨', '✡️', '✨'], count: 8 },
-    corner: [],
+    particles: { kind: 'rise', shape: 'starOfDavid', colors: ['#8ab4ff', '#f2c94c'], count: 7 },
+    Corner: HanukkahCorner,
     glow: '242, 201, 76',
-    moment: { kind: 'shower', items: ['💰', '✨', '🍩'] },
-    Extras: HanukkahExtras,
+    moment: { kind: 'shower' },
   },
   christmas: {
-    particles: { kind: 'snow', count: 30 },
-    corner: ['🎄', '🎁', '⛄'],
+    particles: { kind: 'fall', shape: 'snowflake', colors: ['#ffffff'], count: 16 },
+    Corner: ChristmasCorner,
     glow: '255, 80, 80',
-    moment: { kind: 'fly', items: '🎅🛷🦌🦌' }, // reindeer in front — it flies left to right
+    moment: { kind: 'moonRider', Rider: SleighSilhouette },
     Extras: ChristmasExtras,
   },
   newyear: {
     particles: { kind: 'confetti', count: 24, colors: ['#e6b325', '#f0c850', '#c9a3ff', '#ffffff'] },
-    corner: ['🥂', '🍾', '🎉'],
+    Corner: NewYearCorner,
     glow: '230, 179, 37',
-    moment: { kind: 'fireworks', colors: ['#e6b325', '#ff5fa2', '#7fd4ff', '#ffffff'] },
+    moment: { kind: 'fireworks', colors: ['#e6b325', '#ff5fa2', '#7fd4ff', '#c9a3ff'] },
   },
   valentines: {
-    particles: { kind: 'rise', items: ['💖', '💕', '❤️'], count: 10 },
-    corner: ['💐', '💝', '🧸'],
+    particles: { kind: 'rise', shape: 'heart', colors: ['#ff4f8b', '#ff86ad', '#e03872', '#ffc2d6'], count: 10 },
+    Corner: ValentinesCorner,
     glow: '255, 79, 139',
-    moment: { kind: 'fly', items: '🏹💘' },
+    moment: { kind: 'fly', Art: CupidArrow },
   },
   stpatricks: {
-    particles: { kind: 'fall', items: ['🍀', '☘️'], count: 10 },
-    corner: ['🍀', '💰', '🍺'],
+    particles: { kind: 'fall', shape: 'shamrock', colors: ['#2fbf5b', '#5fe08a', '#239a48'], count: 10 },
+    Corner: StPatricksCorner,
     glow: '60, 200, 100',
     moment: { kind: 'rainbow' },
   },
   easter: {
-    particles: { kind: 'fall', items: ['🌸', '🌷', '🌸'], count: 10 },
-    corner: ['🥚', '🐣', '🌷'],
+    particles: { kind: 'fall', shape: 'petal', colors: ['#f7a8d0', '#ffffff', '#ffd1e6'], count: 12 },
+    Corner: EasterCorner,
     glow: '200, 160, 255',
-    moment: { kind: 'hop', items: '🐰' },
+    moment: { kind: 'hop', Art: Bunny },
   },
   july4: {
     particles: { kind: 'confetti', count: 20, colors: ['#e63946', '#ffffff', '#4d7cff'] },
-    corner: ['🗽', '🌭', '🎆'],
+    Corner: July4Corner,
     glow: '230, 57, 70',
-    moment: { kind: 'fireworks', colors: ['#e63946', '#ffffff', '#4d7cff'] },
+    moment: { kind: 'fireworks', colors: ['#e63946', '#f4f6ff', '#4d7cff'] },
+    Extras: July4Extras,
   },
 };
 
@@ -133,17 +139,13 @@ export default function SeasonalTheme({ momentIntervalMs = MOMENT_INTERVAL_MS, h
 
   if (!active) return null;
 
-  const { Extras } = theme;
+  const { Corner, Extras } = theme;
 
   return (
     <div className={styles.layer} aria-hidden="true" style={{ '--glow': theme.glow }}>
       <Particles {...theme.particles} />
-      {Extras && <Extras holiday={holiday} />}
-      {theme.corner.length > 0 && (
-        <div className={styles.corner}>
-          {theme.corner.map((e, i) => <span key={i} className={i === 1 ? styles.cornerSmall : undefined}>{e}</span>)}
-        </div>
-      )}
+      {Extras && <Extras />}
+      <div className={styles.corner}><Corner night={holiday.night} /></div>
       {momentKey > 0 && <Moment key={momentKey} {...theme.moment} />}
     </div>
   );
@@ -151,156 +153,106 @@ export default function SeasonalTheme({ momentIntervalMs = MOMENT_INTERVAL_MS, h
 
 // ── Ambient particles ──────────────────────────────────────
 
-function Particles({ kind, items = [], count, colors = [] }) {
+function Particles({ kind, shape, count, colors = [] }) {
   const particles = useMemo(() => Array.from({ length: count }, (_, i) => {
     const r1 = seeded(i + 1), r2 = seeded(i + 101), r3 = seeded(i + 211);
+    const size = kind === 'drift' ? 30 + Math.round(r3 * 18) : 14 + Math.round(r3 * 14);
     return {
       key: i,
-      content: items.length ? items[i % items.length] : null,
+      size,
+      color: colors[i % colors.length],
       style: {
         '--x': `${Math.round(r1 * 100)}vw`,
         '--y': `${Math.round(5 + r1 * 20)}vh`,
         '--sway': `${Math.round((r2 - 0.5) * 120)}px`,
         '--spin': `${Math.round((r3 - 0.5) * 720)}deg`,
-        '--size': kind === 'snow' ? `${3 + Math.round(r3 * 4)}px` : `${14 + Math.round(r3 * 12)}px`,
-        '--color': colors.length ? colors[i % colors.length] : undefined,
+        '--size': `${size}px`,
+        '--color': colors[i % colors.length],
         animationDuration: `${Math.round((kind === 'drift' ? 28 : 12) + r2 * (kind === 'drift' ? 18 : 14))}s`,
         animationDelay: `-${Math.round(r3 * 30)}s`,
       },
     };
-  }), [kind, items, count, colors]);
+  }), [kind, count, colors]);
 
   return particles.map((p) => (
-    <span key={p.key} className={`${styles.particle} ${styles[kind]}`} style={p.style}>{p.content}</span>
+    <span key={p.key} className={`${styles.particle} ${styles[kind]}`} style={p.style}>
+      {shape && <ShapeSvg shape={shape} color={p.color} size={p.size} />}
+    </span>
   ));
 }
 
 // ── The 20-minute moment ───────────────────────────────────
 
-function Moment({ kind, items, flash, colors }) {
-  if (kind === 'fly') {
+function Moment({ kind, Art, Rider, flash, colors }) {
+  if (kind === 'moonRider') {
     return (
       <>
         {flash && <div className={styles.flash} />}
-        <span className={styles.fly}>{items}</span>
+        <div className={styles.moon}><Moon /></div>
+        <div className={styles.rider}><Rider /></div>
       </>
     );
   }
-  if (kind === 'walk') return <span className={styles.walk}>{items}</span>;
-  if (kind === 'hop') return <span className={styles.hopTrack}><span className={styles.hop}>{items}</span></span>;
-  if (kind === 'rainbow') {
-    return (
-      <div className={styles.rainbowWrap}>
-        <div className={styles.rainbow} />
-        <span className={styles.potOfGold}>💰</span>
-      </div>
-    );
-  }
+  if (kind === 'fly') return <div className={styles.fly}><Art /></div>;
+  if (kind === 'walk') return <div className={styles.walk}><div className={styles.waddle}><Art /></div></div>;
+  if (kind === 'hop') return <div className={styles.hopTrack}><div className={styles.hop}><Art /></div></div>;
+  if (kind === 'rainbow') return <div className={styles.rainbowWrap}><Rainbow /></div>;
   if (kind === 'shower') {
     return Array.from({ length: 18 }, (_, i) => (
-      <span
+      <div
         key={i}
         className={styles.showerItem}
         style={{ left: `${Math.round(seeded(i + 7) * 96)}vw`, animationDelay: `${(seeded(i + 31) * 2.5).toFixed(2)}s` }}
       >
-        {items[i % items.length]}
-      </span>
+        <svg width="26" height="26" viewBox="-12 -12 24 24"><Coin /></svg>
+      </div>
     ));
   }
   if (kind === 'fireworks') {
-    return Array.from({ length: 5 }, (_, b) => (
-      <div
+    return Array.from({ length: 6 }, (_, b) => (
+      <svg
         key={b}
         className={styles.burst}
+        width="200" height="200" viewBox="-40 -40 80 80"
         style={{
-          left: `${Math.round(15 + seeded(b + 3) * 70)}vw`,
-          top: `${Math.round(10 + seeded(b + 13) * 35)}vh`,
-          animationDelay: `${(b * 1.1).toFixed(1)}s`,
+          left: `calc(${Math.round(15 + seeded(b + 3) * 70)}vw - 100px)`,
+          top: `calc(${Math.round(12 + seeded(b + 13) * 35)}vh - 100px)`,
+          animationDelay: `${(b * 0.9).toFixed(1)}s`,
         }}
       >
-        {Array.from({ length: 18 }, (_, i) => (
-          <span key={i} style={{ '--angle': `${i * (360 / 18)}deg`, '--color': colors[(b + i) % colors.length], animationDelay: `${(b * 1.1).toFixed(1)}s` }} />
-        ))}
-      </div>
+        <Spark color={colors[b % colors.length]} />
+      </svg>
     ));
   }
   return null;
 }
 
-// ── Holiday-specific extras ────────────────────────────────
+// ── Holiday-specific edge pieces ───────────────────────────
 
 function HalloweenExtras() {
   return (
     <>
       <Cobweb className={styles.webLeft} />
       <Cobweb className={styles.webRight} />
-      <div className={styles.spiderThread}><span className={styles.spider}>🕷️</span></div>
-      <span className={styles.ghost}>👻</span>
+      <div className={styles.spiderThread}><div className={styles.spider}><Spider /></div></div>
+      <div className={styles.ghost}><Ghost /></div>
       <div className={styles.mummy}><Mummy /></div>
     </>
   );
 }
 
 function ChristmasExtras() {
-  const bulbs = ['#ff4d4d', '#ffd84d', '#4dff88', '#4db8ff', '#ff4dd2'];
   return (
-    <div className={styles.lights}>
-      {Array.from({ length: 28 }, (_, i) => (
-        <span key={i} style={{ '--color': bulbs[i % bulbs.length], animationDelay: `${(i % 5) * 0.4}s` }} />
-      ))}
+    <div className={styles.edgeTop}>
+      {Array.from({ length: 34 }, (_, i) => <GarlandSegment key={i} offset={i} />)}
     </div>
   );
 }
 
-// A menorah lit for tonight's night of Hanukkah (holiday.night: 0-8). The
-// shamash (center, raised) is always lit; candles fill right-to-left.
-function HanukkahExtras({ holiday }) {
-  const lit = holiday?.night ?? 0;
-  const xs = [8, 18, 28, 38, 62, 72, 82, 92]; // left → right, gap for the shamash
+function July4Extras() {
   return (
-    <div className={styles.menorah} title={`Night ${lit} of Hanukkah`}>
-      <svg width="120" height="84" viewBox="0 0 100 70">
-        <g fill="#f2c94c">
-          <rect x="47" y="58" width="6" height="8" />
-          <rect x="35" y="65" width="30" height="4" rx="2" />
-          <rect x="4" y="40" width="92" height="3" rx="1.5" />
-          <path d="M50 58 V 43" stroke="#f2c94c" strokeWidth="3" />
-        </g>
-        {xs.map((x, i) => {
-          const isLit = 8 - i <= lit; // rightmost candle is night 1
-          return (
-            <g key={x}>
-              <rect x={x - 2} y="28" width="4" height="12" fill={isLit ? '#9fc4ff' : '#4a5a80'} />
-              {isLit && <ellipse className={styles.flame} cx={x} cy="24" rx="2.2" ry="4" fill="#ffb84d" />}
-            </g>
-          );
-        })}
-        <rect x="48" y="16" width="4" height="24" fill="#9fc4ff" />
-        <ellipse className={styles.flame} cx="50" cy="12" rx="2.4" ry="4.4" fill="#ffb84d" />
-      </svg>
+    <div className={styles.edgeTop}>
+      {Array.from({ length: 80 }, (_, i) => <BuntingFan key={i} />)}
     </div>
   );
 }
-
-const Cobweb = ({ className }) => (
-  <svg className={className} viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="0.8">
-    <path d="M0 0 L100 100 M0 0 L50 100 M0 0 L100 50 M0 0 L20 100 M0 0 L100 20" />
-    <path d="M0 18 Q9 9 18 0 M0 36 Q18 18 36 0 M0 56 Q28 28 56 0 M0 78 Q39 39 78 0" />
-  </svg>
-);
-
-// No mummy emoji exists, so a small hand-drawn one peeks in from the edge.
-const Mummy = () => (
-  <svg width="64" height="80" viewBox="0 0 64 80">
-    <rect x="8" y="6" width="48" height="74" rx="22" fill="#e8e0c8" />
-    <g stroke="#b9ad8c" strokeWidth="3" strokeLinecap="round">
-      <path d="M8 20 L56 14" />
-      <path d="M8 40 L56 46" />
-      <path d="M8 54 L56 50" />
-      <path d="M8 66 L56 70" />
-    </g>
-    <rect x="12" y="24" width="40" height="12" rx="4" fill="#2a2333" />
-    <circle cx="24" cy="30" r="3.5" fill="#9cff57" />
-    <circle cx="40" cy="30" r="3.5" fill="#9cff57" />
-  </svg>
-);
