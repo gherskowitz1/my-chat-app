@@ -181,7 +181,7 @@ export const USER_GUIDE = {
         { type: 'sub', num: '5.6', title: 'Volume Mixer' },
         { type: 'body', text: 'When other people are in the voice channel with you, a Volume Mixer panel lets you control how loud each person sounds to you personally — a slider (up to 200%) and a mute toggle per person. It only affects your own audio.' },
         { type: 'sub', num: '5.7', title: 'Join/Leave Chimes & the Away Channel' },
-        { type: 'body', text: 'You’ll hear a short chime when someone joins or leaves your current voice channel, and a different one when you get a new direct message. If you’re connected to voice with no keyboard/mouse activity for 4 hours, you’re automatically moved to a muted "taking-a-shit" channel to free up the room — rejoin normally whenever you’re back.' },
+        { type: 'body', text: 'When someone joins or leaves your current voice channel, the app says their name out loud ("Sam joined") — you can switch this to a chime or silence in User Settings > Notifications. You’ll hear a different sound when you get a new direct message. If you’re connected to voice with no keyboard/mouse activity for 4 hours, you’re automatically moved to a muted "taking-a-shit" channel to free up the room — rejoin normally whenever you’re back.' },
         { type: 'sub', num: '5.8', title: 'Voice Effects' },
         { type: 'steps', items: [
           'Click the Voice Effects icon in the control bar',

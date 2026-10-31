@@ -7,6 +7,7 @@ import { loadShortcuts, saveShortcuts, formatCombo, DEFAULT_SHORTCUTS } from '..
 import { getPushSubscriptionStatus, enablePushNotifications, disablePushNotifications } from '../utils/push';
 import { playTestChime } from '../utils/testChime';
 import { getActiveHoliday, getSeasonalPrefs, setSeasonalPref, STORAGE_KEY_SEASONAL_OFF, STORAGE_KEY_SEASONAL_EFFECTS_OFF } from '../utils/seasonal';
+import { getVoiceAnnounceMode, STORAGE_KEY_VOICE_ANNOUNCE, VOICE_ANNOUNCE_OPTIONS } from '../utils/voiceAnnounce';
 import Avatar from './Avatar';
 import ImageCropper from './ImageCropper';
 import styles from './UserSettings.module.css';
@@ -892,6 +893,12 @@ function NotificationsTab() {
     localStorage.setItem(STORAGE_KEY_DM_SOUND_MUTED, String(e.target.checked));
   };
 
+  const [voiceAnnounce, setVoiceAnnounce] = useState(getVoiceAnnounceMode);
+  const changeVoiceAnnounce = (e) => {
+    setVoiceAnnounce(e.target.value);
+    localStorage.setItem(STORAGE_KEY_VOICE_ANNOUNCE, e.target.value);
+  };
+
   useEffect(() => {
     getPushSubscriptionStatus().then(setStatus).catch(() => setStatus('unsupported'));
   }, []);
@@ -947,6 +954,11 @@ function NotificationsTab() {
         <input type="checkbox" checked={dmSoundMuted} onChange={toggleDmSound} />
         Mute the sound when I get a new DM
       </label>
+
+      <p className={styles.hint} style={{ marginTop: 16, marginBottom: 6 }}>When someone joins or leaves your voice channel:</p>
+      <select className={styles.select} value={voiceAnnounce} onChange={changeVoiceAnnounce}>
+        {VOICE_ANNOUNCE_OPTIONS.map((opt) => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+      </select>
     </section>
   );
 }
