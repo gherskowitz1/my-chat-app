@@ -1,0 +1,322 @@
+.layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9000;
+  overflow: hidden;
+}
+
+.layer * { pointer-events: none; }
+
+/* ── Ambient particles ──────────────────────────────────── */
+.particle {
+  position: absolute;
+  left: var(--x);
+  font-size: var(--size);
+  line-height: 1;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.fall, .snow, .confetti { top: -40px; opacity: 0.75; animation-name: fall; }
+@keyframes fall {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  50%  { transform: translate(var(--sway), 55vh) rotate(calc(var(--spin) / 2)); }
+  100% { transform: translate(0, calc(100vh + 60px)) rotate(var(--spin)); }
+}
+
+.snow {
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.8;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+}
+
+.confetti {
+  width: calc(var(--size) / 2.2);
+  height: calc(var(--size) / 1.2);
+  background: var(--color);
+  border-radius: 2px;
+  opacity: 0.85;
+}
+
+.rise { bottom: -40px; opacity: 0; animation-name: rise; }
+@keyframes rise {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.7; }
+  50%  { transform: translate(var(--sway), -55vh); }
+  90%  { opacity: 0.5; }
+  100% { transform: translate(0, calc(-100vh - 60px)); opacity: 0; }
+}
+
+.drift { left: -60px; top: var(--y); opacity: 0.85; animation-name: drift; }
+@keyframes drift {
+  0%   { transform: translate(0, 0); }
+  25%  { transform: translate(28vw, 30px); }
+  50%  { transform: translate(55vw, -10px); }
+  75%  { transform: translate(80vw, 25px); }
+  100% { transform: translate(calc(100vw + 120px), 0); }
+}
+
+/* ── Glowing corner cluster ─────────────────────────────── */
+.corner {
+  position: absolute;
+  left: 6px;
+  bottom: 2px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 26px;
+  opacity: 0.9;
+  animation: glow 3s ease-in-out infinite;
+}
+.cornerSmall { font-size: 18px; }
+@keyframes glow {
+  0%, 100% { filter: drop-shadow(0 0 4px rgba(var(--glow), 0.45)); }
+  50%      { filter: drop-shadow(0 0 10px rgba(var(--glow), 0.85)); }
+}
+
+/* ── 20-minute moments ──────────────────────────────────── */
+.fly {
+  position: absolute;
+  top: 12%;
+  left: -260px;
+  font-size: 44px;
+  white-space: nowrap;
+  animation: fly 7s ease-in forwards;
+}
+@keyframes fly {
+  0%   { transform: translate(0, 0) rotate(-6deg); }
+  50%  { transform: translate(55vw, -40px) rotate(4deg); }
+  100% { transform: translate(calc(100vw + 360px), -90px) rotate(-8deg); }
+}
+
+.walk {
+  position: absolute;
+  bottom: 6px;
+  right: -80px;
+  font-size: 48px;
+  animation: walk 7.5s linear forwards, waddle 0.4s ease-in-out infinite alternate;
+}
+@keyframes walk { to { right: calc(100vw + 80px); } }
+@keyframes waddle { from { rotate: -8deg; } to { rotate: 8deg; } }
+
+.hopTrack {
+  position: absolute;
+  bottom: 6px;
+  left: -80px;
+  animation: hopAcross 7.5s linear forwards;
+}
+@keyframes hopAcross { to { left: calc(100vw + 80px); } }
+.hop {
+  display: inline-block;
+  font-size: 46px;
+  animation: hop 0.75s ease-out infinite;
+}
+@keyframes hop {
+  0%, 100% { transform: translateY(0) scaleY(0.9); }
+  50%      { transform: translateY(-70px) scaleY(1.05); }
+}
+
+.rainbowWrap {
+  position: absolute;
+  left: 50%;
+  bottom: -40vh;
+  width: 90vw;
+  height: 90vw;
+  max-width: 1100px;
+  max-height: 1100px;
+  transform: translateX(-50%);
+  animation: fadeInOut 7.5s ease-in-out forwards;
+}
+.rainbow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    transparent 52%,
+    rgba(148, 0, 211, 0.45) 52%, rgba(75, 0, 130, 0.45) 55%,
+    rgba(0, 0, 255, 0.45) 58%, rgba(0, 200, 0, 0.45) 61%,
+    rgba(255, 255, 0, 0.45) 64%, rgba(255, 127, 0, 0.45) 67%,
+    rgba(255, 0, 0, 0.45) 70%, transparent 70%);
+}
+.potOfGold {
+  position: absolute;
+  left: 12%;
+  top: 46%;
+  font-size: 48px;
+}
+@keyframes fadeInOut {
+  0%, 100% { opacity: 0; }
+  20%, 80% { opacity: 1; }
+}
+
+.showerItem {
+  position: absolute;
+  top: -50px;
+  font-size: 30px;
+  animation: shower 4.5s ease-in forwards;
+  opacity: 0;
+}
+@keyframes shower {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(calc(100vh + 80px)) rotate(540deg); opacity: 1; }
+}
+
+.burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.burst span {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color);
+  box-shadow: 0 0 10px var(--color);
+  opacity: 0;
+  animation: burst 1.6s ease-out forwards;
+}
+@keyframes burst {
+  0%   { transform: rotate(var(--angle)) translateX(0); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: rotate(var(--angle)) translateX(150px) translateY(40px); opacity: 0; }
+}
+
+/* Halloween's lightning — two flickers in under a second. */
+.flash {
+  position: absolute;
+  inset: 0;
+  background: #f4f0ff;
+  opacity: 0;
+  animation: lightning 900ms ease-out forwards;
+}
+@keyframes lightning {
+  0%   { opacity: 0; }
+  8%   { opacity: 0.8; }
+  20%  { opacity: 0.05; }
+  38%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* ── Halloween extras ───────────────────────────────────── */
+.webLeft, .webRight {
+  position: absolute;
+  top: 0;
+  width: 110px;
+  height: 110px;
+  color: rgba(220, 220, 235, 0.22);
+}
+.webLeft { left: 0; }
+.webRight { right: 0; transform: scaleX(-1); }
+
+.spiderThread {
+  position: absolute;
+  top: 0;
+  right: 22%;
+  width: 1px;
+  height: 70px;
+  background: rgba(220, 220, 235, 0.35);
+  animation: spiderDrop 9s ease-in-out infinite;
+}
+.spider {
+  position: absolute;
+  bottom: -14px;
+  left: -10px;
+  font-size: 20px;
+}
+@keyframes spiderDrop {
+  0%, 100% { height: 30px; }
+  50% { height: 140px; }
+}
+
+.ghost {
+  position: absolute;
+  left: 38%;
+  bottom: -60px;
+  font-size: 34px;
+  opacity: 0;
+  animation: ghostRise 45s ease-in-out infinite;
+  animation-delay: 6s;
+}
+@keyframes ghostRise {
+  0%, 70%  { transform: translate(0, 0); opacity: 0; }
+  75%      { opacity: 0.7; }
+  85%      { transform: translate(40px, -45vh); opacity: 0.6; }
+  95%      { transform: translate(-20px, -85vh); opacity: 0; }
+  100%     { transform: translate(-20px, -85vh); opacity: 0; }
+}
+
+.mummy {
+  position: absolute;
+  right: -70px;
+  top: 45%;
+  animation: mummyPeek 60s ease-in-out infinite;
+  animation-delay: 15s;
+}
+@keyframes mummyPeek {
+  0%, 80%, 100% { transform: translateX(0) rotate(0deg); }
+  84%, 92%      { transform: translateX(-52px) rotate(-12deg); }
+  88%           { transform: translateX(-52px) rotate(-6deg); }
+}
+
+/* ── Christmas extras: a string of twinkling lights ─────── */
+.lights {
+  position: absolute;
+  top: -2px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  border-top: 2px solid rgba(40, 80, 40, 0.8);
+}
+.lights span {
+  width: 8px;
+  height: 12px;
+  margin-top: 2px;
+  border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+  background: var(--color);
+  box-shadow: 0 2px 8px var(--color);
+  animation: twinkle 2s ease-in-out infinite;
+}
+.lights span:nth-child(even) { margin-top: 6px; }
+@keyframes twinkle {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+/* ── Hanukkah extras: the menorah ───────────────────────── */
+.menorah {
+  position: absolute;
+  left: 4px;
+  bottom: 0;
+  filter: drop-shadow(0 0 8px rgba(var(--glow), 0.5));
+}
+.flame {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: flicker 0.9s ease-in-out infinite alternate;
+}
+@keyframes flicker {
+  from { transform: scale(1, 1); opacity: 1; }
+  to   { transform: scale(0.85, 1.12); opacity: 0.85; }
+}
+
+@media (max-width: 768px) {
+  .webLeft, .webRight { width: 70px; height: 70px; }
+  .mummy, .ghost { display: none; }
+  .corner { font-size: 20px; }
+  .menorah svg { width: 84px; height: 59px; }
+}
+
+/* Respect the OS "reduce motion" setting — keep the static decorations,
+   drop everything that moves (the 20-minute moment is also skipped in JS). */
+@media (prefers-reduced-motion: reduce) {
+  .particle, .ghost, .mummy, .fly, .walk, .hopTrack, .rainbowWrap,
+  .showerItem, .burst, .flash { display: none; }
+  .spiderThread, .corner, .flame, .lights span { animation: none; }
+}

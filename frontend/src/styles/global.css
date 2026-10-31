@@ -68,7 +68,7 @@
 :root[data-accent="gold"]   { --accent: #e6b325; --accent-hover: #c99a1c; --accent-light: #f0c850; }
 :root[data-accent="sky"]    { --accent: #3ba1e0; --accent-hover: #2f83b8; --accent-light: #6dbef0; }
 
-/* Halloween week (see utils/halloween.js + HalloweenTheme.jsx) — overrides
+/* Halloween week (see utils/seasonal.js + SeasonalTheme.jsx) — overrides
    both the light/dark base and the chosen accent while it's on, then steps
    aside automatically after Nov 1. Purple-black backgrounds, pumpkin accent. */
 :root[data-seasonal="halloween"] {
@@ -95,6 +95,82 @@
 
   --scrollbar-track: #19141f;
   --scrollbar-thumb: #4b3a5c;
+}
+
+/* The rest of the holiday palettes — same idea as Halloween above: each
+   overrides light/dark and the accent while its week is on (dates in
+   utils/seasonal.js). Only the colors that define the look are set; the
+   rest fall through to the base theme. */
+:root[data-seasonal="thanksgiving"] {
+  --bg-primary: #2a211b; --bg-secondary: #231b16; --bg-tertiary: #18120e;
+  --bg-hover: #352a22; --bg-active: #45352a; --bg-input: #352a22; --bg-modal: #2a211b;
+  --text-primary: #f7eee3; --text-secondary: #d6c3ad; --text-muted: #9c8670; --text-link: #f2b25c;
+  --accent: #d9822b; --accent-hover: #b86a1e; --accent-light: #f0a65a;
+  --border: #45352a; --border-light: #5a4636;
+  --scrollbar-track: #231b16; --scrollbar-thumb: #5a4636;
+}
+
+:root[data-seasonal="hanukkah"] {
+  --bg-primary: #18213a; --bg-secondary: #141b30; --bg-tertiary: #0d1222;
+  --bg-hover: #212c4a; --bg-active: #2b3a60; --bg-input: #212c4a; --bg-modal: #18213a;
+  --text-primary: #eef3ff; --text-secondary: #b8c6e6; --text-muted: #7d8cb0; --text-link: #f2c94c;
+  --accent: #4d8dff; --accent-hover: #3670d9; --accent-light: #8ab4ff;
+  --border: #2b3a60; --border-light: #3a4c78;
+  --scrollbar-track: #141b30; --scrollbar-thumb: #3a4c78;
+}
+
+:root[data-seasonal="christmas"] {
+  --bg-primary: #1b2a22; --bg-secondary: #16231c; --bg-tertiary: #0f1813;
+  --bg-hover: #23362b; --bg-active: #2e4638; --bg-input: #23362b; --bg-modal: #1b2a22;
+  --text-primary: #f3f7f2; --text-secondary: #c2d4c6; --text-muted: #85a08c; --text-link: #f2c94c;
+  --accent: #d4373c; --accent-hover: #b02a2f; --accent-light: #f06266; --green: #3fbf6a;
+  --border: #2e4638; --border-light: #3d5a48;
+  --scrollbar-track: #16231c; --scrollbar-thumb: #3d5a48;
+}
+
+:root[data-seasonal="newyear"] {
+  --bg-primary: #1a1a24; --bg-secondary: #15151d; --bg-tertiary: #0e0e14;
+  --bg-hover: #23232f; --bg-active: #2f2f3f; --bg-input: #23232f; --bg-modal: #1a1a24;
+  --text-primary: #f5f3ee; --text-secondary: #c8c4d6; --text-muted: #8a869a; --text-link: #c9a3ff;
+  --accent: #e6b325; --accent-hover: #c99a1c; --accent-light: #f0c850;
+  --border: #2f2f3f; --border-light: #3e3e52;
+  --scrollbar-track: #15151d; --scrollbar-thumb: #3e3e52;
+}
+
+:root[data-seasonal="valentines"] {
+  --bg-primary: #2a1a24; --bg-secondary: #23151e; --bg-tertiary: #170e14;
+  --bg-hover: #36212e; --bg-active: #472b3c; --bg-input: #36212e; --bg-modal: #2a1a24;
+  --text-primary: #fdf0f5; --text-secondary: #e3bfd0; --text-muted: #a98196; --text-link: #ff86ad;
+  --accent: #ff4f8b; --accent-hover: #e03872; --accent-light: #ff86ad;
+  --border: #472b3c; --border-light: #5c384e;
+  --scrollbar-track: #23151e; --scrollbar-thumb: #5c384e;
+}
+
+:root[data-seasonal="stpatricks"] {
+  --bg-primary: #18291f; --bg-secondary: #14221a; --bg-tertiary: #0d1711;
+  --bg-hover: #203628; --bg-active: #2a4634; --bg-input: #203628; --bg-modal: #18291f;
+  --text-primary: #effaf2; --text-secondary: #bcdcc5; --text-muted: #80a68b; --text-link: #f2c94c;
+  --accent: #2fbf5b; --accent-hover: #239a48; --accent-light: #5fe08a; --green: #5fe08a;
+  --border: #2a4634; --border-light: #375a44;
+  --scrollbar-track: #14221a; --scrollbar-thumb: #375a44;
+}
+
+:root[data-seasonal="easter"] {
+  --bg-primary: #26233a; --bg-secondary: #201d31; --bg-tertiary: #161422;
+  --bg-hover: #302c48; --bg-active: #3d3860; --bg-input: #302c48; --bg-modal: #26233a;
+  --text-primary: #f7f4ff; --text-secondary: #cfc8e8; --text-muted: #938cb0; --text-link: #8fd3ff;
+  --accent: #b48cf0; --accent-hover: #9a70dc; --accent-light: #f7a8d0;
+  --border: #3d3860; --border-light: #4d4778;
+  --scrollbar-track: #201d31; --scrollbar-thumb: #4d4778;
+}
+
+:root[data-seasonal="july4"] {
+  --bg-primary: #17203a; --bg-secondary: #131b31; --bg-tertiary: #0c1222;
+  --bg-hover: #1f2a4a; --bg-active: #2a3860; --bg-input: #1f2a4a; --bg-modal: #17203a;
+  --text-primary: #f4f6ff; --text-secondary: #c0c9e6; --text-muted: #8590b0; --text-link: #6fa8ff;
+  --accent: #e63946; --accent-hover: #c42a36; --accent-light: #ff6b75;
+  --border: #2a3860; --border-light: #384a78;
+  --scrollbar-track: #131b31; --scrollbar-thumb: #384a78;
 }
 
 html, body, #root {
