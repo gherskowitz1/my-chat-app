@@ -31,6 +31,7 @@ const { getRecentGames } = require('../controllers/profileController');
 const mfaSettings = require('../controllers/mfaController');
 const { listEvents, createEvent, deleteEvent, rsvpEvent } = require('../controllers/eventController');
 const { getWrapped } = require('../controllers/wrappedController');
+const { createLfg, toggleJoin } = require('../controllers/lfgController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
   getLatestAnnouncement, markAnnouncementSeen,
@@ -77,6 +78,10 @@ router.post('/events/:eventId/rsvp', authMiddleware, rsvpEvent);
 
 // Crows Nest Wrapped — the viewer's yearly recap
 router.get('/wrapped', authMiddleware, getWrapped);
+
+// "Looking for group" (/lfg)
+router.post('/channels/:channelId/lfg', authMiddleware, createLfg);
+router.post('/lfg/:lfgId/join', authMiddleware, toggleJoin);
 
 // GIFs
 router.get('/giphy', authMiddleware, getGifs);

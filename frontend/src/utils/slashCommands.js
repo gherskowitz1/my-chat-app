@@ -49,6 +49,17 @@ export const SLASH_COMMANDS = [
   },
   { name: 'gif', args: '[search]', description: 'Search for a GIF', run: (arg) => ({ action: 'gif', query: arg }) },
   { name: 'poll', args: '', description: 'Create a poll', channelOnly: true, run: () => ({ action: 'poll' }) },
+  {
+    name: 'lfg', args: '[how many] <game>', description: 'Looking for group — ping people who play it', channelOnly: true,
+    run: (arg) => {
+      const m = arg.match(/^(\d+)\s+(.+)$/);
+      const needed = m ? parseInt(m[1], 10) : 1;
+      const game = (m ? m[2] : arg).trim();
+      if (!game) return { error: 'Which game? e.g. /lfg 3 Helldivers 2' };
+      if (needed < 1 || needed > 20) return { error: 'Looking for 1-20 more players.' };
+      return { action: 'lfg', game, needed };
+    },
+  },
   { name: 'wrapped', args: '', description: 'Open your Crows Nest Wrapped yearly recap', run: () => ({ action: 'wrapped' }) },
 ];
 

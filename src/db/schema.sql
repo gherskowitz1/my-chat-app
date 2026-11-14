@@ -491,6 +491,26 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_month SMALLINT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_day SMALLINT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_announced_year SMALLINT;
 
+-- "Looking for group" (/lfg): a message with a party attached, like polls.
+-- needed = how many more players the poster wants; the poster isn't in
+-- lfg_joins. Expires after a couple of hours (see lfgController.js).
+CREATE TABLE IF NOT EXISTS lfg_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID UNIQUE REFERENCES messages(id) ON DELETE CASCADE,
+  game VARCHAR(100) NOT NULL,
+  needed SMALLINT NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS lfg_joins (
+  lfg_id UUID REFERENCES lfg_posts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (lfg_id, user_id)
+);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

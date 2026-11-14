@@ -271,6 +271,26 @@ export default function ChatLayout() {
         || new Date(startsAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
       pushToast({ title: `📅 ${createdBy} scheduled ${title}`, body: when, onClick: () => setShowEvents(true) });
     };
+    // /lfg: someone needs players for a game you play (lfgController.js).
+    const onLfg = ({ lfgId, channelId, channelName, username, game, needed }) => {
+      const heading = `🎮 ${username} needs ${needed} more for ${game}`;
+      const open = () => { setActiveSection('server'); selectChannel({ id: channelId, name: channelName }); };
+      pushToast({
+        title: heading,
+        body: `In #${channelName}`,
+        sticky: true,
+        onClick: open,
+        actions: [
+          { label: '✋ I’m in', onClick: () => { api.post(`/lfg/${lfgId}/join`, {}).catch(() => {}); open(); } },
+          { label: 'Not now', onClick: () => {} },
+        ],
+      });
+      window.electron?.notify?.(heading, `In #${channelName}`);
+    };
+    const onLfgFull = ({ game, names }) => {
+      pushToast({ title: `🎉 Your ${game} party is full!`, body: names });
+      window.electron?.notify?.(`🎉 Your ${game} party is full!`, names);
+    };
     // A week before each date: "are you in?" — answered right from the
     // pop-up, which stays up until answered or dismissed.
     const onCheckin = ({ eventId, title, startsAt, voiceChannelName }) => {
@@ -302,8 +322,12 @@ export default function ChatLayout() {
     socket.on('events:created', onCreated);
     socket.on('notify:event', onReminder);
     socket.on('notify:eventCheckin', onCheckin);
+    socket.on('notify:lfg', onLfg);
+    socket.on('notify:lfgFull', onLfgFull);
     return () => {
       socket.off('notify:eventCheckin', onCheckin);
+      socket.off('notify:lfg', onLfg);
+      socket.off('notify:lfgFull', onLfgFull);
       socket.off('events:changed', loadEvents);
       socket.off('events:created', onCreated);
       socket.off('notify:event', onReminder);

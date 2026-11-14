@@ -69,7 +69,10 @@ async function startApp() {
   const app = express();
   app.use(express.json({ limit: '20mb' }));
   const emitted = [];
-  app.set('io', { emit: (event, payload) => emitted.push({ event, payload }) });
+  app.set('io', {
+    emit: (event, payload) => emitted.push({ event, payload }),
+    to: (room) => ({ emit: (event, payload) => emitted.push({ room, event, payload }) }),
+  });
   app.use('/api', routes);
   const server = await new Promise((resolve) => { const s = app.listen(0, () => resolve(s)); });
   const base = `http://127.0.0.1:${server.address().port}/api`;

@@ -3,6 +3,7 @@ import Avatar from './Avatar';
 import LinkEmbed from './LinkEmbed';
 import EmojiPicker from './EmojiPicker';
 import PollWidget from './PollWidget';
+import LfgCard from './LfgCard';
 import { extractEmbeds } from '../utils/linkEmbeds';
 import { EVERYONE_USER } from '../utils/mentions';
 import { EMOJI_TOKEN_RE, customEmojiName } from '../utils/customEmoji';
@@ -189,7 +190,7 @@ function formatDate(ts) {
 
 export default function Message({
   msg, grouped, canDelete, canEdit, onDelete, onEdit, users = [], onMentionClick,
-  allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage, onRetry, onVote,
+  allMessages = [], isPinned, canPin, onPin, onUnpin, onReply, onReact, onJumpToMessage, onRetry, onVote, onToggleLfg,
 }) {
   const { user } = useAuth();
   const { emojiByName } = useCustomEmoji();
@@ -345,6 +346,9 @@ export default function Message({
                 {renderContent(msg.content, users, user, styles, onMentionClick, emojiByName)}
                 {msg.updated_at && <span className={styles.edited}> (edited)</span>}
               </p>
+            )}
+            {msg.lfg && (
+              <LfgCard lfg={msg.lfg} posterName={msg.username} currentUserId={user.id} onToggle={onToggleLfg} />
             )}
             {msg.poll && (
               <PollWidget poll={msg.poll} currentUserId={user.id} onVote={onVote} />

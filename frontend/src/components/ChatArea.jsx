@@ -276,6 +276,11 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
       if (channelId !== channel.id) return;
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)));
     };
+    // Someone joined/left a /lfg party (LfgCard).
+    const onLfgUpdate = ({ messageId, channelId, lfg }) => {
+      if (channelId !== channel.id) return;
+      setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, lfg } : m)));
+    };
     const onPollResults = ({ messageId, channelId, options }) => {
       if (channelId !== channel.id) return;
       setMessages((prev) => prev.map((m) => {
@@ -306,6 +311,7 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
     socket.on('typing:update', onTyping);
     socket.on('message:reactions', onReactions);
     socket.on('poll:results', onPollResults);
+    socket.on('lfg:update', onLfgUpdate);
     socket.on('message:pinned', onPinned);
     socket.on('message:unpinned', onUnpinned);
     return () => {
@@ -315,6 +321,7 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
       socket.off('typing:update', onTyping);
       socket.off('message:reactions', onReactions);
       socket.off('poll:results', onPollResults);
+      socket.off('lfg:update', onLfgUpdate);
       socket.off('message:pinned', onPinned);
       socket.off('message:unpinned', onUnpinned);
     };
@@ -382,6 +389,12 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
         setInput('');
         clearDraft();
         if (command.action === 'wrapped') window.dispatchEvent(new Event(OPEN_WRAPPED_EVENT));
+        if (command.action === 'lfg') {
+          // The card arrives for everyone (including us) via message:new.
+          api.post(`/channels/${channel.id}/lfg`, { game: command.game, needed: command.needed })
+            .catch((err) => setAttachmentError(err.message));
+          shouldStickToBottomRef.current = true;
+        }
         if (command.action === 'gif') {
           setGifQuery(command.query || '');
           setGifPickerAnchor(gifBtnRef.current?.getBoundingClientRect());
@@ -589,6 +602,11 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
   // The server derives the poll's actual message/channel from optionId
   // itself (see socket/index.js's poll:vote) rather than trusting a
   // claimed channelId, so nothing else needs to go in this payload.
+  const toggleLfg = async (lfgId) => {
+    const res = await api.post(`/lfg/${lfgId}/join`, {});
+    return res.lfg;
+  };
+
   const votePoll = (optionId) => {
     socket?.emit('poll:vote', { optionId });
   };
@@ -717,6 +735,7 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
               onJumpToMessage={scrollToMessage}
               onRetry={retryMessage}
               onVote={votePoll}
+              onToggleLfg={toggleLfg}
             />
           );
         })}

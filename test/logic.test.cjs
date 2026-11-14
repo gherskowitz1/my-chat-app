@@ -80,6 +80,10 @@ test('slash commands', async () => {
   assert.deepEqual(runSlashCommand('/gif cats', { isDM: false }), { action: 'gif', query: 'cats' });
   assert.equal(runSlashCommand('/poll', { isDM: true }), null, 'no polls in DMs');
   assert.equal(runSlashCommand('/r/gaming', { isDM: false }), null, 'not a command — sent as typed');
+  assert.deepEqual(runSlashCommand('/lfg 3 Helldivers 2', { isDM: false }), { action: 'lfg', game: 'Helldivers 2', needed: 3 });
+  assert.deepEqual(runSlashCommand('/lfg Helldivers 2', { isDM: false }), { action: 'lfg', game: 'Helldivers 2', needed: 1 }, 'a trailing number is part of the name');
+  assert.ok(runSlashCommand('/lfg', { isDM: false }).error);
+  assert.equal(runSlashCommand('/lfg 2 Portal', { isDM: true }), null, 'channels only');
 });
 
 test('holiday theme windows', async () => {

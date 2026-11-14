@@ -46,6 +46,22 @@ const POLL_SUBQUERY = `(
   FROM polls p WHERE p.message_id = m.id
 ) AS poll`;
 
+// The party on a /lfg message (NULL otherwise) — see lfgController.js.
+const LFG_SUBQUERY = `(
+  SELECT json_build_object(
+    'id', l.id,
+    'game', l.game,
+    'needed', l.needed,
+    'createdBy', l.created_by,
+    'expiresAt', l.expires_at,
+    'members', (
+      SELECT COALESCE(json_agg(json_build_object('userId', j.user_id, 'username', ju.username) ORDER BY j.joined_at), '[]'::json)
+      FROM lfg_joins j JOIN users ju ON ju.id = j.user_id WHERE j.lfg_id = l.id
+    )
+  )
+  FROM lfg_posts l WHERE l.message_id = m.id
+) AS lfg`;
+
 const MAX_ATTACHMENTS_PER_MESSAGE = 5;
 const MAX_TOTAL_ATTACHMENT_BASE64_LENGTH = 11_000_000; // ~8MB raw, combined, once base64 overhead is accounted for
 const MIN_POLL_OPTIONS = 2;
@@ -160,11 +176,11 @@ async function getMessages(req, res) {
     }
 
     const query = before
-      ? `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
+      ? `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY} FROM messages m
          LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1 AND m.created_at < $2
          ORDER BY m.created_at DESC LIMIT $3`
-      : `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
+      : `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY} FROM messages m
          LEFT JOIN users u ON u.id = m.user_id
          WHERE m.channel_id = $1
          ORDER BY m.created_at DESC LIMIT $2`;
@@ -198,14 +214,14 @@ async function getMessagesAround(req, res) {
     const targetTime = targetRows[0].created_at;
 
     const { rows: before } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY} FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at <= $2
        ORDER BY m.created_at DESC LIMIT 26`,
       [channelId, targetTime]
     );
     const { rows: after } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY} FROM messages m
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY} FROM messages m
        LEFT JOIN users u ON u.id = m.user_id
        WHERE m.channel_id = $1 AND m.created_at > $2
        ORDER BY m.created_at ASC LIMIT 25`,
@@ -287,7 +303,7 @@ async function sendMessageWithAttachments(req, res) {
     }
 
     const { rows: fullRows } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY}
        FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
       [messageId]
     );
@@ -382,7 +398,7 @@ async function createPoll(req, res) {
     await pool.query(`INSERT INTO poll_options (poll_id, label, position) VALUES ${values}`, params);
 
     const { rows: fullRows } = await pool.query(
-      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}
+      `SELECT m.*, COALESCE(u.username, 'Deleted User') AS username, COALESCE(u.avatar_color, '#5c5c5c') AS avatar_color, u.avatar_url, ${REACTIONS_SUBQUERY}, ${ATTACHMENTS_SUBQUERY}, ${POLL_SUBQUERY}, ${LFG_SUBQUERY}
        FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.id = $1`,
       [messageId]
     );
@@ -411,6 +427,7 @@ async function createPoll(req, res) {
 }
 
 module.exports = {
+  LFG_SUBQUERY, REACTIONS_SUBQUERY, ATTACHMENTS_SUBQUERY, POLL_SUBQUERY,
   getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess,
   sendMessageWithAttachments, createPoll,
 };
