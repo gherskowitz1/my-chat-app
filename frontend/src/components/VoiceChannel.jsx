@@ -70,12 +70,17 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
 
   const roomOptions = useMemo(() => ({
     reconnectPolicy: new DefaultReconnectPolicy(RECONNECT_RETRY_DELAYS),
-    // Routes remote audio through a GainNode instead of the audio element's
-    // own (spec-clamped to 1.0) volume — without this, the volume mixer's
-    // slider silently does nothing past 100%.
-    webAudioMix: true,
+    // Remote voices play through the browser's own audio elements by
+    // default — its most robust path, and it keeps playing smoothly when the
+    // computer is busy or the app is in the background. Volume boost
+    // (User Settings > Voice) switches to webAudioMix, which routes everyone
+    // through one Web Audio graph with a GainNode so the mixer can go past
+    // 100% — but that graph is more prone to stutter under load, so it's
+    // opt-in. It's suspected of the choppiness reported since Sept 2026,
+    // when it was on for everyone.
+    webAudioMix: !!audioPrefs?.volumeBoost,
     ...(audioPrefs?.bitrateCap ? { publishDefaults: { audioPreset: { maxBitrate: audioPrefs.bitrateCap } } } : {}),
-  }), [audioPrefs?.bitrateCap]);
+  }), [audioPrefs?.bitrateCap, audioPrefs?.volumeBoost]);
 
   const join = async () => {
     setJoining(true);

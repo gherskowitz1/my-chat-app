@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useRemoteParticipants } from '@livekit/components-react';
 import { useVoiceAdmin, AdminActions } from './VoiceAdminControls';
+import { getAudioPreferences } from './UserSettings';
 import styles from './VolumeMixer.module.css';
 
 // One row per person in the call. Everyone gets a personal volume slider;
@@ -11,6 +12,8 @@ export default function VolumeMixer({ roomName, isAdmin }) {
   const participants = useRemoteParticipants();
   const [volumes, setVolumes] = useState({}); // identity -> 0-100
   const admin = useVoiceAdmin(roomName, isAdmin);
+  // Past 100% only works with Volume boost on (see VoiceChannel's webAudioMix).
+  const [maxVolume] = useState(() => (getAudioPreferences().volumeBoost ? 200 : 100));
 
   if (participants.length === 0) return null;
 
@@ -58,11 +61,11 @@ export default function VolumeMixer({ roomName, isAdmin }) {
             <input
               type="range"
               min="0"
-              max="200"
+              max={maxVolume}
               value={vol}
               onChange={e => handleVolume(p, e.target.value)}
               className={styles.slider}
-              style={{ '--pct': `${(vol / 200) * 100}%` }}
+              style={{ '--pct': `${(Math.min(vol, maxVolume) / maxVolume) * 100}%` }}
             />
             <span className={styles.pct}>{vol}%</span>
           </div>

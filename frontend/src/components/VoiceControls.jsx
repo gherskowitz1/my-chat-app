@@ -125,7 +125,6 @@ export default function VoiceControls({ onLeave, forceMuted }) {
   useEffect(() => {
     if (micMode !== 'vad' || !localParticipant || forceMuted) return;
 
-    let raf;
     let audioContext;
     let cancelled = false;
     let silenceStart = null;
@@ -136,35 +135,68 @@ export default function VoiceControls({ onLeave, forceMuted }) {
 
     const getMicTrack = () => localParticipant.getTrackPublication(Track.Source.Microphone)?.track;
 
+    let fallbackTimer;
+
     const stopAnalysis = () => {
-      if (raf) cancelAnimationFrame(raf);
-      raf = null;
+      clearInterval(fallbackTimer);
+      fallbackTimer = null;
       if (audioContext) {
         audioContext.close().catch(() => {});
         audioContext = null;
       }
     };
 
-    const startAnalysis = (rawTrack) => {
+    // The level check normally runs in an AudioWorklet (public/vad-meter-
+    // worklet.js) so it keeps working while the app is minimized or behind a
+    // game. It used to run on requestAnimationFrame, which hidden windows
+    // pause — freezing people's mics open or shut mid-game.
+    const startAnalysis = async (rawTrack) => {
       stopAnalysis();
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if (!Ctx || cancelled) return;
-      audioContext = new Ctx();
-      const source = audioContext.createMediaStreamSource(new MediaStream([rawTrack]));
-      const analyser = audioContext.createAnalyser();
+      const ctx = new Ctx();
+      audioContext = ctx;
+      const source = ctx.createMediaStreamSource(new MediaStream([rawTrack]));
+
+      if (ctx.audioWorklet) {
+        try {
+          await ctx.audioWorklet.addModule('/vad-meter-worklet.js');
+          if (cancelled || audioContext !== ctx) return;
+          const meter = new AudioWorkletNode(ctx, 'vad-meter');
+          source.connect(meter);
+          // The node has to be pulled by the graph to run; a muted gain keeps
+          // it running without sending the mic to the speakers.
+          const sink = ctx.createGain();
+          sink.gain.value = 0;
+          meter.connect(sink).connect(ctx.destination);
+          meter.port.onmessage = (e) => onLevel(e.data);
+          ctx.resume().catch(() => {});
+          return;
+        } catch (err) {
+          console.warn('VAD worklet unavailable, using the fallback meter', err);
+        }
+      }
+
+      // Fallback for browsers without AudioWorklet: poll an analyser on a
+      // timer (still throttled in the background, but never fully stopped).
+      const analyser = ctx.createAnalyser();
       analyser.fftSize = 512;
       source.connect(analyser);
       const data = new Uint8Array(analyser.fftSize);
-
-      const tick = () => {
-        if (cancelled) return;
+      fallbackTimer = setInterval(() => {
         analyser.getByteTimeDomainData(data);
         let sumSquares = 0;
         for (let i = 0; i < data.length; i++) {
           const centered = (data[i] - 128) / 128;
           sumSquares += centered * centered;
         }
-        const rms = Math.sqrt(sumSquares / data.length);
+        onLevel(Math.sqrt(sumSquares / data.length));
+      }, 30);
+    };
+
+    const onLevel = (rms) => {
+      if (cancelled) return;
+      {
         const isLoudEnough = rms > threshold;
 
         if (!vadHardMutedRef.current && !deafenedRef.current) {
@@ -186,9 +218,7 @@ export default function VoiceControls({ onLeave, forceMuted }) {
             }
           }
         }
-        raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
+      }
     };
 
     const onTrackRestarted = () => {

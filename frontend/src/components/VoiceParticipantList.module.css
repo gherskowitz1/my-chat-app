@@ -46,3 +46,25 @@
   color: var(--text-primary);
   font-weight: 600;
 }
+
+.quality {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 12px;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.bar {
+  width: 3px;
+  border-radius: 1px;
+  background: var(--text-muted);
+  opacity: 0.35;
+}
+
+.barOn { opacity: 1; }
+.qGood .barOn { background: var(--green); }
+.qFair .barOn { background: #f0b232; }
+.qPoor .barOn { background: #f23f43; }

@@ -21,6 +21,10 @@ const STORAGE_KEY_BITRATE = 'chatter_bitrate_cap';
 const STORAGE_KEY_MIC_MODE = 'crowsnest_mic_mode';
 const STORAGE_KEY_VAD_SENSITIVITY = 'crowsnest_vad_sensitivity';
 const STORAGE_KEY_AI_NOISE_CANCELLATION = 'crowsnest_ai_noise_cancellation';
+// Off by default: lets the volume mixer go past 100%, at the cost of playing
+// everyone's voice through one Web Audio graph (LiveKit's webAudioMix) instead
+// of the browser's own, sturdier audio path — see VoiceChannel.jsx.
+const STORAGE_KEY_VOLUME_BOOST = 'crowsnest_volume_boost';
 
 const TAB_TITLES = {
   account: 'My Account',
@@ -710,6 +714,7 @@ function AudioTab() {
   const [noiseSuppression, setNoiseSuppression] = useState(localStorage.getItem(STORAGE_KEY_NOISE_SUPPRESSION) !== 'false');
   const [aiNoiseCancellation, setAiNoiseCancellation] = useState(localStorage.getItem(STORAGE_KEY_AI_NOISE_CANCELLATION) === 'true');
   const [bitrateCap, setBitrateCap] = useState(localStorage.getItem(STORAGE_KEY_BITRATE) || '');
+  const [volumeBoost, setVolumeBoost] = useState(localStorage.getItem(STORAGE_KEY_VOLUME_BOOST) === 'true');
   const [micMode, setMicMode] = useState(localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open');
   const [vadSensitivity, setVadSensitivity] = useState(Number(localStorage.getItem(STORAGE_KEY_VAD_SENSITIVITY)) || 50);
   const [testing, setTesting] = useState(false);
@@ -735,6 +740,7 @@ function AudioTab() {
     localStorage.setItem(STORAGE_KEY_NOISE_SUPPRESSION, String(noiseSuppression));
     localStorage.setItem(STORAGE_KEY_AI_NOISE_CANCELLATION, String(aiNoiseCancellation));
     localStorage.setItem(STORAGE_KEY_BITRATE, bitrateCap);
+    localStorage.setItem(STORAGE_KEY_VOLUME_BOOST, String(volumeBoost));
     localStorage.setItem(STORAGE_KEY_MIC_MODE, micMode);
     localStorage.setItem(STORAGE_KEY_VAD_SENSITIVITY, String(vadSensitivity));
     setSaved(true);
@@ -846,6 +852,14 @@ function AudioTab() {
           <option value="64000">High — 64 kbps (best quality)</option>
         </select>
         <p className={styles.hint}>Limits how much bandwidth your outgoing voice uses. Lower it if you have a weak connection.</p>
+
+        <label className={styles.checkboxRow} style={{ marginTop: 12 }}>
+          <input type="checkbox" checked={volumeBoost} onChange={e => setVolumeBoost(e.target.checked)} />
+          <span>🔊 Volume boost (let the mixer go above 100%)</span>
+        </label>
+        <p className={styles.hint} style={{ marginTop: -4 }}>
+          Only turn this on if someone is too quiet even at 100%. It plays voices through a different audio path that can stutter when your computer is busy (like while gaming). Takes effect next time you join a voice channel.
+        </p>
       </section>
 
       <div className={styles.footer}>
@@ -1254,5 +1268,6 @@ export function getAudioPreferences() {
     bitrateCap: bitrate ? parseInt(bitrate, 10) : undefined,
     micMode: localStorage.getItem(STORAGE_KEY_MIC_MODE) || 'open',
     vadSensitivity: sensitivity ? Number(sensitivity) : 50,
+    volumeBoost: localStorage.getItem(STORAGE_KEY_VOLUME_BOOST) === 'true',
   };
 }
