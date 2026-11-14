@@ -27,6 +27,7 @@ const { getPublicKey, subscribe, unsubscribe } = require('../controllers/pushCon
 const { getGifs } = require('../controllers/giphyController');
 const { getLinkPreview } = require('../controllers/linkPreviewController');
 const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
+const { getRecentGames } = require('../controllers/profileController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
   getLatestAnnouncement, markAnnouncementSeen,
@@ -49,6 +50,7 @@ router.delete('/auth/me', authMiddleware, deleteAccount);
 
 // Users
 router.get('/users', authMiddleware, getUsers);
+router.get('/users/:userId/recent-games', authMiddleware, getRecentGames);
 
 // GIFs
 router.get('/giphy', authMiddleware, getGifs);

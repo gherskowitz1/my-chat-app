@@ -66,3 +66,62 @@
 }
 
 .messageBtn:hover { background: var(--accent-hover); }
+
+/* "Playing now" and "Recently played" (Steam) sections. */
+.sectionLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.playingNow,
+.recentGames {
+  margin-bottom: 12px;
+}
+
+.playingName {
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 600;
+}
+
+.gameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.gameIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+}
+
+.gameInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gameName {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gameHours {
+  font-size: 11px;
+  color: var(--text-muted);
+}

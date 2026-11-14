@@ -35,4 +35,22 @@ async function getPlayerSummaries(steamIds) {
   return data.response?.players || [];
 }
 
-module.exports = { resolveSteamId, getPlayerSummaries };
+// Games played in the last two weeks, most recent first. Comes back empty
+// (not an error) when the person's Steam "Game details" privacy setting
+// isn't public — Steam just omits the list.
+async function getRecentlyPlayedGames(steamId, count = 3) {
+  const url = `https://api.steampowered.com/IPlayerService/GetRecentlyPlayedGames/v1/?key=${process.env.STEAM_API_KEY}&steamid=${encodeURIComponent(steamId)}&count=${count}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Steam recent-games lookup failed');
+  const data = await res.json();
+  return (data.response?.games || []).map((g) => ({
+    appId: g.appid,
+    name: g.name,
+    minutesLastTwoWeeks: g.playtime_2weeks || 0,
+    iconUrl: g.img_icon_url
+      ? `https://media.steampowered.com/steamcommunity/public/images/apps/${g.appid}/${g.img_icon_url}.jpg`
+      : null,
+  }));
+}
+
+module.exports = { resolveSteamId, getPlayerSummaries, getRecentlyPlayedGames };
