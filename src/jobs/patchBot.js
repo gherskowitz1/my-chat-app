@@ -105,4 +105,4 @@ function startPatchBot(io) {
   scheduleNext(io);
 }
 
-module.exports = { startPatchBot };
+module.exports = { startPatchBot, notifyChannel, PATCHBOT_USER_ID };

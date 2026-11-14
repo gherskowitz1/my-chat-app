@@ -411,6 +411,8 @@ function AccountTab() {
         <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in — and they'll need a sign-in code again.</p>
       </section>
 
+      <BirthdaySection />
+
       <AuthenticatorSection />
 
       <TrustedDevicesSection />
@@ -440,6 +442,60 @@ function AccountTab() {
         </form>
       </section>
     </>
+  );
+}
+
+// Birthday — month and day only, shown to everyone on the server. On the
+// day: a 🎂 in the member list, a note on the profile card, and a "happy
+// birthday" post in #general (server: jobs/birthdays.js).
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+function BirthdaySection() {
+  const { user, updateBirthday } = useAuth();
+  const [month, setMonth] = useState(user?.birthday_month || '');
+  const [day, setDay] = useState(user?.birthday_day || '');
+  const [saved, setSaved] = useState('');
+  const [error, setError] = useState('');
+
+  const save = async (m, d) => {
+    setError('');
+    setSaved('');
+    try {
+      await updateBirthday(m, d);
+      setSaved(m ? 'Saved!' : 'Removed.');
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const maxDay = month ? DAYS_IN_MONTH[month - 1] : 31;
+  const months = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString(undefined, { month: 'long' }));
+
+  return (
+    <section className={styles.section}>
+      <h3>🎂 Birthday</h3>
+      <p className={styles.hint} style={{ marginBottom: 10 }}>
+        Optional. On your birthday you’ll get a 🎂 next to your name and a shout-out in #general. Just the month and day — no year, so nobody sees your age.
+      </p>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <select className={styles.select} value={month} onChange={(e) => { setMonth(Number(e.target.value) || ''); setSaved(''); }}>
+          <option value="">Month</option>
+          {months.map((name, i) => <option key={name} value={i + 1}>{name}</option>)}
+        </select>
+        <select className={styles.select} value={day} onChange={(e) => { setDay(Number(e.target.value) || ''); setSaved(''); }}>
+          <option value="">Day</option>
+          {Array.from({ length: maxDay }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
+        </select>
+      </div>
+      <div className={styles.footer}>
+        <button className={styles.saveBtn} disabled={!month || !day || day > maxDay} onClick={() => save(month, day)}>Save birthday</button>
+        {user?.birthday_month && (
+          <button className={styles.secondaryBtn} onClick={() => { setMonth(''); setDay(''); save(null, null); }}>Remove</button>
+        )}
+        {saved && <span className={styles.hint}>{saved}</span>}
+        {error && <div className={styles.avatarError}>{error}</div>}
+      </div>
+    </section>
   );
 }
 

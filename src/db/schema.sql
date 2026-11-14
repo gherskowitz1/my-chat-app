@@ -484,6 +484,13 @@ CREATE TABLE IF NOT EXISTS mfa_backup_codes (
 );
 CREATE INDEX IF NOT EXISTS idx_mfa_backup_codes_user ON mfa_backup_codes (user_id);
 
+-- Birthdays — month and day only (no year, so nobody's age is shown).
+-- jobs/birthdays.js posts a "happy birthday" in #general at 9am in the
+-- person's own time zone; birthday_announced_year stops it repeating.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_month SMALLINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_day SMALLINT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday_announced_year SMALLINT;
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

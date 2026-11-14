@@ -298,6 +298,8 @@ export const USER_GUIDE = {
         { type: 'body', text: 'Click your avatar in User Settings (or in the header) and choose Change Photo to upload a new picture, or Remove to go back to your colored-initial avatar.' },
         { type: 'sub', num: '8.4', title: 'Light / Dark Theme' },
         { type: 'body', text: 'In User Settings > Appearance, switch between light and dark theme any time — it applies immediately and is remembered on that device.' },
+        { type: 'sub', num: '8.4a', title: 'Your Birthday' },
+        { type: 'body', text: 'Add your birthday in User Settings > My Account > Birthday — just the month and day, never the year. On the day you get a 🎂 next to your name in the member list, a note on your profile card, a confetti welcome when you open the app, and PatchBot wishes you a happy birthday in #general at 9am your time. Everyone else gets a heads-up the day before. Feb 29 birthdays are celebrated on Feb 28 in other years.' },
         { type: 'sub', num: '8.5', title: 'Holiday Themes' },
         { type: 'body', text: 'For the week of each holiday the app dresses up on its own — colors, hand-drawn decorations, and a bigger animated moment about every 20 minutes:' },
         { type: 'table', headers: ['Holiday', 'What you’ll see'], rows: [

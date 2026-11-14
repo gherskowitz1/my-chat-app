@@ -141,6 +141,32 @@ async function resendLoginCode(req, res) {
   }
 }
 
+// Birthday (User Settings > My Account) — month and day only. Pass nulls to
+// clear. Feb 29 is allowed (celebrated on the 28th in other years — see
+// jobs/birthdays.js).
+const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+async function updateBirthday(req, res) {
+  const month = req.body.month == null ? null : Number(req.body.month);
+  const day = req.body.day == null ? null : Number(req.body.day);
+  const clearing = month === null && day === null;
+  if (!clearing && (!Number.isInteger(month) || month < 1 || month > 12
+      || !Number.isInteger(day) || day < 1 || day > DAYS_IN_MONTH[month - 1])) {
+    return res.status(400).json({ error: 'Pick a real month and day.' });
+  }
+  try {
+    // A changed birthday may land later this year, so let it be announced again.
+    await pool.query(
+      'UPDATE users SET birthday_month = $1, birthday_day = $2, birthday_announced_year = NULL WHERE id = $3',
+      [month, day, req.user.id]
+    );
+    res.json({ birthday_month: month, birthday_day: day });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
 // ── Trusted devices (User Settings > Account) ───────────────
 
 async function listDevices(req, res) {
@@ -197,7 +223,7 @@ async function adoptDevice(req, res) {
 async function getMe(req, res) {
   try {
     const { rows } = await pool.query(
-      'SELECT id, username, email, role, avatar_color, avatar_url, status_text, steam_id, current_game FROM users WHERE id = $1',
+      'SELECT id, username, email, role, avatar_color, avatar_url, status_text, steam_id, current_game, birthday_month, birthday_day FROM users WHERE id = $1',
       [req.user.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'User not found' });
@@ -404,5 +430,5 @@ async function deleteAccount(req, res) {
 module.exports = {
   signup, login, verifyLogin, resendLoginCode, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword,
   updateAvatarColor, updateStatusText, updateSteamId, deleteAccount,
-  listDevices, removeDevice, removeOtherDevices, adoptDevice,
+  listDevices, removeDevice, removeOtherDevices, adoptDevice, updateBirthday,
 };

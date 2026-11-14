@@ -153,8 +153,14 @@ export function AuthProvider({ children }) {
     return data.steamId;
   };
 
+  // month/day, or nulls to remove it.
+  const updateBirthday = async (month, day) => {
+    const data = await api.patch('/auth/birthday', { month, day });
+    setUser((u) => (u ? { ...u, ...data } : u));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, verifyLogin, resendLoginCode, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, linkSteam, deleteAccount }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLogin, resendLoginCode, signup, updateBirthday, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, linkSteam, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

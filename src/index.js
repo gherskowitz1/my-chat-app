@@ -13,6 +13,7 @@ const { startPatchBot } = require('./jobs/patchBot');
 const { startGamePresence } = require('./jobs/gamePresence');
 const { startEventReminders } = require('./jobs/eventReminders');
 const { startActivityTracking } = require('./jobs/activityTracking');
+const { startBirthdays } = require('./jobs/birthdays');
 const push = require('./utils/push');
 
 push.configure();
@@ -76,6 +77,7 @@ server.listen(PORT, () => {
       startPatchBot(io);
       startEventReminders(io);
       startActivityTracking();
+      startBirthdays(io);
       // Only worth running if there's a key to call Steam's API with — no
       // linked account can exist otherwise (linking itself 503s without one).
       if (process.env.STEAM_API_KEY) startGamePresence(io);

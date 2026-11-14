@@ -125,3 +125,7 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* Birthday line (utils/birthdays.js). */
+.birthdayLine { font-size: 13px; color: var(--text-secondary); }
+.birthdayToday { font-size: 13px; font-weight: 700; color: var(--yellow); }

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
-const { signup, login, verifyLogin, resendLoginCode, listDevices, removeDevice, removeOtherDevices, adoptDevice, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount } = require('../controllers/authController');
+const { updateBirthday, signup, login, verifyLogin, resendLoginCode, listDevices, removeDevice, removeOtherDevices, adoptDevice, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount } = require('../controllers/authController');
 const { loginLimiter, signupLimiter, forgotPasswordLimiter, mfaVerifyLimiter, mfaResendLimiter } = require('../middleware/rateLimit');
 const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments, createPoll } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments, hideConversation } = require('../controllers/dmController');
@@ -44,6 +44,7 @@ router.post('/auth/login', loginLimiter, login);
 router.post('/auth/login/verify', mfaVerifyLimiter, verifyLogin);
 router.post('/auth/login/resend', mfaResendLimiter, resendLoginCode);
 router.get('/auth/devices', authMiddleware, listDevices);
+router.patch('/auth/birthday', authMiddleware, updateBirthday);
 router.post('/auth/devices/adopt', authMiddleware, adoptDevice);
 router.delete('/auth/devices', authMiddleware, removeOtherDevices);
 router.delete('/auth/devices/:deviceId', authMiddleware, removeDevice);

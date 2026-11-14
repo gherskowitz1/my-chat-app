@@ -1,6 +1,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Avatar from './Avatar';
 import { api } from '../services/api';
+import { isBirthdayToday, formatBirthday } from '../utils/birthdays';
 import styles from './UserProfileCard.module.css';
 
 // A small popover anchored under whatever was clicked (a mention span, an
@@ -42,7 +43,7 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
   // The card grows when recent games load, so clamp against its real height.
   useLayoutEffect(() => {
     if (ref.current) setHeight(ref.current.offsetHeight);
-  }, [recentGames, user?.current_game]);
+  }, [recentGames, user?.current_game, user?.birthday_month]);
 
   if (!user || !anchorRect) return null;
 
@@ -66,6 +67,14 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
             ? <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>👑 Owner</span>
             : user.role === 'admin' && <span className={styles.badge}>Admin</span>}
         </div>
+
+        {user.birthday_month && user.birthday_day && (
+          <div className={styles.playingNow}>
+            {isBirthdayToday(user)
+              ? <span className={styles.birthdayToday}>🎉 It’s {isSelf ? 'your' : 'their'} birthday today!</span>
+              : <span className={styles.birthdayLine}>🎂 Birthday: {formatBirthday(user.birthday_month, user.birthday_day)}</span>}
+          </div>
+        )}
 
         {user.current_game && (
           <div className={styles.playingNow}>

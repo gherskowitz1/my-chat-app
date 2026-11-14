@@ -4,6 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { formatLastSeen, formatElapsed } from '../utils/timeAgo';
 import Avatar from './Avatar';
+import { isBirthdayToday } from '../utils/birthdays';
 import styles from './MemberList.module.css';
 
 export default function MemberList({ serverId, ownerId, onClose }) {
@@ -74,6 +75,7 @@ function MemberItem({ member, status, isOwner, awaySince, statusText, currentGam
       <div className={styles.info}>
         <div className={styles.nameRow}>
           <span className={styles.name} style={{ opacity: dimmed ? 0.5 : 1 }}>{member.username}</span>
+          {isBirthdayToday(member) && <span title="It's their birthday today!">🎂</span>}
           {isOwner
             ? <span className={styles.badge} style={{ background: '#e6a53c', color: '#000' }}>👑 Owner</span>
             : member.role === 'admin' && <span className={styles.badge}>Admin</span>}

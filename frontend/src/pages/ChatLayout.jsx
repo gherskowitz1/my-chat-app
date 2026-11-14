@@ -13,6 +13,8 @@ import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
 import EventsPanel from '../components/EventsPanel';
+import BirthdayCelebration from '../components/BirthdayCelebration';
+import { isBirthdayToday, isBirthdayTomorrow } from '../utils/birthdays';
 import WrappedModal, { wrappedYear, isWrappedSeason } from '../components/WrappedModal';
 import { OPEN_WRAPPED_EVENT } from '../utils/slashCommands';
 import SeasonalTheme from '../components/SeasonalTheme';
@@ -77,6 +79,7 @@ export default function ChatLayout() {
   const [showFriends, setShowFriends] = useState(false);
   const [showEvents, setShowEvents] = useState(false);
   const [showWrapped, setShowWrapped] = useState(false);
+  const [celebrating, setCelebrating] = useState(false);
   const [events, setEvents] = useState([]); // upcoming Game Night events, soonest first
   const [eventClock, setEventClock] = useState(() => Date.now());
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
@@ -219,6 +222,31 @@ export default function ChatLayout() {
       actions: [{ label: 'Open it', onClick: () => setShowWrapped(true) }],
     });
   }, [pushToast]);
+
+  // Birthdays (utils/birthdays.js): confetti if it's yours, and a heads-up
+  // the day before anyone else's — each at most once a day per device.
+  useEffect(() => {
+    const today = new Date().toDateString();
+    const once = (key) => {
+      try {
+        if (localStorage.getItem(key) === today) return false;
+        localStorage.setItem(key, today);
+        return true;
+      } catch { return false; }
+    };
+    if (isBirthdayToday(user) && once('crowsnest_bday_celebrated')) setCelebrating(true);
+    api.get('/users').then((users) => {
+      users
+        .filter((u) => !u.invisible && isBirthdayTomorrow(u))
+        .forEach((u) => {
+          if (once(`crowsnest_bday_heads_up_${u.id}`)) {
+            pushToast({ title: `🎂 Tomorrow is ${u.username}'s birthday`, body: 'Don’t forget to say happy birthday!' });
+          }
+        });
+    }).catch(() => {});
+    // Once per app load is plenty; the date only matters at that moment.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Game Night events — the upcoming list drives the sidebar banner and the
   // rail button's dot; the toasts announce new events and the 15-minute
@@ -698,6 +726,7 @@ export default function ChatLayout() {
 
       {showEvents && <EventsPanel serverId={DEFAULT_SERVER} onClose={() => setShowEvents(false)} />}
       {showWrapped && <WrappedModal year={wrappedYear()} onClose={() => setShowWrapped(false)} />}
+      {celebrating && <BirthdayCelebration username={user.username} onDone={() => setCelebrating(false)} />}
 
       {showFriends && (
         <FriendsPanel
