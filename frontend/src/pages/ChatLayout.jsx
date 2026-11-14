@@ -72,6 +72,7 @@ export default function ChatLayout() {
   // unmounts the sidebar) doesn't hang up the call. See VoiceChannel.jsx.
   const [activeVoiceChannel, setActiveVoiceChannel] = useState(readSavedVoiceChannel);
   const [autoJoinVoiceId, setAutoJoinVoiceId] = useState(() => readSavedVoiceChannel()?.id || null);
+  const voiceJoinedRef = useRef(false); // actually connected, not just showing a Join button
   const [afkChannel, setAfkChannel] = useState(null);
   const [sidebarVoiceSlot, setSidebarVoiceSlot] = useState(null);
   const [dmVoiceSlot, setDmVoiceSlot] = useState(null);
@@ -286,12 +287,31 @@ export default function ChatLayout() {
   const changeVoiceChannel = useCallback((channel) => {
     try { sessionStorage.removeItem(ACTIVE_VOICE_KEY); } catch {}
     setAutoJoinVoiceId(null);
+    voiceJoinedRef.current = false;
     setActiveVoiceChannel(channel);
   }, []);
 
   const leaveVoiceChannel = useCallback(() => changeVoiceChannel(null), [changeVoiceChannel]);
 
+  // A click on a voice channel in the sidebar, or the 4-hour AFK move.
+  // While connected: clicking the channel you're already in does nothing
+  // (leaving is only ever the Leave button, so a stray click can't hang up
+  // the call), and moving to another channel joins it straight away instead
+  // of stopping at its Join button. Not yet connected: clicking a channel
+  // opens its Join button, and clicking it again closes that.
+  const switchVoiceChannel = useCallback((channel) => {
+    if (!channel) return;
+    const wasJoined = voiceJoinedRef.current;
+    if (channel.id === activeVoiceChannel?.id) {
+      if (!wasJoined) changeVoiceChannel(null);
+      return;
+    }
+    changeVoiceChannel(channel);
+    if (wasJoined) setAutoJoinVoiceId(channel.id);
+  }, [activeVoiceChannel?.id, changeVoiceChannel]);
+
   const handleVoiceJoined = useCallback(() => {
+    voiceJoinedRef.current = true;
     if (!activeVoiceChannel) return;
     try {
       sessionStorage.setItem(ACTIVE_VOICE_KEY, JSON.stringify({ id: activeVoiceChannel.id, name: activeVoiceChannel.name }));
@@ -453,7 +473,7 @@ export default function ChatLayout() {
             mutedChannelIds={mutedChannelIds}
             onToggleMute={toggleChannelMute}
             activeVoiceChannel={activeVoiceChannel}
-            onVoiceChannelChange={changeVoiceChannel}
+            onVoiceChannelChange={switchVoiceChannel}
             onVoiceSlot={setSidebarVoiceSlot}
             onAfkChannelChange={setAfkChannel}
           />
@@ -540,7 +560,7 @@ export default function ChatLayout() {
               onJoined={handleVoiceJoined}
               onLeave={leaveVoiceChannel}
               afkChannel={afkChannel}
-              onSwitchChannel={changeVoiceChannel}
+              onSwitchChannel={switchVoiceChannel}
             />
           </Suspense>
         </div>

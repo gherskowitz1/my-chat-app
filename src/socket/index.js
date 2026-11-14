@@ -155,11 +155,13 @@ function setupSocket(io) {
     });
 
     // Edit a message — owner only, not admins (admins can delete, not rewrite others' words)
-    socket.on('message:edit', async ({ messageId, channelId, content }) => {
+    // Broadcasts go to the message's real channel, not the client's claimed one.
+    socket.on('message:edit', async ({ messageId, content }) => {
       if (!content?.trim()) return;
       try {
-        const { rows: check } = await pool.query('SELECT user_id FROM messages WHERE id = $1', [messageId]);
+        const { rows: check } = await pool.query('SELECT user_id, channel_id FROM messages WHERE id = $1', [messageId]);
         if (!check[0] || check[0].user_id !== userId) return;
+        const channelId = check[0].channel_id;
         const { rows } = await pool.query(
           `UPDATE messages SET content = $1, updated_at = NOW() WHERE id = $2
            RETURNING id, channel_id, content, created_at, updated_at, user_id`,
@@ -172,10 +174,11 @@ function setupSocket(io) {
     });
 
     // Delete a message
-    socket.on('message:delete', async ({ messageId, channelId }) => {
+    socket.on('message:delete', async ({ messageId }) => {
       try {
-        const { rows } = await pool.query('SELECT user_id FROM messages WHERE id = $1', [messageId]);
+        const { rows } = await pool.query('SELECT user_id, channel_id FROM messages WHERE id = $1', [messageId]);
         if (!rows[0]) return;
+        const channelId = rows[0].channel_id;
         if (rows[0].user_id !== userId && socket.user.role !== 'admin') return;
         await pool.query('DELETE FROM messages WHERE id = $1', [messageId]);
         io.to(`channel:${channelId}`).emit('message:deleted', { messageId, channelId });
@@ -186,9 +189,16 @@ function setupSocket(io) {
 
     // Toggle a reaction — re-emits the message's full reaction summary so
     // every client (including the one that just clicked) stays in sync.
-    socket.on('message:react', async ({ messageId, channelId, emoji }) => {
+    // The channel comes from the message itself, never the client's claimed
+    // channelId — same reasoning as poll:vote below: otherwise anyone could
+    // react to a private channel's messages by naming a channel they *can*
+    // access.
+    socket.on('message:react', async ({ messageId, emoji }) => {
       if (!emoji) return;
       try {
+        const { rows: msgRows } = await pool.query('SELECT channel_id FROM messages WHERE id = $1', [messageId]);
+        if (!msgRows[0]) return;
+        const channelId = msgRows[0].channel_id;
         const channel = await getChannelById(channelId);
         if (!(await canAccessChannel(channel, userId, role))) return;
 
@@ -360,11 +370,12 @@ function setupSocket(io) {
     });
 
     // Edit a DM — owner only
-    socket.on('dm:edit', async ({ messageId, conversationId, content }) => {
+    socket.on('dm:edit', async ({ messageId, content }) => {
       if (!content?.trim()) return;
       try {
-        const { rows: check } = await pool.query('SELECT user_id FROM dm_messages WHERE id = $1', [messageId]);
+        const { rows: check } = await pool.query('SELECT user_id, conversation_id FROM dm_messages WHERE id = $1', [messageId]);
         if (!check[0] || check[0].user_id !== userId) return;
+        const conversationId = check[0].conversation_id;
         const { rows } = await pool.query(
           `UPDATE dm_messages SET content = $1, updated_at = NOW() WHERE id = $2
            RETURNING id, conversation_id, content, created_at, updated_at, user_id`,
@@ -378,10 +389,11 @@ function setupSocket(io) {
 
     // Delete a DM — owner only (unlike channel messages, admins have no
     // special delete rights over a private conversation between two users)
-    socket.on('dm:delete', async ({ messageId, conversationId }) => {
+    socket.on('dm:delete', async ({ messageId }) => {
       try {
-        const { rows } = await pool.query('SELECT user_id FROM dm_messages WHERE id = $1', [messageId]);
+        const { rows } = await pool.query('SELECT user_id, conversation_id FROM dm_messages WHERE id = $1', [messageId]);
         if (!rows[0] || rows[0].user_id !== userId) return;
+        const conversationId = rows[0].conversation_id;
         await pool.query('DELETE FROM dm_messages WHERE id = $1', [messageId]);
         io.to(`dm:${conversationId}`).emit('dm:deleted', { messageId, conversationId });
       } catch (err) {
@@ -390,9 +402,13 @@ function setupSocket(io) {
     });
 
     // Toggle a reaction on a DM message
-    socket.on('dm:react', async ({ messageId, conversationId, emoji }) => {
+    // Conversation comes from the message itself — see message:react.
+    socket.on('dm:react', async ({ messageId, emoji }) => {
       if (!emoji) return;
       try {
+        const { rows: msgRows } = await pool.query('SELECT conversation_id FROM dm_messages WHERE id = $1', [messageId]);
+        if (!msgRows[0]) return;
+        const conversationId = msgRows[0].conversation_id;
         const { rows: check } = await pool.query(
           'SELECT 1 FROM dm_participants WHERE conversation_id = $1 AND user_id = $2',
           [conversationId, userId]

@@ -173,7 +173,7 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
             <div key={ch.id} className={styles.voiceChannelWrapper}>
               <div
                 className={`${styles.channel} ${activeVoiceChannel?.id === ch.id ? styles.activeVoice : ''}`}
-                onClick={() => onVoiceChannelChange(activeVoiceChannel?.id === ch.id ? null : ch)}
+                onClick={() => onVoiceChannelChange(ch)}
               >
                 <svg className={styles.voiceIcon} width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
