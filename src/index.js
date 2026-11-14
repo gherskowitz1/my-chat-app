@@ -1,4 +1,6 @@
 require('dotenv').config();
+// Error alerts — must load before Express (see utils/monitoring.js).
+const monitoring = require('./utils/monitoring');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -58,6 +60,7 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '14mb' }));
 
 app.use('/api', routes);
+monitoring.setupExpress(app);
 app.get('/health', (_, res) => res.json({ ok: true }));
 
 setupSocket(io);

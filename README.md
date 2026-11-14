@@ -120,11 +120,29 @@ LIVEKIT_URL=wss://your-project.livekit.cloud
 
 ```
 VITE_API_URL=https://your-backend.railway.app
+# Optional — error alerts from people's browsers/apps (see Error alerts below)
+VITE_SENTRY_DSN=https://...ingest.us.sentry.io/...
 ```
 
 The same frontend build also serves the admin dashboard — it's the identical app, switching to the admin view based on hostname (anything starting with `admin.`).
 
 ---
+
+## Error Alerts (optional — Sentry)
+
+Off unless configured. When on, crashes *and* every logged server error
+(`console.error`) are reported to [Sentry](https://sentry.io), which emails
+you about new problems. Request bodies, auth headers, cookies and IPs are
+stripped before sending — they can contain passwords, sign-in codes or
+private messages.
+
+1. Sign up at sentry.io (the free tier is plenty) and create two projects:
+   **Node.js → Express** (server) and **Browser JavaScript** (app).
+2. Backend service → Variables: `SENTRY_DSN` = the Express project's DSN.
+3. Frontend service → Variables: `VITE_SENTRY_DSN` = the browser project's
+   DSN, then redeploy the frontend (it's baked in at build time).
+
+The desktop app loads the website, so it's covered by step 3.
 
 ## LiveKit Setup (optional — required for voice/video)
 

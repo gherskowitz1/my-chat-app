@@ -52,6 +52,8 @@ app.use(helmet({
         'https://*.up.railway.app', 'wss://*.up.railway.app',
         'https://*.railway.app', 'wss://*.railway.app',
         'https://*.livekit.cloud', 'wss://*.livekit.cloud',
+        // Sentry error reports (only sent when VITE_SENTRY_DSN is set).
+        'https://*.ingest.sentry.io', 'https://*.ingest.us.sentry.io', 'https://*.ingest.de.sentry.io',
       ],
       workerSrc: ["'self'"],
       manifestSrc: ["'self'"],

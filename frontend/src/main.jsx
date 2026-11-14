@@ -3,6 +3,9 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles/global.css';
+import { startMonitoring } from './utils/monitoring';
+
+startMonitoring();
 
 // Registered unconditionally (not just when the user opts into push) so the
 // offline shell and installability work regardless of notification prefs.
