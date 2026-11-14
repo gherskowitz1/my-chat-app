@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import Avatar from './Avatar';
+import { maskSpoilers } from '../utils/spoilers';
 import styles from './SearchPanel.module.css';
 
 const SCOPES = [
@@ -9,7 +10,8 @@ const SCOPES = [
   { value: 'dms', label: 'Direct Messages' },
 ];
 
-function snippet(content) {
+function snippet(rawContent) {
+  const content = maskSpoilers(rawContent);
   return content.length > 140 ? `${content.slice(0, 140)}…` : content;
 }
 

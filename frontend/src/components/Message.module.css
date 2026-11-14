@@ -386,3 +386,27 @@
 @media (max-width: 768px) {
   .actionBtn { width: 40px; height: 40px; }
 }
+
+/* ||spoiler|| — a solid block until clicked; its contents (including any
+   links or mentions inside) can't be seen or clicked until then. */
+.spoiler {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  padding: 0 2px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.spoiler:hover { background: var(--bg-active); }
+.spoilerContent {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
+.spoilerRevealed {
+  background: var(--bg-hover);
+  cursor: auto;
+}
+.spoilerRevealed .spoilerContent {
+  opacity: 1;
+  pointer-events: auto;
+}

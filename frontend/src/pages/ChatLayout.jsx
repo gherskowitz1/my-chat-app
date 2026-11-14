@@ -14,6 +14,7 @@ import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
 import SeasonalTheme from '../components/SeasonalTheme';
 import { mentionsUser } from '../utils/mentions';
+import { maskSpoilers } from '../utils/spoilers';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
@@ -36,7 +37,10 @@ function readSavedVoiceChannel() {
   try { return JSON.parse(sessionStorage.getItem(ACTIVE_VOICE_KEY)); } catch { return null; }
 }
 
-function truncate(text, max = 120) {
+// Message previews for toasts and desktop notifications — spoilers masked so
+// a ||hidden|| part never shows up in a pop-up (see utils/spoilers.js).
+function truncate(rawText, max = 120) {
+  const text = maskSpoilers(rawText);
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 

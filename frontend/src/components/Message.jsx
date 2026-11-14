@@ -7,6 +7,7 @@ import { extractEmbeds } from '../utils/linkEmbeds';
 import { EVERYONE_USER } from '../utils/mentions';
 import { EMOJI_TOKEN_RE, customEmojiName } from '../utils/customEmoji';
 import { attachmentUrl, isImageMime, formatBytes } from '../utils/attachments';
+import { SPOILER_RE, maskSpoilers, stripSpoilers } from '../utils/spoilers';
 import { useAuth } from '../context/AuthContext';
 import { useCustomEmoji } from '../context/CustomEmojiContext';
 import styles from './Message.module.css';
@@ -23,7 +24,9 @@ const URL_RE = /(https?:\/\/[^\s]+)/g;
 // (never dangerouslySetInnerHTML), so this can't be used to inject markup.
 // Underscore variants require a non-word boundary on both sides so ordinary
 // snake_case_identifiers and file_names don't get parsed as italic/bold.
-const MARKDOWN_RE = /(```[\s\S]*?```)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|((?<!\w)__[^_\n]+?__(?!\w))|(~~[^~\n]+?~~)|(\*[^*\n]+?\*)|((?<!\w)_[^_\n]+?_(?!\w))/g;
+// Single-underscore italic also can't start right after a backslash, so the
+// shrug ¯\_(ツ)_/¯ (from /shrug) keeps its arms instead of italicizing (ツ).
+const MARKDOWN_RE = /(```[\s\S]*?```)|(`[^`\n]+`)|(\*\*[^*\n]+?\*\*)|((?<!\w)__[^_\n]+?__(?!\w))|(~~[^~\n]+?~~)|(\*[^*\n]+?\*)|((?<![\w\\])_[^_\n]+?_(?!\w))/g;
 
 // Replaces recognized :name: tokens in plain text with inline <img> elements
 // for the server's custom emoji; unrecognized tokens are left as literal text
@@ -100,6 +103,36 @@ function linkify(text, mdStyles, emojiByName) {
       </React.Fragment>
     );
   });
+}
+
+// ||spoiler|| segments become click-to-reveal blocks; everything else (and
+// the spoiler's own contents, once revealed) goes through the normal
+// mention/link/markdown pipeline. See utils/spoilers.js.
+function renderContent(text, ...rest) {
+  const parts = text.split(SPOILER_SPLIT_RE);
+  if (parts.length === 1) return renderMentions(text, ...rest);
+  return parts.map((part, i) => (
+    i % 2 === 0
+      ? <React.Fragment key={i}>{renderMentions(part, ...rest)}</React.Fragment>
+      : <Spoiler key={i}>{renderMentions(part, ...rest)}</Spoiler>
+  ));
+}
+
+const SPOILER_SPLIT_RE = new RegExp(SPOILER_RE.source);
+
+function Spoiler({ children }) {
+  const [revealed, setRevealed] = useState(false);
+  return (
+    <span
+      className={`${styles.spoiler} ${revealed ? styles.spoilerRevealed : ''}`}
+      onClick={(e) => { if (!revealed) { e.stopPropagation(); setRevealed(true); } }}
+      title={revealed ? undefined : 'Spoiler — click to reveal'}
+      role={revealed ? undefined : 'button'}
+      aria-label={revealed ? undefined : 'Spoiler, click to reveal'}
+    >
+      <span className={styles.spoilerContent} aria-hidden={!revealed}>{children}</span>
+    </span>
+  );
 }
 
 // Splits text on any @mention of a known user, wrapping each in a clickable
@@ -282,7 +315,7 @@ export default function Message({
             {replyToMsg ? (
               <>
                 <span className={styles.replyAuthor}>{replyToMsg.username}</span>
-                <span className={styles.replySnippet}>{replyToMsg.content.slice(0, 80)}</span>
+                <span className={styles.replySnippet}>{maskSpoilers(replyToMsg.content).slice(0, 80)}</span>
               </>
             ) : (
               <span className={styles.replySnippet}>Replying to a message</span>
@@ -309,7 +342,7 @@ export default function Message({
           <>
             {msg.content && (
               <p className={styles.text}>
-                {renderMentions(msg.content, users, user, styles, onMentionClick, emojiByName)}
+                {renderContent(msg.content, users, user, styles, onMentionClick, emojiByName)}
                 {msg.updated_at && <span className={styles.edited}> (edited)</span>}
               </p>
             )}
@@ -349,7 +382,7 @@ export default function Message({
                 })}
               </div>
             )}
-            {extractEmbeds(msg.content).map((embed) => (
+            {extractEmbeds(stripSpoilers(msg.content)).map((embed) => (
               <LinkEmbed key={embed.key} embed={embed} />
             ))}
             {msg.reactions?.length > 0 && (

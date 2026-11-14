@@ -9,6 +9,10 @@ import { addPending, removePending, getPendingFor, newClientId, reconcileMessage
 import { prepareAttachment, totalStagedBytes, MAX_TOTAL_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_MESSAGE, isImageMime, formatBytes } from '../utils/attachments';
 import Message from './Message';
 import MentionDropdown from './MentionDropdown';
+import SlashCommandDropdown from './SlashCommandDropdown';
+import { useSlashCommands } from '../hooks/useSlashCommands';
+import { runSlashCommand } from '../utils/slashCommands';
+import { maskSpoilers } from '../utils/spoilers';
 import UserProfileCard from './UserProfileCard';
 import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
@@ -104,6 +108,8 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
   const mentionCandidates = useMemo(() => [EVERYONE_USER, ...users], [users]);
   const mention = useMentionAutocomplete(mentionCandidates);
   const { clearDraft } = useDraft(channel.id, input, setInput);
+  const slash = useSlashCommands({ input, setInput, inputRef, isDM: false });
+  const [gifQuery, setGifQuery] = useState(''); // pre-filled search when opened via /gif
 
   const isAdmin = user?.role === 'admin';
 
@@ -363,8 +369,27 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
 
   const sendMessage = (e) => {
     e?.preventDefault();
-    const content = input.trim();
+    let content = input.trim();
     if (!content && stagedAttachments.length === 0) return;
+
+    // /shrug, /roll, /gif ... — see utils/slashCommands.js. Only for plain
+    // text sends; with files attached the text is sent exactly as typed.
+    const command = stagedAttachments.length === 0 ? runSlashCommand(content, { isDM: false }) : null;
+    if (command) {
+      if (command.error) { setAttachmentError(command.error); return; }
+      setAttachmentError('');
+      if (command.action) {
+        setInput('');
+        clearDraft();
+        if (command.action === 'gif') {
+          setGifQuery(command.query || '');
+          setGifPickerAnchor(gifBtnRef.current?.getBoundingClientRect());
+        }
+        if (command.action === 'poll') setPollComposerAnchor(pollBtnRef.current?.getBoundingClientRect());
+        return;
+      }
+      content = command.send;
+    }
     if (stagedAttachments.length > 0) return sendWithAttachments(content);
 
     const entry = {
@@ -525,6 +550,7 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
   };
 
   const handleInputKeyDown = (e) => {
+    if (slash.handleKeyDown(e)) return;
     if (mention.isOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); mention.moveActiveIndex(1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); mention.moveActiveIndex(-1); return; }
@@ -721,9 +747,16 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
       <div className={styles.inputWrapper}>
         {replyingTo && (
           <div className={styles.replyBar}>
-            <span>Replying to <strong>{replyingTo.username}</strong> — {replyingTo.content.slice(0, 60)}</span>
+            <span>Replying to <strong>{replyingTo.username}</strong> — {maskSpoilers(replyingTo.content).slice(0, 60)}</span>
             <button type="button" onClick={() => setReplyingTo(null)} title="Cancel reply">✕</button>
           </div>
+        )}
+        {slash.isOpen && (
+          <SlashCommandDropdown
+            suggestions={slash.suggestions}
+            activeIndex={slash.activeIndex}
+            onSelect={slash.select}
+          />
         )}
         {mention.isOpen && (
           <MentionDropdown
@@ -795,8 +828,9 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
           {gifPickerAnchor && (
             <GifPicker
               anchorRect={gifPickerAnchor}
-              onClose={() => setGifPickerAnchor(null)}
-              onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); }}
+              initialQuery={gifQuery}
+              onClose={() => { setGifPickerAnchor(null); setGifQuery(''); }}
+              onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); setGifQuery(''); }}
             />
           )}
           <button

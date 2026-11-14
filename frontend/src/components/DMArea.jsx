@@ -9,6 +9,10 @@ import { prepareAttachment, totalStagedBytes, MAX_TOTAL_ATTACHMENT_BYTES, MAX_AT
 import Message from './Message';
 import Avatar from './Avatar';
 import MentionDropdown from './MentionDropdown';
+import SlashCommandDropdown from './SlashCommandDropdown';
+import { useSlashCommands } from '../hooks/useSlashCommands';
+import { runSlashCommand } from '../utils/slashCommands';
+import { maskSpoilers } from '../utils/spoilers';
 import UserProfileCard from './UserProfileCard';
 import EmojiPicker from './EmojiPicker';
 import GifPicker from './GifPicker';
@@ -94,6 +98,8 @@ const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, owne
   );
   const mention = useMentionAutocomplete(mentionUsers);
   const { clearDraft } = useDraft(conversation.id, input, setInput);
+  const slash = useSlashCommands({ input, setInput, inputRef, isDM: true });
+  const [gifQuery, setGifQuery] = useState(''); // pre-filled search when opened via /gif
 
   const handleMentionClick = (mentionedUser, rect) => {
     setProfileTarget({ user: mentionedUser, rect });
@@ -283,8 +289,26 @@ const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, owne
 
   const sendMessage = (e) => {
     e?.preventDefault();
-    const content = input.trim();
+    let content = input.trim();
     if (!content && stagedAttachments.length === 0) return;
+
+    // /shrug, /roll, /gif ... — see utils/slashCommands.js. Only for plain
+    // text sends; with files attached the text is sent exactly as typed.
+    const command = stagedAttachments.length === 0 ? runSlashCommand(content, { isDM: true }) : null;
+    if (command) {
+      if (command.error) { setAttachmentError(command.error); return; }
+      setAttachmentError('');
+      if (command.action) {
+        setInput('');
+        clearDraft();
+        if (command.action === 'gif') {
+          setGifQuery(command.query || '');
+          setGifPickerAnchor(gifBtnRef.current?.getBoundingClientRect());
+        }
+        return;
+      }
+      content = command.send;
+    }
     if (stagedAttachments.length > 0) return sendWithAttachments(content);
 
     const entry = {
@@ -441,6 +465,7 @@ const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, owne
   };
 
   const handleInputKeyDown = (e) => {
+    if (slash.handleKeyDown(e)) return;
     if (mention.isOpen) {
       if (e.key === 'ArrowDown') { e.preventDefault(); mention.moveActiveIndex(1); return; }
       if (e.key === 'ArrowUp') { e.preventDefault(); mention.moveActiveIndex(-1); return; }
@@ -567,9 +592,16 @@ const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, owne
       <div className={styles.inputWrapper}>
         {replyingTo && (
           <div className={styles.replyBar}>
-            <span>Replying to <strong>{replyingTo.username}</strong> — {replyingTo.content.slice(0, 60)}</span>
+            <span>Replying to <strong>{replyingTo.username}</strong> — {maskSpoilers(replyingTo.content).slice(0, 60)}</span>
             <button type="button" onClick={() => setReplyingTo(null)} title="Cancel reply">✕</button>
           </div>
+        )}
+        {slash.isOpen && (
+          <SlashCommandDropdown
+            suggestions={slash.suggestions}
+            activeIndex={slash.activeIndex}
+            onSelect={slash.select}
+          />
         )}
         {mention.isOpen && (
           <MentionDropdown
@@ -641,8 +673,9 @@ const DMArea = forwardRef(function DMArea({ conversation, onOpenDM, onBack, owne
           {gifPickerAnchor && (
             <GifPicker
               anchorRect={gifPickerAnchor}
-              onClose={() => setGifPickerAnchor(null)}
-              onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); }}
+              initialQuery={gifQuery}
+              onClose={() => { setGifPickerAnchor(null); setGifQuery(''); }}
+              onSelect={(url) => { sendGif(url); setGifPickerAnchor(null); setGifQuery(''); }}
             />
           )}
           <button type="submit" className={styles.sendBtn} disabled={!input.trim() && stagedAttachments.length === 0}>

@@ -5,6 +5,10 @@ const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 const { mentionsUsername } = require('../utils/mentions');
 const { sendPushToUser } = require('../utils/push');
 
+// Push notification bodies hide ||spoiler|| text, matching the frontend's
+// utils/spoilers.js — a lock-screen notification shouldn't spoil anything.
+const maskSpoilers = (text) => text.replace(/\|\|([\s\S]+?)\|\|/g, '▒▒▒▒▒');
+
 const onlineUsers = new Map(); // userId -> Set of socketIds
 const userStatus = new Map(); // userId -> 'online' | 'away' | 'offline' (manual), only set while onlineUsers has them
 const manualStatus = new Map(); // userId -> status the user explicitly chose, pins userStatus against automatic idle/active updates until they fully disconnect
@@ -143,7 +147,7 @@ function setupSocket(io) {
           if (!onlineUsers.has(user_id) && mentionsUsername(content, memberUsername)) {
             sendPushToUser(pool, user_id, {
               title: `${username} mentioned you in #${channelName}`,
-              body: content.trim().slice(0, 120),
+              body: maskSpoilers(content.trim()).slice(0, 120),
             }).catch((err) => console.error('push send error', err));
           }
         });
@@ -359,7 +363,7 @@ function setupSocket(io) {
           if (!onlineUsers.has(user_id)) {
             sendPushToUser(pool, user_id, {
               title: username,
-              body: content.trim().slice(0, 120),
+              body: maskSpoilers(content.trim()).slice(0, 120),
             }).catch((err) => console.error('push send error', err));
           }
         });

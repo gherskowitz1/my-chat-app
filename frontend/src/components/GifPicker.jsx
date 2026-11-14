@@ -5,9 +5,10 @@ import styles from './GifPicker.module.css';
 const WIDTH = 320;
 const HEIGHT = 380;
 
-export default function GifPicker({ anchorRect, onSelect, onClose }) {
+// initialQuery pre-fills the search box — used by the /gif slash command.
+export default function GifPicker({ anchorRect, onSelect, onClose, initialQuery = '' }) {
   const ref = useRef(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [gifs, setGifs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
