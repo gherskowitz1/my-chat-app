@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import ServerSidebar from '../components/ServerSidebar';
 import ChannelSidebar from '../components/ChannelSidebar';
 import ChatArea from '../components/ChatArea';
@@ -12,9 +12,11 @@ import WhatsNewModal from '../components/WhatsNewModal';
 import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
+import EventsPanel from '../components/EventsPanel';
 import SeasonalTheme from '../components/SeasonalTheme';
 import { mentionsUser } from '../utils/mentions';
 import { maskSpoilers } from '../utils/spoilers';
+import { describeRecurrence } from '../utils/eventFormat';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
 import { useSwipeBack } from '../hooks/useSwipeBack';
 import { CURRENT_VERSION } from '../data/changelog';
@@ -71,6 +73,9 @@ export default function ChatLayout() {
   const [announcement, setAnnouncement] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
+  const [showEvents, setShowEvents] = useState(false);
+  const [events, setEvents] = useState([]); // upcoming Game Night events, soonest first
+  const [eventClock, setEventClock] = useState(() => Date.now());
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
   const [pendingJump, setPendingJump] = useState(null); // { type: 'channel'|'dm', targetId, messageId }
   // Voice lives up here, not in ChannelSidebar, so switching to DMs (which
@@ -187,6 +192,74 @@ export default function ChatLayout() {
       socket.off('friend:accepted', onFriendAccepted);
     };
   }, [socket, pushToast]);
+
+  // Game Night events — the upcoming list drives the sidebar banner and the
+  // rail button's dot; the toasts announce new events and the 15-minute
+  // reminder (see jobs/eventReminders.js). The full panel is EventsPanel.
+  const loadEvents = useCallback(() => {
+    api.get('/events').then(setEvents).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadEvents(); }, [loadEvents]);
+
+  // Re-evaluate "within the next day" as time passes, not just on changes.
+  useEffect(() => {
+    const id = setInterval(() => setEventClock(Date.now()), 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+    const onCreated = ({ title, startsAt, recurrence, createdBy, createdById }) => {
+      if (createdById === user.id) return;
+      const when = describeRecurrence(recurrence, startsAt)
+        || new Date(startsAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      pushToast({ title: `📅 ${createdBy} scheduled ${title}`, body: when, onClick: () => setShowEvents(true) });
+    };
+    // A week before each date: "are you in?" — answered right from the
+    // pop-up, which stays up until answered or dismissed.
+    const onCheckin = ({ eventId, title, startsAt, voiceChannelName }) => {
+      const when = new Date(startsAt).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const answer = (status) => api.post(`/events/${eventId}/rsvp`, { status }).catch(() => {});
+      const heading = `📅 Are you in for ${title}?`;
+      const body = voiceChannelName ? `${when} · ${voiceChannelName}` : when;
+      pushToast({
+        title: heading,
+        body,
+        sticky: true,
+        onClick: () => setShowEvents(true),
+        actions: [
+          { label: '✓ I’m in', onClick: () => answer('going') },
+          { label: 'Maybe', onClick: () => answer('maybe') },
+          { label: 'Can’t make it', onClick: () => answer('no') },
+        ],
+      });
+      window.electron?.notify?.(heading, body);
+    };
+    const onReminder = ({ title, startsAt, voiceChannelName }) => {
+      const mins = Math.max(0, Math.round((new Date(startsAt) - Date.now()) / 60000));
+      const heading = `📅 ${title} ${mins === 0 ? 'is starting now' : `starts in ${mins} min`}`;
+      const body = voiceChannelName ? `Join ${voiceChannelName}` : 'Game Night';
+      pushToast({ title: heading, body, onClick: () => setShowEvents(true) });
+      window.electron?.notify?.(heading, body);
+    };
+    socket.on('events:changed', loadEvents);
+    socket.on('events:created', onCreated);
+    socket.on('notify:event', onReminder);
+    socket.on('notify:eventCheckin', onCheckin);
+    return () => {
+      socket.off('notify:eventCheckin', onCheckin);
+      socket.off('events:changed', loadEvents);
+      socket.off('events:created', onCreated);
+      socket.off('notify:event', onReminder);
+    };
+  }, [socket, pushToast, loadEvents, user.id]);
+
+  // The soonest event that's in progress or starts within the next 24 hours.
+  const nextEvent = useMemo(() => {
+    const soon = eventClock + 24 * 60 * 60 * 1000;
+    return events.find((ev) => new Date(ev.starts_at).getTime() <= soon) || null;
+  }, [events, eventClock]);
 
   // Unread badges, in-app toasts, and (inside the Electron app only) desktop
   // notifications — all driven by the same notify:message/notify:dm events
@@ -460,6 +533,8 @@ export default function ChatLayout() {
           onOpenSettings={() => setShowSettings(true)}
           onOpenSearch={() => setShowSearch(true)}
           onOpenFriends={() => setShowFriends(true)}
+          onOpenEvents={() => setShowEvents(true)}
+          hasUpcomingEvent={!!nextEvent}
           onMarkAllRead={markAllRead}
           hasUnreadDMs={unreadDMs.size > 0}
           hasUnreadChannels={unreadChannels.size > 0}
@@ -481,6 +556,8 @@ export default function ChatLayout() {
             unreadChannels={unreadChannels}
             mutedChannelIds={mutedChannelIds}
             onToggleMute={toggleChannelMute}
+            nextEvent={nextEvent}
+            onOpenEvents={() => setShowEvents(true)}
             activeVoiceChannel={activeVoiceChannel}
             onVoiceChannelChange={switchVoiceChannel}
             onVoiceSlot={setSidebarVoiceSlot}
@@ -589,6 +666,8 @@ export default function ChatLayout() {
           onJumpToDm={jumpToDmResult}
         />
       )}
+
+      {showEvents && <EventsPanel serverId={DEFAULT_SERVER} onClose={() => setShowEvents(false)} />}
 
       {showFriends && (
         <FriendsPanel

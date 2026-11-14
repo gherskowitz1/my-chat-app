@@ -11,7 +11,7 @@ import styles from './ChannelSidebar.module.css';
 // until someone actually opens a voice channel.
 const normalizeChannelName = (name) => (name || '').toLowerCase().replace(/[\s\-_]+/g, '');
 
-export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels, mutedChannelIds, onToggleMute, activeVoiceChannel, onVoiceChannelChange, onVoiceSlot, onAfkChannelChange }) {
+export default function ChannelSidebar({ serverId, serverName, textCategoryLabel, voiceCategoryLabel, activeChannel, onChannelSelect, unreadChannels, mutedChannelIds, onToggleMute, activeVoiceChannel, onVoiceChannelChange, onVoiceSlot, onAfkChannelChange, nextEvent, onOpenEvents }) {
   const { user } = useAuth();
   const { socket } = useSocket();
   const [channels, setChannels] = useState([]);
@@ -117,6 +117,8 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
           Invite
         </button>
       </div>
+
+      {nextEvent && <EventBanner ev={nextEvent} onClick={onOpenEvents} />}
 
       <div className={styles.channels}>
         <div className={styles.section}>
@@ -241,6 +243,26 @@ export default function ChannelSidebar({ serverId, serverName, textCategoryLabel
         </div>
       )}
     </div>
+  );
+}
+
+// The next Game Night (in progress, or starting within a day) — click to
+// open the Events panel. ChatLayout decides which event this is.
+function EventBanner({ ev, onClick }) {
+  const startsAt = new Date(ev.starts_at);
+  const now = new Date();
+  const going = ev.rsvps.filter((r) => r.status === 'going').length;
+  const time = startsAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  const isToday = startsAt.toDateString() === now.toDateString();
+  const when = startsAt <= now ? 'Happening now' : `${isToday ? 'Today' : 'Tomorrow'} at ${time}`;
+  return (
+    <button className={`${styles.eventBanner} ${startsAt <= now ? styles.eventLive : ''}`} onClick={onClick}>
+      <span className={styles.eventIcon}>📅</span>
+      <span className={styles.eventText}>
+        <span className={styles.eventTitle}>{ev.title}</span>
+        <span className={styles.eventWhen}>{when}{going > 0 ? ` · ${going} going` : ''}</span>
+      </span>
+    </button>
   );
 }
 

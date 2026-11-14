@@ -9,7 +9,7 @@ import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
 
-export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, onMarkAllRead, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
+export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, onOpenEvents, hasUpcomingEvent, onMarkAllRead, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
   const { canInstall, promptInstall } = usePwaInstall();
@@ -71,6 +71,14 @@ export default function ServerSidebar({ serverName, serverIcon, activeSection, o
           <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
         </svg>
         {pendingFriendRequests > 0 && <span className={styles.navDot} />}
+      </button>
+
+      {/* Game Night events — dot when one starts within the next day */}
+      <button className={styles.iconBtn} onClick={onOpenEvents} title="Game Night events" style={{ position: 'relative' }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 3.5l1.18 2.39 2.64.38-1.91 1.86.45 2.63L12 17.52l-2.36 1.24.45-2.63-1.91-1.86 2.64-.38L12 11.5z"/>
+        </svg>
+        {hasUpcomingEvent && <span className={styles.navDot} />}
       </button>
 
       {/* Mark all as read — only shown when there's actually something unread */}

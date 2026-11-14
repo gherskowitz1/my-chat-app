@@ -28,6 +28,7 @@ const { getGifs } = require('../controllers/giphyController');
 const { getLinkPreview } = require('../controllers/linkPreviewController');
 const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
 const { getRecentGames } = require('../controllers/profileController');
+const { listEvents, createEvent, deleteEvent, rsvpEvent } = require('../controllers/eventController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
   getLatestAnnouncement, markAnnouncementSeen,
@@ -51,6 +52,12 @@ router.delete('/auth/me', authMiddleware, deleteAccount);
 // Users
 router.get('/users', authMiddleware, getUsers);
 router.get('/users/:userId/recent-games', authMiddleware, getRecentGames);
+
+// Game Night events
+router.get('/events', authMiddleware, listEvents);
+router.post('/events', authMiddleware, createEvent);
+router.delete('/events/:eventId', authMiddleware, deleteEvent);
+router.post('/events/:eventId/rsvp', authMiddleware, rsvpEvent);
 
 // GIFs
 router.get('/giphy', authMiddleware, getGifs);

@@ -4,6 +4,7 @@ const { checkTokenVersion } = require('../middleware/auth');
 const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 const { mentionsUsername } = require('../utils/mentions');
 const { sendPushToUser } = require('../utils/push');
+const { isValidTimeZone } = require('../utils/recurrence');
 
 // Push notification bodies hide ||spoiler|| text, matching the frontend's
 // utils/spoilers.js — a lock-screen notification shouldn't spoil anything.
@@ -508,6 +509,19 @@ function setupSocket(io) {
     // and likewise skipped while they're in a voice channel, since talking
     // in a call is real activity even if nothing in the app itself is being
     // clicked (e.g. deep in a Steam game with voice chat open).
+    // The device's time zone — see users.time_zone in schema.sql.
+    socket.on('user:timezone', async (timeZone) => {
+      if (typeof timeZone !== 'string' || timeZone.length > 64 || !isValidTimeZone(timeZone)) return;
+      try {
+        await pool.query(
+          'UPDATE users SET time_zone = $1 WHERE id = $2 AND time_zone IS DISTINCT FROM $1',
+          [timeZone, userId]
+        );
+      } catch (err) {
+        console.error('user:timezone error', err);
+      }
+    });
+
     socket.on('presence:idle', () => {
       if (!onlineUsers.has(userId) || manualStatus.has(userId) || voiceUsers.has(userId)) return;
       userStatus.set(userId, 'away');

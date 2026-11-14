@@ -35,6 +35,11 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS status_text VARCHAR(100);
 -- something a user sets directly. NULL means "not linked" / "not playing".
 ALTER TABLE users ADD COLUMN IF NOT EXISTS steam_id VARCHAR(32);
 ALTER TABLE users ADD COLUMN IF NOT EXISTS current_game VARCHAR(200);
+-- The IANA time zone of the user's device (e.g. "Asia/Tokyo"), reported by
+-- the client each time it connects. Only used where the *server* has to
+-- write a date into text — push notifications — since everything shown
+-- in the app itself is already formatted on the user's own device.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS time_zone VARCHAR(64);
 
 -- Servers (like Discord servers/guilds)
 CREATE TABLE IF NOT EXISTS servers (
@@ -349,6 +354,56 @@ CREATE TABLE IF NOT EXISTS message_attachments (
 );
 CREATE INDEX IF NOT EXISTS idx_message_attachments_message ON message_attachments (message_id);
 CREATE INDEX IF NOT EXISTS idx_message_attachments_dm_message ON message_attachments (dm_message_id);
+
+-- Game Night events — scheduled get-togethers anyone can create and RSVP
+-- to (see eventController.js and jobs/eventReminders.js).
+--
+-- A recurring event is an event_series plus one events row per date, each
+-- with its own RSVPs — a fresh sign-in sheet every week rather than one
+-- yes/no for the whole series. The reminder job keeps each active series
+-- stocked with dates ~8 days ahead, in the scheduler's own time zone so
+-- "every Friday 10pm" survives daylight-saving changes.
+CREATE TABLE IF NOT EXISTS event_series (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title VARCHAR(120) NOT NULL,
+  description VARCHAR(1000),
+  voice_channel_id UUID REFERENCES channels(id) ON DELETE SET NULL,
+  recurrence VARCHAR(10) NOT NULL CHECK (recurrence IN ('weekly', 'biweekly', 'monthly')),
+  time_zone VARCHAR(64) NOT NULL,
+  anchor_day SMALLINT NOT NULL, -- day of month of the first date, for monthly series
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  ended_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- voice_channel_id is optional ("meet in General Voice"). checkin_sent_at /
+-- reminded_at record that the week-before check-in and the 15-minutes-before
+-- reminder have gone out, so neither is ever sent twice. A cancelled date in
+-- a series is kept (cancelled_at) rather than deleted, so the series doesn't
+-- regenerate it.
+CREATE TABLE IF NOT EXISTS events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  series_id UUID REFERENCES event_series(id) ON DELETE CASCADE,
+  title VARCHAR(120) NOT NULL,
+  description VARCHAR(1000),
+  starts_at TIMESTAMPTZ NOT NULL,
+  voice_channel_id UUID REFERENCES channels(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  checkin_sent_at TIMESTAMPTZ,
+  reminded_at TIMESTAMPTZ,
+  cancelled_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_events_series ON events (series_id);
+CREATE INDEX IF NOT EXISTS idx_events_starts_at ON events (starts_at);
+
+CREATE TABLE IF NOT EXISTS event_rsvps (
+  event_id UUID REFERENCES events(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  status VARCHAR(10) NOT NULL CHECK (status IN ('going', 'maybe', 'no')),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (event_id, user_id)
+);
 
 -- Seed a default server
 INSERT INTO servers (id, name, description)

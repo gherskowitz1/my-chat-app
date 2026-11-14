@@ -63,7 +63,14 @@ export function SocketProvider({ children }) {
       });
     };
 
-    socket.on('connect', () => { setConnected(true); flushOutbox(); });
+    socket.on('connect', () => {
+      setConnected(true);
+      flushOutbox();
+      // So server-written push notifications (e.g. a Game Night check-in)
+      // can show times in this device's time zone. Sent every connect,
+      // since a laptop can travel.
+      try { socket.emit('user:timezone', Intl.DateTimeFormat().resolvedOptions().timeZone); } catch {}
+    });
     socket.on('disconnect', () => setConnected(false));
 
     // Attached in this same synchronous block, before the socket has even

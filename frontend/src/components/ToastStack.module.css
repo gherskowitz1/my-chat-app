@@ -56,3 +56,22 @@
 }
 
 .close:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+/* Inline answer buttons (toast.actions) — e.g. a Game Night check-in. */
+.actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.actionBtn {
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.actionBtn:first-child { background: var(--accent); color: white; }
+.actionBtn:hover { filter: brightness(1.1); }
