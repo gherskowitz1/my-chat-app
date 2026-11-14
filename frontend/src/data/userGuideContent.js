@@ -237,6 +237,15 @@ export const USER_GUIDE = {
           'Adjust each clip’s own volume slider to taste — this only affects how loud it plays for you',
         ] },
         { type: 'note', variant: 'warning', text: 'Not every browser can broadcast soundboard clips to others — if yours can’t, clips still play, just only for you.' },
+        { type: 'sub', num: '5.9a', title: 'Watch Together' },
+        { type: 'body', text: 'Watch a YouTube video in sync with everyone in your voice channel. While connected, click 📺 Watch together under the voice controls and paste a YouTube link. A video window pops up for everyone in the channel — each person clicks Join the watch party once (so their browser allows sound), and from then on everyone sees the same moment.' },
+        { type: 'bullets', items: [
+          'Anyone in the channel can play, pause, skip ±10 seconds, or click the progress bar to jump — it happens for everyone',
+          'The volume slider only changes what you hear, so you can balance the video against people talking',
+          'Drag the window by its title bar, resize it with ⤢, or minimize it to a small pill',
+          'Change video swaps in a new link for everyone; ✕ ends the watch party for the whole channel',
+          'Someone joining the voice channel partway through jumps straight to where everyone else is',
+        ] },
         { type: 'sub', num: '5.10', title: 'Choosing How Your Mic Activates' },
         { type: 'body', text: 'In User Settings > Audio, pick how your microphone turns on:' },
         { type: 'bullets', items: [

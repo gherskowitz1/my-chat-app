@@ -10,6 +10,7 @@ import VoiceControls from './VoiceControls';
 import VoiceChimes from './VoiceChimes';
 import VoiceReliability from './VoiceReliability';
 import ScreenShareWindow from './ScreenShareWindow';
+import WatchTogether, { WatchStarter } from './WatchTogether';
 import VoiceParticipantList from './VoiceParticipantList';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -116,6 +117,35 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Watch together (server: src/socket/watchParty.js) — while connected,
+  // follow this voice channel's shared YouTube state. Re-joined on
+  // reconnect, since a server restart forgets socket rooms.
+  const [watchParty, setWatchParty] = useState(null);
+  const [serverOffset, setServerOffset] = useState(0);
+  const [watchError, setWatchError] = useState('');
+  useEffect(() => {
+    if (!joined || !socket) return;
+    const join = () => socket.emit('watch:join', { channelId: channel.id });
+    const onState = ({ channelId, party, serverNow }) => {
+      if (channelId !== channel.id) return;
+      setWatchParty(party);
+      setServerOffset(serverNow - Date.now());
+      setWatchError('');
+    };
+    const onError = ({ channelId, error: msg }) => { if (channelId === channel.id) setWatchError(msg); };
+    join();
+    socket.on('connect', join);
+    socket.on('watch:state', onState);
+    socket.on('watch:error', onError);
+    return () => {
+      socket.emit('watch:leave', { channelId: channel.id });
+      socket.off('connect', join);
+      socket.off('watch:state', onState);
+      socket.off('watch:error', onError);
+      setWatchParty(null);
+    };
+  }, [joined, socket, channel.id]);
+
   // The server forgets who's in voice when it restarts (a deploy) — say so
   // again when the socket reconnects, so presence and voice-time tracking
   // pick back up. The voice call itself is LiveKit's and never dropped.
@@ -199,6 +229,7 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
       <RoomAudioRenderer outputDeviceId={audioPrefs?.outputDeviceId} />
       <VoiceChimes />
       <ScreenShareWindow />
+      {watchParty && <WatchTogether channelId={channel.id} party={watchParty} serverOffset={serverOffset} socket={socket} />}
       {createPortal(
         <div className={styles.roomWrapper}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -207,6 +238,7 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
             <VolumeMixer roomName={channel.id} isAdmin={user?.role === 'admin'} />
             <VoiceParticipantList />
             <VoiceControls onLeave={leave} forceMuted={isAfkChannel} />
+            <WatchStarter channelId={channel.id} socket={socket} active={!!watchParty} error={watchError} />
           </div>
         </div>,
         host

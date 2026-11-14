@@ -5,6 +5,7 @@ const { getChannelById, canAccessChannel } = require('../utils/channelAccess');
 const { mentionsUsername } = require('../utils/mentions');
 const { sendPushToUser } = require('../utils/push');
 const { isValidTimeZone } = require('../utils/recurrence');
+const { registerWatchParty } = require('./watchParty');
 
 // Push notification bodies hide ||spoiler|| text, matching the frontend's
 // utils/spoilers.js — a lock-screen notification shouldn't spoil anything.
@@ -540,6 +541,9 @@ function setupSocket(io) {
     // presence:active) rather than waiting for the next mouse/keyboard
     // event, since the whole point is that voice activity isn't mouse/
     // keyboard activity.
+    // Watch together — synced YouTube in voice channels (watchParty.js).
+    registerWatchParty(io, socket);
+
     // Also records time in voice for Wrapped (voice_sessions) — joining
     // closes any stretch still open (switching channels) and starts a new one.
     socket.on('voice:joined', (payload) => {
