@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Resend } = require('resend');
 const { pool } = require('../db');
+const totp = require('../utils/totp');
 
 // Two-step sign-in on new devices (see authController.js login /
 // verifyLogin). A device that passes the second step gets a long random
@@ -122,7 +123,8 @@ async function issueEmailCode(challengeId, user) {
 async function getChallenge(challengeId) {
   if (typeof challengeId !== 'string' || !/^[0-9a-f-]{36}$/i.test(challengeId)) return null;
   const { rows } = await pool.query(
-    `SELECT c.*, u.username, u.email, u.role, u.token_version, u.avatar_color, u.avatar_url
+    `SELECT c.*, u.username, u.email, u.role, u.token_version, u.avatar_color, u.avatar_url,
+            u.totp_secret, u.totp_last_step
      FROM login_challenges c JOIN users u ON u.id = c.user_id
      WHERE c.id = $1 AND c.consumed_at IS NULL AND c.expires_at > NOW()`,
     [challengeId]
@@ -142,12 +144,72 @@ async function checkEmailCode(challenge, code) {
   return clean.length === 6 && sameHash(hashCode(challenge.id, clean), challenge.code_hash) ? 'ok' : 'wrong';
 }
 
+// Authenticator-app challenge: accepts the app's current code, or one of
+// the person's one-time backup codes. Same attempt cap as email codes.
+// Returns 'ok' | 'ok-backup' | 'wrong' | 'locked'.
+async function checkAppCode(challenge, code) {
+  const { rows } = await pool.query(
+    'UPDATE login_challenges SET attempts = attempts + 1 WHERE id = $1 RETURNING attempts',
+    [challenge.id]
+  );
+  if (rows[0].attempts > MAX_ATTEMPTS) return 'locked';
+  if (!challenge.totp_secret) return 'wrong';
+
+  const step = totp.verifyCode(totp.decryptSecret(challenge.totp_secret), code);
+  if (step !== null) {
+    // Only counts if it's newer than the last code used — no replays.
+    const { rowCount } = await pool.query(
+      'UPDATE users SET totp_last_step = $1 WHERE id = $2 AND (totp_last_step IS NULL OR totp_last_step < $1)',
+      [step, challenge.user_id]
+    );
+    return rowCount ? 'ok' : 'wrong';
+  }
+  return (await useBackupCode(challenge.user_id, code)) ? 'ok-backup' : 'wrong';
+}
+
+// ── Backup codes ───────────────────────────────────────────
+// 10 single-use codes like "k7qd-m3xp", shown once when the authenticator is
+// set up (or regenerated). Stored hashed.
+const BACKUP_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789'; // no 0/o, 1/l/i lookalikes
+const normalizeBackup = (code) => String(code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const hashBackup = (userId, code) => sha256(`backup:${userId}:${normalizeBackup(code)}:${process.env.JWT_SECRET}`);
+
+async function generateBackupCodes(userId) {
+  const codes = Array.from({ length: 10 }, () => {
+    const chars = Array.from({ length: 8 }, () => BACKUP_ALPHABET[crypto.randomInt(BACKUP_ALPHABET.length)]).join('');
+    return `${chars.slice(0, 4)}-${chars.slice(4)}`;
+  });
+  await pool.query('DELETE FROM mfa_backup_codes WHERE user_id = $1', [userId]);
+  for (const code of codes) {
+    await pool.query('INSERT INTO mfa_backup_codes (user_id, code_hash) VALUES ($1, $2)', [userId, hashBackup(userId, code)]);
+  }
+  return codes;
+}
+
+async function useBackupCode(userId, code) {
+  if (normalizeBackup(code).length !== 8) return false;
+  const { rowCount } = await pool.query(
+    'UPDATE mfa_backup_codes SET used_at = NOW() WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL',
+    [userId, hashBackup(userId, code)]
+  );
+  return rowCount > 0;
+}
+
+async function backupCodesLeft(userId) {
+  const { rows } = await pool.query(
+    'SELECT COUNT(*)::int AS n FROM mfa_backup_codes WHERE user_id = $1 AND used_at IS NULL',
+    [userId]
+  );
+  return rows[0].n;
+}
+
 async function consumeChallenge(challengeId) {
   await pool.query('UPDATE login_challenges SET consumed_at = NOW() WHERE id = $1', [challengeId]);
 }
 
 module.exports = {
   sha256, sameHash, signSession, maskEmail, createTrustedDevice, findTrustedDevice,
-  createChallenge, issueEmailCode, getChallenge, checkEmailCode, consumeChallenge,
+  createChallenge, issueEmailCode, getChallenge, checkEmailCode, checkAppCode, consumeChallenge,
+  generateBackupCodes, backupCodesLeft,
   MAX_ATTEMPTS, RESEND_COOLDOWN_MS,
 };

@@ -22,6 +22,14 @@ export const USER_GUIDE = {
           'Log out: click the arrow icon at the very bottom of the left sidebar',
         ] },
         { type: 'note', variant: 'info', text: 'Your session stays active for 180 days either way. You will be logged out automatically after that.' },
+        { type: 'sub', num: '1.2a', title: 'Signing In on a New Device (Two-Step Sign-In)' },
+        { type: 'body', text: 'The first time you sign in on a new phone, computer, or browser, you’ll be asked for a 6-digit code after your password. It’s emailed to you (check spam if it doesn’t show up within a minute; you can resend it after 60 seconds). Once you enter it, that device is remembered for good — it won’t ask again, even after you log out.' },
+        { type: 'bullets', items: [
+          'See and remove your trusted devices in User Settings > My Account > Trusted Devices. Removing one signs it out immediately',
+          'Changing your password signs out and un-trusts every other device',
+          'Want stronger protection? Under User Settings > My Account > Authenticator App, set up Authy, Google Authenticator, or a similar app — new devices will then ask for the app’s code instead of an emailed one. Save the 10 backup codes it gives you; each one gets you in once if you lose your phone',
+          'Locked out (never got the email, lost your phone and your backup codes)? Ask an admin — they can let your next sign-in skip the code',
+        ] },
         { type: 'sub', num: '1.3', title: 'Inviting Friends' },
         { type: 'body', text: 'Anyone can invite someone new — you do not need to be an admin:' },
         { type: 'steps', items: [

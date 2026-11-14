@@ -411,6 +411,8 @@ function AccountTab() {
         <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in — and they'll need a sign-in code again.</p>
       </section>
 
+      <AuthenticatorSection />
+
       <TrustedDevicesSection />
 
       <section className={styles.section}>
@@ -441,6 +443,156 @@ function AccountTab() {
   );
 }
 
+// Optional authenticator app (Authy, Google Authenticator, 1Password...) for
+// two-step sign-in instead of emailed codes — see the server's
+// mfaController.js. Setup: scan the QR code, type the app's code to prove
+// it worked, save the backup codes.
+function AuthenticatorSection() {
+  const [status, setStatus] = useState(null);
+  const [setup, setSetup] = useState(null); // { qrDataUrl, secret } mid-setup
+  const [code, setCode] = useState('');
+  const [backupCodes, setBackupCodes] = useState(null); // shown once, right after they're made
+  const [passwordFor, setPasswordFor] = useState(null); // 'disable' | 'regen'
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+
+  const load = () => api.get('/auth/mfa').then(setStatus).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const run = async (fn) => {
+    setError('');
+    setBusy(true);
+    try { await fn(); } catch (err) { setError(err.message); } finally { setBusy(false); }
+  };
+
+  const startSetup = () => run(async () => { setSetup(await api.post('/auth/mfa/totp/setup', {})); setCode(''); });
+  const confirmSetup = (e) => {
+    e.preventDefault();
+    run(async () => {
+      const res = await api.post('/auth/mfa/totp/enable', { code });
+      setSetup(null);
+      setBackupCodes(res.backupCodes);
+      load();
+    });
+  };
+  const submitPassword = (e) => {
+    e.preventDefault();
+    run(async () => {
+      if (passwordFor === 'disable') {
+        await api.post('/auth/mfa/totp/disable', { password });
+      } else {
+        const res = await api.post('/auth/mfa/backup-codes', { password });
+        setBackupCodes(res.backupCodes);
+      }
+      setPasswordFor(null);
+      setPassword('');
+      load();
+    });
+  };
+
+  const saveCodes = () => {
+    const text = `The Crows Nest — backup sign-in codes\nEach works once, if you lose your authenticator app.\n\n${backupCodes.join('\n')}\n`;
+    const url = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'crows-nest-backup-codes.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (!status) return null;
+  const enabled = !!status.totpEnabledAt;
+
+  return (
+    <section className={styles.section}>
+      <h3>📱 Authenticator App</h3>
+
+      {backupCodes ? (
+        <>
+          <p className={styles.hint} style={{ marginBottom: 10 }}>
+            <strong>Save these backup codes somewhere safe.</strong> If you lose your phone, each one gets you in once instead of the app’s code. They won’t be shown again.
+          </p>
+          <div className={styles.backupGrid}>
+            {backupCodes.map((c) => <code key={c}>{c}</code>)}
+          </div>
+          <div className={styles.footer}>
+            <button className={styles.saveBtn} onClick={saveCodes}>Download as a file</button>
+            <button className={styles.secondaryBtn} onClick={() => navigator.clipboard?.writeText(backupCodes.join('\n'))}>Copy</button>
+            <button className={styles.secondaryBtn} onClick={() => setBackupCodes(null)}>I’ve saved them</button>
+          </div>
+        </>
+      ) : setup ? (
+        <form onSubmit={confirmSetup}>
+          <p className={styles.hint} style={{ marginBottom: 10 }}>
+            1. In Authy, Google Authenticator, or any authenticator app, add an account and scan this code:
+          </p>
+          <img src={setup.qrDataUrl} alt="QR code for your authenticator app" className={styles.qrCode} />
+          <p className={styles.hint}>Can’t scan? Enter this key instead: <code className={styles.secretKey}>{setup.secret}</code></p>
+          <p className={styles.hint} style={{ margin: '10px 0 6px' }}>2. Enter the 6-digit code the app shows for The Crows Nest:</p>
+          <input
+            className={styles.input}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder="123456"
+            maxLength={7}
+            autoFocus
+          />
+          <div className={styles.footer}>
+            <button type="submit" className={styles.saveBtn} disabled={busy || code.replace(/\D/g, '').length !== 6}>
+              {busy ? 'Checking…' : 'Turn on'}
+            </button>
+            <button type="button" className={styles.secondaryBtn} onClick={() => setSetup(null)}>Cancel</button>
+          </div>
+        </form>
+      ) : enabled ? (
+        <>
+          <p className={styles.hint}>
+            <span className={styles.onBadge}>On</span> since {new Date(status.totpEnabledAt).toLocaleDateString()}. New devices ask for your app’s code instead of an emailed one. {status.backupCodesLeft} backup code{status.backupCodesLeft === 1 ? '' : 's'} left.
+          </p>
+          {passwordFor ? (
+            <form onSubmit={submitPassword}>
+              <input
+                className={styles.input}
+                type="password"
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                autoFocus
+                required
+              />
+              <div className={styles.footer}>
+                <button type="submit" className={passwordFor === 'disable' ? styles.dangerBtn : styles.saveBtn} disabled={busy || !password}>
+                  {passwordFor === 'disable' ? 'Turn off authenticator' : 'Make new backup codes'}
+                </button>
+                <button type="button" className={styles.secondaryBtn} onClick={() => { setPasswordFor(null); setPassword(''); }}>Cancel</button>
+              </div>
+            </form>
+          ) : (
+            <div className={styles.footer}>
+              <button className={styles.secondaryBtn} onClick={() => setPasswordFor('regen')}>New backup codes</button>
+              <button className={styles.secondaryBtn} onClick={() => setPasswordFor('disable')}>Turn off</button>
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <p className={styles.hint} style={{ marginBottom: 10 }}>
+            Optional extra protection: use an app like Authy or Google Authenticator for sign-in codes instead of email — so even someone with access to your email couldn’t sign in as you.
+          </p>
+          <div className={styles.footer}>
+            <button className={styles.saveBtn} onClick={startSetup} disabled={busy}>Set up authenticator app</button>
+          </div>
+        </>
+      )}
+      {error && <div className={styles.avatarError}>{error}</div>}
+    </section>
+  );
+}
+
 // Devices that can sign in without a code (two-step sign-in — see the
 // server's services/mfa.js). Removing one also signs it out.
 function TrustedDevicesSection() {
@@ -468,7 +620,7 @@ function TrustedDevicesSection() {
     <section className={styles.section}>
       <h3>🛡️ Trusted Devices</h3>
       <p className={styles.hint} style={{ marginBottom: 10 }}>
-        Signing in on a new device asks for a code sent to your email. These devices already passed that check and won’t be asked again.
+        Signing in on a new device asks for a code (emailed, or from your authenticator app if you’ve set one up). These devices already passed that check and won’t be asked again.
       </p>
       <div className={styles.deviceList}>
         {devices.map((d) => (

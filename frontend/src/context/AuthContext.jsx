@@ -86,6 +86,14 @@ export function AuthProvider({ children }) {
 
   const verifyLogin = async (challengeId, code) => {
     const data = await api.post('/auth/login/verify', { challengeId, code, deviceLabel: deviceLabel() });
+    // Signed in with a one-time backup code (lost phone?) — say how many are
+    // left, so nobody runs out without noticing.
+    if (typeof data.backupCodesLeft === 'number') {
+      setTimeout(() => alert(
+        `You used a backup code — ${data.backupCodesLeft} left. ` +
+        'If you’ve lost your authenticator app, set it up again (or make new backup codes) in User Settings > Account.'
+      ), 300);
+    }
     return finishSignIn(data);
   };
 

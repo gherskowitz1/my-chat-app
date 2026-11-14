@@ -464,6 +464,26 @@ CREATE TABLE IF NOT EXISTS login_challenges (
 -- out — e.g. signed up with a mistyped email. Cleared on their next sign-in.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_bypass_once BOOLEAN NOT NULL DEFAULT false;
 
+-- Optional authenticator app (Authy, Google Authenticator...) for two-step
+-- sign-in instead of emailed codes — see utils/totp.js. Secrets are stored
+-- encrypted; totp_pending_secret holds one mid-setup until the first code
+-- confirms the app has it. totp_last_step blocks reusing a code.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_pending_secret TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_last_step BIGINT;
+
+-- One-time backup codes for when the phone with the authenticator is lost.
+-- Hashed like device tokens; used_at marks one as spent.
+CREATE TABLE IF NOT EXISTS mfa_backup_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  code_hash VARCHAR(64) NOT NULL,
+  used_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_mfa_backup_codes_user ON mfa_backup_codes (user_id);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

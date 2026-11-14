@@ -535,3 +535,65 @@
   border-radius: var(--radius-sm);
 }
 .deviceRemove:hover { color: var(--red); background: rgba(242, 63, 66, 0.12); }
+
+/* Authenticator app setup (AuthenticatorSection). */
+.secondaryBtn {
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+.secondaryBtn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+.qrCode {
+  display: block;
+  width: 180px;
+  height: 180px;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 6px;
+  margin-bottom: 8px;
+  image-rendering: pixelated;
+}
+
+.secretKey {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  user-select: all;
+  word-break: break-all;
+}
+
+.backupGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  max-width: 320px;
+}
+.backupGrid code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 15px;
+  text-align: center;
+  padding: 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  user-select: all;
+}
+
+.onBadge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--green);
+  color: white;
+  margin-right: 4px;
+}

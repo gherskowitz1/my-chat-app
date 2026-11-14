@@ -86,9 +86,10 @@ async function login(req, res) {
       return res.json({ token: mfa.signSession(user, created.deviceId), user: publicUser(user), deviceToken: created.deviceToken });
     }
 
-    const method = 'email';
+    // People who set up an authenticator app use it instead of email.
+    const method = user.totp_enabled_at ? 'totp' : 'email';
     const challengeId = await mfa.createChallenge(user, method);
-    res.json({ mfaRequired: true, challengeId, method, emailHint: mfa.maskEmail(user.email) });
+    res.json({ mfaRequired: true, challengeId, method, ...(method === 'email' ? { emailHint: mfa.maskEmail(user.email) } : {}) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -103,17 +104,21 @@ async function verifyLogin(req, res) {
     const challenge = await mfa.getChallenge(challengeId);
     if (!challenge) return res.status(410).json({ error: 'That code has expired. Sign in again to get a new one.' });
 
-    const result = await mfa.checkEmailCode(challenge, code);
+    const result = challenge.method === 'totp'
+      ? await mfa.checkAppCode(challenge, code)
+      : await mfa.checkEmailCode(challenge, code);
     if (result === 'locked') {
       await mfa.consumeChallenge(challenge.id);
       return res.status(429).json({ error: 'Too many wrong codes. Sign in again to get a new one.' });
     }
-    if (result !== 'ok') return res.status(400).json({ error: 'That code isn’t right. Check it and try again.' });
+    if (result !== 'ok' && result !== 'ok-backup') return res.status(400).json({ error: 'That code isn’t right. Check it and try again.' });
 
     await mfa.consumeChallenge(challenge.id);
     const user = { ...challenge, id: challenge.user_id };
     const { deviceId, deviceToken } = await mfa.createTrustedDevice(user.id, deviceLabel);
-    res.json({ token: mfa.signSession(user, deviceId), user: publicUser(user), deviceToken });
+    // Used a backup code — tell them how many are left so they can make more.
+    const extra = result === 'ok-backup' ? { backupCodesLeft: await mfa.backupCodesLeft(user.id) } : {};
+    res.json({ token: mfa.signSession(user, deviceId), user: publicUser(user), deviceToken, ...extra });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });

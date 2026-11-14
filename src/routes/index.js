@@ -28,6 +28,7 @@ const { getGifs } = require('../controllers/giphyController');
 const { getLinkPreview } = require('../controllers/linkPreviewController');
 const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
 const { getRecentGames } = require('../controllers/profileController');
+const mfaSettings = require('../controllers/mfaController');
 const { listEvents, createEvent, deleteEvent, rsvpEvent } = require('../controllers/eventController');
 const { getWrapped } = require('../controllers/wrappedController');
 const {
@@ -46,6 +47,12 @@ router.get('/auth/devices', authMiddleware, listDevices);
 router.post('/auth/devices/adopt', authMiddleware, adoptDevice);
 router.delete('/auth/devices', authMiddleware, removeOtherDevices);
 router.delete('/auth/devices/:deviceId', authMiddleware, removeDevice);
+// Optional authenticator app (Authy, Google Authenticator...) + backup codes
+router.get('/auth/mfa', authMiddleware, mfaSettings.getStatus);
+router.post('/auth/mfa/totp/setup', authMiddleware, mfaSettings.setupTotp);
+router.post('/auth/mfa/totp/enable', authMiddleware, mfaVerifyLimiter, mfaSettings.enableTotp);
+router.post('/auth/mfa/totp/disable', authMiddleware, loginLimiter, mfaSettings.disableTotp);
+router.post('/auth/mfa/backup-codes', authMiddleware, loginLimiter, mfaSettings.regenerateBackupCodes);
 router.get('/auth/me', authMiddleware, getMe);
 router.post('/auth/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/auth/reset-password', resetPassword);
