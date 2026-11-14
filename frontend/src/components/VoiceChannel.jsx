@@ -91,7 +91,7 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
       // a Steam game with a controller in hand (no mouse/keyboard touched
       // inside the app) gets marked "away" after 30 minutes despite
       // actively talking. See socket/index.js's presence:idle handler.
-      socket?.emit('voice:joined');
+      socket?.emit('voice:joined', { channelId: channel.id });
     } catch (err) {
       setError(err.message === 'LiveKit not configured'
         ? 'Voice chat requires LiveKit configuration. Add LIVEKIT_* env vars to enable.'
@@ -115,6 +115,16 @@ export default function VoiceChannel({ channel, onLeave, onJoined, afkChannel, o
     if (autoJoin) join();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // The server forgets who's in voice when it restarts (a deploy) — say so
+  // again when the socket reconnects, so presence and voice-time tracking
+  // pick back up. The voice call itself is LiveKit's and never dropped.
+  useEffect(() => {
+    if (!joined || !socket) return;
+    const reannounce = () => socket.emit('voice:joined', { channelId: channel.id });
+    socket.on('connect', reannounce);
+    return () => socket.off('connect', reannounce);
+  }, [joined, socket, channel.id]);
 
   // AFK auto-move — after 4h with no mouse/keyboard activity anywhere in the
   // app, move to the AFK channel (which force-mutes on entry, see below).

@@ -1,0 +1,239 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The story card — phone-shaped on desktop, full screen on a phone. */
+.story {
+  position: relative;
+  width: min(440px, 100vw);
+  height: min(780px, 100vh);
+  border-radius: 18px;
+  overflow: hidden;
+  color: #fff;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.6s ease;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+/* One vivid gradient per slide. */
+.t0 { background: linear-gradient(160deg, #1b1035 0%, #5b2a86 55%, #e0457b 100%); }
+.t1 { background: linear-gradient(160deg, #0f2027 0%, #2c5364 60%, #3fe0b0 100%); }
+.t2 { background: linear-gradient(160deg, #2b1055 0%, #7597de 100%); }
+.t3 { background: linear-gradient(160deg, #3a0d2e 0%, #d6336c 60%, #ffb347 100%); }
+.t4 { background: linear-gradient(160deg, #1e3c72 0%, #2a5298 50%, #f7b733 100%); }
+.t5 { background: linear-gradient(160deg, #0b0c2a 0%, #2b2d6e 55%, #8e44ad 100%); }
+.t6 { background: linear-gradient(160deg, #0f3443 0%, #34e89e 100%); }
+.t7 { background: linear-gradient(160deg, #200122 0%, #6f0000 60%, #ff7518 100%); }
+.t8 { background: linear-gradient(160deg, #141e30 0%, #243b55 50%, #e6b325 100%); }
+
+.progress {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 44px;
+  display: flex;
+  gap: 4px;
+  z-index: 2;
+}
+.progress span {
+  flex: 1;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  transition: background 0.3s;
+}
+.progress .progressDone { background: #fff; }
+
+.close {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  z-index: 2;
+  color: #fff;
+  font-size: 18px;
+  padding: 6px 8px;
+  opacity: 0.85;
+}
+.close:hover { opacity: 1; }
+
+.slide {
+  position: absolute;
+  inset: 0;
+  padding: 56px 28px 48px;
+  display: flex;
+  animation: slideIn 0.45s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.center {
+  margin: auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.kicker {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.huge {
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.title { font-size: 34px; font-weight: 800; }
+
+.bigNumber {
+  font-size: 84px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.lead { font-size: 17px; line-height: 1.45; opacity: 0.95; max-width: 340px; }
+.lead strong { font-weight: 800; }
+
+.badge {
+  margin-top: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.footnote { font-size: 12px; opacity: 0.75; max-width: 320px; margin-top: 8px; }
+
+.giantEmoji {
+  font-size: 96px;
+  line-height: 1.1;
+  animation: pop 0.6s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+@keyframes pop {
+  from { transform: scale(0.2); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.rankList {
+  list-style: none;
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.rankList li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  opacity: 0;
+  animation: rise 0.5s ease-out forwards;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+.rankNum { font-size: 20px; font-weight: 800; width: 20px; }
+.rankName {
+  flex: 1;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rankCount { font-size: 14px; opacity: 0.85; font-variant-numeric: tabular-nums; }
+.rankAvatar, .personAvatar {
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+.rankAvatar { width: 28px; height: 28px; font-size: 12px; }
+
+.person {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.personAvatar { width: 64px; height: 64px; font-size: 26px; border: 3px solid rgba(255, 255, 255, 0.8); }
+
+.statRow { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
+  margin: 8px 0;
+}
+.stat {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  min-width: 130px;
+}
+.statValue { font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.statLabel { font-size: 12px; opacity: 0.85; }
+
+.loading { font-size: 18px; font-weight: 700; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.5; } }
+
+.tapHint {
+  position: absolute;
+  bottom: 16px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .story {
+    width: 100vw;
+    height: 100vh;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .progress { top: calc(12px + env(safe-area-inset-top)); }
+  .close { top: calc(4px + env(safe-area-inset-top)); }
+  .huge { font-size: 54px; }
+  .bigNumber { font-size: 72px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slide, .giantEmoji, .rankList li, .loading { animation: none; opacity: 1; }
+}

@@ -9,7 +9,7 @@ import styles from './ServerSidebar.module.css';
 
 const STATUS_COLOR = { online: 'var(--green)', away: 'var(--yellow)', offline: 'var(--text-muted)' };
 
-export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, onOpenEvents, hasUpcomingEvent, onMarkAllRead, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
+export default function ServerSidebar({ serverName, serverIcon, activeSection, onSectionChange, onOpenAdmin, onOpenSettings, onOpenSearch, onOpenFriends, onOpenEvents, hasUpcomingEvent, onOpenWrapped, showWrapped, onMarkAllRead, hasUnreadDMs, hasUnreadChannels, pendingFriendRequests }) {
   const { user, logout } = useAuth();
   const { statusMap } = useSocket();
   const { canInstall, promptInstall } = usePwaInstall();
@@ -80,6 +80,13 @@ export default function ServerSidebar({ serverName, serverIcon, activeSection, o
         </svg>
         {hasUpcomingEvent && <span className={styles.navDot} />}
       </button>
+
+      {/* Crows Nest Wrapped — only during Wrapped season (Dec–Jan) */}
+      {showWrapped && (
+        <button className={styles.iconBtn} onClick={onOpenWrapped} title="Your Crows Nest Wrapped">
+          <span style={{ fontSize: 18, lineHeight: 1 }}>🎁</span>
+        </button>
+      )}
 
       {/* Mark all as read — only shown when there's actually something unread */}
       {(hasUnreadDMs || hasUnreadChannels) && (

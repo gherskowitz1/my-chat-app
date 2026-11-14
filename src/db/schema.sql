@@ -405,6 +405,32 @@ CREATE TABLE IF NOT EXISTS event_rsvps (
   PRIMARY KEY (event_id, user_id)
 );
 
+-- Time spent in voice and in games, for the yearly Wrapped recap (see
+-- wrappedController.js). One row per stretch: opened on join / game start,
+-- closed (ended_at) on leave / game change. last_seen_at is a heartbeat
+-- (jobs/activityTracking.js, gamePresence.js) so a stretch that was still
+-- open when the server restarted gets closed at the last time it was known
+-- to be going, rather than counting the downtime.
+CREATE TABLE IF NOT EXISTS voice_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  channel_id UUID REFERENCES channels(id) ON DELETE SET NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_voice_sessions_user ON voice_sessions (user_id, started_at);
+
+CREATE TABLE IF NOT EXISTS game_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  game VARCHAR(200) NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_user ON game_sessions (user_id, started_at);
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

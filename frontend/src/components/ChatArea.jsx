@@ -11,7 +11,7 @@ import Message from './Message';
 import MentionDropdown from './MentionDropdown';
 import SlashCommandDropdown from './SlashCommandDropdown';
 import { useSlashCommands } from '../hooks/useSlashCommands';
-import { runSlashCommand } from '../utils/slashCommands';
+import { runSlashCommand, OPEN_WRAPPED_EVENT } from '../utils/slashCommands';
 import { maskSpoilers } from '../utils/spoilers';
 import UserProfileCard from './UserProfileCard';
 import EmojiPicker from './EmojiPicker';
@@ -381,6 +381,7 @@ const ChatArea = forwardRef(function ChatArea({ channel, onToggleMembers, showMe
       if (command.action) {
         setInput('');
         clearDraft();
+        if (command.action === 'wrapped') window.dispatchEvent(new Event(OPEN_WRAPPED_EVENT));
         if (command.action === 'gif') {
           setGifQuery(command.query || '');
           setGifPickerAnchor(gifBtnRef.current?.getBoundingClientRect());

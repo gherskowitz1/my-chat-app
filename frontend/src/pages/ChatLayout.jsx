@@ -13,6 +13,8 @@ import AnnouncementModal from '../components/AnnouncementModal';
 import SearchPanel from '../components/SearchPanel';
 import FriendsPanel from '../components/FriendsPanel';
 import EventsPanel from '../components/EventsPanel';
+import WrappedModal, { wrappedYear, isWrappedSeason } from '../components/WrappedModal';
+import { OPEN_WRAPPED_EVENT } from '../utils/slashCommands';
 import SeasonalTheme from '../components/SeasonalTheme';
 import { mentionsUser } from '../utils/mentions';
 import { maskSpoilers } from '../utils/spoilers';
@@ -74,6 +76,7 @@ export default function ChatLayout() {
   const [showSearch, setShowSearch] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [showEvents, setShowEvents] = useState(false);
+  const [showWrapped, setShowWrapped] = useState(false);
   const [events, setEvents] = useState([]); // upcoming Game Night events, soonest first
   const [eventClock, setEventClock] = useState(() => Date.now());
   const [pendingFriendRequests, setPendingFriendRequests] = useState(0);
@@ -192,6 +195,30 @@ export default function ChatLayout() {
       socket.off('friend:accepted', onFriendAccepted);
     };
   }, [socket, pushToast]);
+
+  // Crows Nest Wrapped: /wrapped opens it any time; during Wrapped season
+  // (Dec–Jan) there's also a rail button and a one-time "it's here" toast.
+  useEffect(() => {
+    const open = () => setShowWrapped(true);
+    window.addEventListener(OPEN_WRAPPED_EVENT, open);
+    return () => window.removeEventListener(OPEN_WRAPPED_EVENT, open);
+  }, []);
+
+  useEffect(() => {
+    if (!isWrappedSeason()) return;
+    const key = `crowsnest_wrapped_seen_${wrappedYear()}`;
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch { return; }
+    pushToast({
+      title: `🎁 Your ${wrappedYear()} Crows Nest Wrapped is here`,
+      body: 'See your year in messages, emoji, voice, and games.',
+      sticky: true,
+      onClick: () => setShowWrapped(true),
+      actions: [{ label: 'Open it', onClick: () => setShowWrapped(true) }],
+    });
+  }, [pushToast]);
 
   // Game Night events — the upcoming list drives the sidebar banner and the
   // rail button's dot; the toasts announce new events and the 15-minute
@@ -535,6 +562,8 @@ export default function ChatLayout() {
           onOpenFriends={() => setShowFriends(true)}
           onOpenEvents={() => setShowEvents(true)}
           hasUpcomingEvent={!!nextEvent}
+          showWrapped={isWrappedSeason()}
+          onOpenWrapped={() => setShowWrapped(true)}
           onMarkAllRead={markAllRead}
           hasUnreadDMs={unreadDMs.size > 0}
           hasUnreadChannels={unreadChannels.size > 0}
@@ -668,6 +697,7 @@ export default function ChatLayout() {
       )}
 
       {showEvents && <EventsPanel serverId={DEFAULT_SERVER} onClose={() => setShowEvents(false)} />}
+      {showWrapped && <WrappedModal year={wrappedYear()} onClose={() => setShowWrapped(false)} />}
 
       {showFriends && (
         <FriendsPanel

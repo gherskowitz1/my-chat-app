@@ -29,6 +29,7 @@ const { getLinkPreview } = require('../controllers/linkPreviewController');
 const { getMutedChannels, muteChannel, unmuteChannel } = require('../controllers/channelMuteController');
 const { getRecentGames } = require('../controllers/profileController');
 const { listEvents, createEvent, deleteEvent, rsvpEvent } = require('../controllers/eventController');
+const { getWrapped } = require('../controllers/wrappedController');
 const {
   createAnnouncement, getAnnouncements, deleteAnnouncement,
   getLatestAnnouncement, markAnnouncementSeen,
@@ -58,6 +59,9 @@ router.get('/events', authMiddleware, listEvents);
 router.post('/events', authMiddleware, createEvent);
 router.delete('/events/:eventId', authMiddleware, deleteEvent);
 router.post('/events/:eventId/rsvp', authMiddleware, rsvpEvent);
+
+// Crows Nest Wrapped — the viewer's yearly recap
+router.get('/wrapped', authMiddleware, getWrapped);
 
 // GIFs
 router.get('/giphy', authMiddleware, getGifs);

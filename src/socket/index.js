@@ -540,8 +540,14 @@ function setupSocket(io) {
     // presence:active) rather than waiting for the next mouse/keyboard
     // event, since the whole point is that voice activity isn't mouse/
     // keyboard activity.
-    socket.on('voice:joined', () => {
+    // Also records time in voice for Wrapped (voice_sessions) — joining
+    // closes any stretch still open (switching channels) and starts a new one.
+    socket.on('voice:joined', (payload) => {
       voiceUsers.add(userId);
+      const channelId = typeof payload?.channelId === 'string' ? payload.channelId : null;
+      closeVoiceSession(userId)
+        .then(() => pool.query('INSERT INTO voice_sessions (user_id, channel_id) VALUES ($1, $2)', [userId, channelId]))
+        .catch((err) => console.error('voice session start error', err.message));
       if (onlineUsers.has(userId) && !manualStatus.has(userId) && userStatus.get(userId) !== 'online') {
         userStatus.set(userId, 'online');
         awaySince.delete(userId);
@@ -550,6 +556,7 @@ function setupSocket(io) {
     });
     socket.on('voice:left', () => {
       voiceUsers.delete(userId);
+      closeVoiceSession(userId).catch((err) => console.error('voice session end error', err.message));
     });
 
     // Manual status override — e.g. appearing offline while still fully
@@ -574,6 +581,7 @@ function setupSocket(io) {
           manualStatus.delete(userId);
           awaySince.delete(userId);
           voiceUsers.delete(userId);
+          closeVoiceSession(userId).catch(() => {});
           io.emit('presence:update', { userId, username, status: 'offline' });
           pool.query('UPDATE users SET last_seen_at = NOW() WHERE id = $1', [userId]).catch(() => {});
         }
@@ -582,10 +590,20 @@ function setupSocket(io) {
   });
 }
 
+function closeVoiceSession(userId) {
+  return pool.query('UPDATE voice_sessions SET ended_at = NOW() WHERE user_id = $1 AND ended_at IS NULL', [userId]);
+}
+
+// Who's in voice right now — for the voice_sessions heartbeat in
+// jobs/activityTracking.js.
+function getVoiceUserIds() {
+  return [...voiceUsers];
+}
+
 // Lets REST controllers (attachment sends bypass the socket handlers
 // entirely) check presence without reaching into the private onlineUsers map.
 function isOnline(userId) {
   return onlineUsers.has(userId);
 }
 
-module.exports = { setupSocket, emitToUser, isOnline };
+module.exports = { setupSocket, emitToUser, isOnline, getVoiceUserIds };

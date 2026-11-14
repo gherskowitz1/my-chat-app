@@ -7,6 +7,9 @@
 // Dice and coin results are generated on the sender's machine and sent as
 // ordinary message text — fine for fun, but not tamper-proof.
 
+// Dispatched on window by /wrapped; ChatLayout (which owns the modal) listens.
+export const OPEN_WRAPPED_EVENT = 'crowsnest:open-wrapped';
+
 const MAX_DICE = 20;
 const MAX_SIDES = 1000;
 
@@ -46,6 +49,7 @@ export const SLASH_COMMANDS = [
   },
   { name: 'gif', args: '[search]', description: 'Search for a GIF', run: (arg) => ({ action: 'gif', query: arg }) },
   { name: 'poll', args: '', description: 'Create a poll', channelOnly: true, run: () => ({ action: 'poll' }) },
+  { name: 'wrapped', args: '', description: 'Open your Crows Nest Wrapped yearly recap', run: () => ({ action: 'wrapped' }) },
 ];
 
 export function commandsFor({ isDM }) {
