@@ -487,3 +487,15 @@
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Full-screen on phones — clear the iPhone notch and home bar (see the
+   matching note in ChatLayout.module.css). */
+@media (max-width: 768px) {
+  .panel {
+    padding:
+      env(safe-area-inset-top)
+      env(safe-area-inset-right)
+      env(safe-area-inset-bottom)
+      env(safe-area-inset-left);
+  }
+}

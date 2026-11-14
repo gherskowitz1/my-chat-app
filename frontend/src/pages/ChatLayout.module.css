@@ -147,3 +147,16 @@
   .dmNav { flex: 1; min-width: 0; }
   .voiceDock { width: auto; }
 }
+
+/* iPhone notch / Dynamic Island / home-bar clearance. index.html's
+   viewport-fit=cover lets the app draw edge to edge; these insets then
+   keep the actual content out from under them. env() is 0 everywhere
+   that has no such areas (desktop, most Android), so this is a no-op
+   there. */
+.layout {
+  padding:
+    env(safe-area-inset-top)
+    env(safe-area-inset-right)
+    env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}

@@ -16,6 +16,7 @@ import SeasonalTheme from '../components/SeasonalTheme';
 import { mentionsUser } from '../utils/mentions';
 import { maskSpoilers } from '../utils/spoilers';
 import { useGlobalShortcuts } from '../hooks/useKeyboardShortcuts';
+import { useSwipeBack } from '../hooks/useSwipeBack';
 import { CURRENT_VERSION } from '../data/changelog';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -84,6 +85,8 @@ export default function ChatLayout() {
   // Whichever of ChatArea/DMArea is currently mounted — they're mutually
   // exclusive in .main, so one ref safely covers both (see useGlobalShortcuts below).
   const composerRef = useRef(null);
+  const navPaneRef = useRef(null); // the two phone-layout panes, for swipe-back
+  const mainPaneRef = useRef(null);
 
   // Show the changelog once to a returning user whose last-seen version is
   // behind — never to a brand-new sign-up, who has nothing to catch up on.
@@ -442,6 +445,8 @@ export default function ChatLayout() {
     if (activeSection === 'server') selectChannel(null);
     else selectConversation(null);
   };
+  // ...or swipe right on the open chat to do the same (phone layout only).
+  useSwipeBack({ enabled: mobileChatOpen, onBack: backToNav, paneRef: mainPaneRef, navRef: navPaneRef });
 
   return (
     <div className={`${styles.layout} ${mobileChatOpen ? styles.chatOpen : ''}`}>
@@ -463,7 +468,7 @@ export default function ChatLayout() {
       </div>
 
       <div className={styles.mobileStack}>
-      <div className={styles.navPane}>
+      <div ref={navPaneRef} className={styles.navPane}>
         {activeSection === 'server' ? (
           <ChannelSidebar
             key={channelRefreshKey}
@@ -500,7 +505,7 @@ export default function ChatLayout() {
         )}
       </div>
 
-      <div className={styles.main}>
+      <div ref={mainPaneRef} className={styles.main}>
         {activeSection === 'server' && activeChannel ? (
           <ChatArea
             ref={composerRef}
