@@ -36,7 +36,8 @@ export default function AuthPage() {
     username: '',
     email: searchParams.get('email') || remembered?.email || '',
     password: '',
-    inviteCode: '',
+    // Invite emails link here with the invite code already in the URL.
+    inviteCode: searchParams.get('code') || '',
   });
   const [rememberMe, setRememberMe] = useState(!!remembered);
   const [error, setError] = useState('');
