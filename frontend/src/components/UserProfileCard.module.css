@@ -129,3 +129,29 @@
 /* Birthday line (utils/birthdays.js). */
 .birthdayLine { font-size: 13px; color: var(--text-secondary); }
 .birthdayToday { font-size: 13px; font-weight: 700; color: var(--yellow); }
+
+/* "Jump in" and Steam links under Playing now. */
+.gameActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.jumpInBtn {
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--green);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+.jumpInBtn:hover { filter: brightness(1.1); }
+.gameLinkBtn {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.gameLinkBtn:hover { color: var(--text-primary); background: var(--bg-hover); }

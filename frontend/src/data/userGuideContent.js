@@ -157,6 +157,7 @@ export const USER_GUIDE = {
         { type: 'note', variant: 'info', text: 'Voice and game time only started being recorded in November 2026, so 2026’s Wrapped counts those from then on. Everything is in your own time zone.' },
         { type: 'sub', num: '3.17', title: 'Profile Cards & Recently Played' },
         { type: 'body', text: 'Click someone’s name or avatar to see their profile card. If they’ve linked their Steam account in User Settings, it shows the game they’re playing right now and the games they’ve played in the last two weeks, with hours — as long as their Steam “Game details” privacy setting is public.' },
+        { type: 'body', text: 'While someone is playing, their card also has buttons: ▶ Jump in launches Steam straight into their game when Steam says they’re in a joinable lobby or server (many games don’t share this, so the button only appears when it can work), View game opens it on the Steam store, and Steam profile opens their profile.' },
       ],
     },
     {

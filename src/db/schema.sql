@@ -511,6 +511,11 @@ CREATE TABLE IF NOT EXISTS lfg_joins (
   PRIMARY KEY (lfg_id, user_id)
 );
 
+-- "Jump in": the Steam app id of what someone's playing, and a steam://
+-- link into their lobby or server when Steam reports one (gamePresence.js).
+ALTER TABLE users ADD COLUMN IF NOT EXISTS current_game_appid INTEGER;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS current_game_join TEXT;
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

@@ -375,7 +375,7 @@ async function updateSteamId(req, res) {
   const { steamId } = req.body;
 
   if (!steamId) {
-    await pool.query('UPDATE users SET steam_id = NULL, current_game = NULL WHERE id = $1', [req.user.id]);
+    await pool.query('UPDATE users SET steam_id = NULL, current_game = NULL, current_game_appid = NULL, current_game_join = NULL WHERE id = $1', [req.user.id]);
     req.app.get('io')?.emit('presence:playing', { userId: req.user.id, game: null });
     return res.json({ steamId: null });
   }
@@ -385,7 +385,7 @@ async function updateSteamId(req, res) {
 
   try {
     const resolved = await resolveSteamId(steamId);
-    await pool.query('UPDATE users SET steam_id = $1, current_game = NULL WHERE id = $2', [resolved, req.user.id]);
+    await pool.query('UPDATE users SET steam_id = $1, current_game = NULL, current_game_appid = NULL, current_game_join = NULL WHERE id = $2', [resolved, req.user.id]);
     res.json({ steamId: resolved });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Could not link that Steam account' });

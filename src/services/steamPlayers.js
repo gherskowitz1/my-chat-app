@@ -53,4 +53,22 @@ async function getRecentlyPlayedGames(steamId, count = 3) {
   }));
 }
 
-module.exports = { resolveSteamId, getPlayerSummaries, getRecentlyPlayedGames };
+// A steam:// link that drops you into someone's game, when Steam says
+// they're somewhere joinable: a lobby (most co-op games) or a dedicated
+// server. null otherwise — plenty of games never expose either. Every part
+// is checked against a strict pattern, since this ends up as a link others
+// click.
+function joinUrlFor(player) {
+  const appId = /^\d{1,10}$/.test(player.gameid || '') ? player.gameid : null;
+  if (!appId) return null;
+  if (/^\d{17,20}$/.test(player.lobbysteamid || '') && /^\d{17}$/.test(player.steamid || '')) {
+    return `steam://joinlobby/${appId}/${player.lobbysteamid}/${player.steamid}`;
+  }
+  const server = player.gameserverip || '';
+  if (/^\d{1,3}(\.\d{1,3}){3}:\d{1,5}$/.test(server) && !server.startsWith('0.0.0.0')) {
+    return `steam://connect/${server}`;
+  }
+  return null;
+}
+
+module.exports = { resolveSteamId, getPlayerSummaries, getRecentlyPlayedGames, joinUrlFor };

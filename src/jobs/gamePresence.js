@@ -1,5 +1,5 @@
 const { pool } = require('../db');
-const { getPlayerSummaries } = require('../services/steamPlayers');
+const { getPlayerSummaries, joinUrlFor } = require('../services/steamPlayers');
 
 const DEFAULT_POLL_MINUTES = 2;
 const STEAM_BATCH_SIZE = 100; // GetPlayerSummaries' per-request cap
@@ -23,7 +23,7 @@ function chunk(arr, size) {
 async function pollAll(io) {
   try {
     const { rows: users } = await pool.query(
-      'SELECT id, steam_id, current_game FROM users WHERE steam_id IS NOT NULL'
+      'SELECT id, steam_id, current_game, current_game_appid, current_game_join FROM users WHERE steam_id IS NOT NULL'
     );
     if (users.length === 0) return;
 
@@ -35,6 +35,13 @@ async function pollAll(io) {
         const user = byId.get(player.steamid);
         if (!user) continue;
         const newGame = player.gameextrainfo || null;
+        // "Jump in" details can change mid-game (they join a lobby), so
+        // keep those fresh even when the game itself hasn't changed.
+        const appId = newGame && /^\d{1,10}$/.test(player.gameid || '') ? Number(player.gameid) : null;
+        const joinUrl = newGame ? joinUrlFor(player) : null;
+        if (appId !== user.current_game_appid || joinUrl !== user.current_game_join) {
+          await pool.query('UPDATE users SET current_game_appid = $1, current_game_join = $2 WHERE id = $3', [appId, joinUrl, user.id]);
+        }
         if (newGame === user.current_game) {
           // Still playing the same thing — heartbeat for Wrapped's game time.
           if (newGame) stillPlaying.push(user.id);

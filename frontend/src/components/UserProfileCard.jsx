@@ -10,6 +10,7 @@ import styles from './UserProfileCard.module.css';
 export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onClose, onMessage }) {
   const ref = useRef(null);
   const [recentGames, setRecentGames] = useState([]);
+  const [nowPlaying, setNowPlaying] = useState(null); // { game, appId, joinUrl, steamId } — powers Jump in
   const [height, setHeight] = useState(180);
 
   useEffect(() => {
@@ -34,8 +35,13 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
     if (!user?.id) return;
     let cancelled = false;
     setRecentGames([]);
+    setNowPlaying(null);
     api.get(`/users/${user.id}/recent-games`)
-      .then((data) => { if (!cancelled) setRecentGames(data.games || []); })
+      .then((data) => {
+        if (cancelled) return;
+        setRecentGames(data.games || []);
+        setNowPlaying(data.nowPlaying || null);
+      })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [user?.id]);
@@ -43,7 +49,7 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
   // The card grows when recent games load, so clamp against its real height.
   useLayoutEffect(() => {
     if (ref.current) setHeight(ref.current.offsetHeight);
-  }, [recentGames, user?.current_game, user?.birthday_month]);
+  }, [recentGames, nowPlaying, user?.current_game, user?.birthday_month]);
 
   if (!user || !anchorRect) return null;
 
@@ -76,10 +82,27 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
           </div>
         )}
 
-        {user.current_game && (
+        {(nowPlaying?.game || user.current_game) && (
           <div className={styles.playingNow}>
             <span className={styles.sectionLabel}>Playing now</span>
-            <span className={styles.playingName}>🎮 {user.current_game}</span>
+            <span className={styles.playingName}>🎮 {nowPlaying?.game || user.current_game}</span>
+            {nowPlaying && !isSelf && (
+              <div className={styles.gameActions}>
+                {nowPlaying.joinUrl && (
+                  <button className={styles.jumpInBtn} onClick={() => openLink(nowPlaying.joinUrl)} title="Opens Steam and joins their game">
+                    ▶ Jump in
+                  </button>
+                )}
+                {nowPlaying.appId && (
+                  <button className={styles.gameLinkBtn} onClick={() => openLink(`https://store.steampowered.com/app/${nowPlaying.appId}`)}>
+                    View game
+                  </button>
+                )}
+                <button className={styles.gameLinkBtn} onClick={() => openLink(`https://steamcommunity.com/profiles/${nowPlaying.steamId}`)}>
+                  Steam profile
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -114,6 +137,17 @@ export default function UserProfileCard({ user, anchorRect, isSelf, ownerId, onC
       </div>
     </div>
   );
+}
+
+// steam:// links launch the Steam app. In the desktop app every window.open
+// is handed to the OS (desktop/main.js), which starts Steam; in a browser,
+// navigating to it shows the usual "Open Steam?" prompt without a blank tab.
+function openLink(url) {
+  if (url.startsWith('steam://') && !window.electron) {
+    window.location.href = url;
+  } else {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
 }
 
 function formatHours(minutes) {
