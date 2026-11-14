@@ -1,5 +1,6 @@
-// Same content as create-user-guide.js (kept in sync by hand) — rendered
-// in-app by GuideModal instead of forcing a .docx download every time.
+// The single source for the user guide — rendered in-app by GuideModal,
+// and turned into the downloadable Word file by `npm run guides`
+// (scripts/make-guides.mjs). Edit here, then regenerate.
 export const USER_GUIDE = {
   title: 'User Guide',
   subtitle: 'Everything you need to chat, call, and connect',
@@ -297,6 +298,21 @@ export const USER_GUIDE = {
         { type: 'body', text: 'Click your avatar in User Settings (or in the header) and choose Change Photo to upload a new picture, or Remove to go back to your colored-initial avatar.' },
         { type: 'sub', num: '8.4', title: 'Light / Dark Theme' },
         { type: 'body', text: 'In User Settings > Appearance, switch between light and dark theme any time — it applies immediately and is remembered on that device.' },
+        { type: 'sub', num: '8.5', title: 'Holiday Themes' },
+        { type: 'body', text: 'For the week of each holiday the app dresses up on its own — colors, hand-drawn decorations, and a bigger animated moment about every 20 minutes:' },
+        { type: 'table', headers: ['Holiday', 'What you’ll see'], rows: [
+          ['New Year’s', 'Black and gold, confetti, champagne, fireworks'],
+          ['Valentine’s Day', 'Rising hearts, roses, a flying Cupid’s arrow'],
+          ['St. Patrick’s Day', 'Falling shamrocks, a rainbow with a pot of gold'],
+          ['Easter', 'Petals, painted eggs and tulips, a hopping bunny'],
+          ['Fourth of July', 'Bunting, red-white-and-blue confetti, fireworks'],
+          ['Halloween', 'Bats, jack-o’-lanterns, cobwebs, a mummy, and a witch crossing the moon (with lightning)'],
+          ['Thanksgiving', 'Falling leaves, a waddling turkey'],
+          ['Hanukkah', 'A menorah lit for each night, a dreidel, gold coins'],
+          ['Christmas', 'Twinkling garland, snowflakes, a tree, Santa’s sleigh crossing the moon'],
+        ] },
+        { type: 'body', text: 'Each one runs from 6 days before the holiday through the day after (all 8 days for Hanukkah), and turns itself off afterwards.' },
+        { type: 'note', variant: 'warning', text: 'Don’t want them? User Settings > Appearance > Holiday Themes lets you turn the themes off entirely, or keep the decorations but turn off the 20-minute animated moment (Halloween’s includes a bright flash). Both choices are per device.' },
       ],
     },
     {

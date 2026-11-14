@@ -4,7 +4,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "test": "node --test \"test/*.test.cjs\""
+    "test": "node --test \"test/*.test.cjs\"",
+    "guides": "node scripts/make-guides.mjs"
   },
   "dependencies": {
     "@sentry/node": "^10.78.0",

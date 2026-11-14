@@ -1,5 +1,6 @@
-// Same content as create-admin-guide.js (kept in sync by hand) — rendered
-// in-app by GuideModal instead of forcing a .docx download every time.
+// The single source for the admin guide — rendered in-app by GuideModal,
+// and turned into the downloadable Word file by `npm run guides`
+// (scripts/make-guides.mjs). Edit here, then regenerate.
 export const ADMIN_GUIDE = {
   title: 'Administrator Guide',
   subtitle: 'Complete reference for server owners and admins',

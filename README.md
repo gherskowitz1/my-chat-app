@@ -195,5 +195,6 @@ my-chat-app/
 ├── desktop/                  # Electron wrapper (loads the deployed website)
 │   ├── main.js               # Main process — window, tray, auto-updater, screen-share picker
 │   └── picker.html            # Screen/window share source picker UI
-└── make-docs.js               # Generates CrowsNest-{User,Admin}-Guide.docx
+├── scripts/make-guides.mjs     # npm run guides: Word guides from frontend/src/data/*GuideContent.js
+└── test/                       # npm test: automated tests (PGlite in-process Postgres)
 ```
