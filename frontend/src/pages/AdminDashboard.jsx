@@ -213,6 +213,16 @@ function UsersTab() {
     showFlash(`Reset email sent to ${u.email}`);
   };
 
+  // Two-step sign-in rescue: their next sign-in skips the code once (they
+  // still need their password). For a mistyped signup email, a lost
+  // authenticator, or email that just isn't arriving.
+  const allowMfaBypass = async (u) => {
+    if (!confirm(`Let ${u.username} sign in once without a sign-in code? They'll still need their password.`)) return;
+    const res = await authFetch(`/admin/users/${u.id}/mfa-bypass`, { method: 'POST' });
+    if (res.error) return showFlash(res.error, 'error');
+    showFlash(`${u.username}'s next sign-in won't ask for a code`);
+  };
+
   const setPassword = async () => {
     if (!newPassword || newPassword.length < 8) return showFlash('Password must be 8+ characters', 'error');
     const res = await authFetch(`/admin/users/${resetModal.id}/password`, { method: 'PATCH', body: JSON.stringify({ password: newPassword }) });
@@ -270,6 +280,7 @@ function UsersTab() {
               <span className={styles.actions}>
                 <button className={styles.actionBtn} onClick={() => sendReset(u)} title="Send password reset email">📧</button>
                 <button className={styles.actionBtn} onClick={() => { setResetModal(u); setNewPassword(''); }} title="Set password directly">🔑</button>
+                <button className={styles.actionBtn} onClick={() => allowMfaBypass(u)} title="Locked out? Let their next sign-in skip the code">🛡️</button>
                 {!isOwner && canManageOwner && (
                   <button className={styles.actionBtn} onClick={() => makeOwner(u)} title={server?.owner_id ? 'Transfer ownership' : 'Make server owner'}>👑</button>
                 )}

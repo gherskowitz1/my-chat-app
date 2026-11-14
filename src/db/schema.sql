@@ -431,6 +431,39 @@ CREATE TABLE IF NOT EXISTS game_sessions (
 );
 CREATE INDEX IF NOT EXISTS idx_game_sessions_user ON game_sessions (user_id, started_at);
 
+-- Two-step sign-in on new devices (services/mfa.js). A trusted device keeps
+-- a random token forever and skips the code; only its SHA-256 is stored.
+-- Session JWTs carry the device id, so deleting a row here signs that
+-- device out (middleware/auth.js).
+CREATE TABLE IF NOT EXISTS trusted_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(64) UNIQUE NOT NULL,
+  label VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_used_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_devices (user_id);
+
+-- One sign-in attempt from an untrusted device: the hashed emailed code (or
+-- nothing, for an authenticator app), how many guesses it's had, and when it
+-- expires. Consumed on success.
+CREATE TABLE IF NOT EXISTS login_challenges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  method VARCHAR(10) NOT NULL,
+  code_hash VARCHAR(64),
+  attempts INTEGER NOT NULL DEFAULT 0,
+  last_sent_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ NOT NULL,
+  consumed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Set by an admin ("let them in without a code once") for someone locked
+-- out — e.g. signed up with a mistyped email. Cleared on their next sign-in.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_bypass_once BOOLEAN NOT NULL DEFAULT false;
+
 -- Seed a default server
 INSERT INTO servers (id, name, description)
 VALUES ('00000000-0000-0000-0000-000000000001', 'General', 'The main server')

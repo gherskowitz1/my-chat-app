@@ -241,6 +241,22 @@ async function setUserPassword(req, res) {
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash(password, 10);
     await pool.query('UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, userId]);
+    // Every device needs a sign-in code again (services/mfa.js).
+    await pool.query('DELETE FROM trusted_devices WHERE user_id = $1', [userId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// ── Two-step sign-in rescue ──────────────────────────────────
+// For someone who can't get their sign-in code (mistyped email at signup,
+// lost their authenticator): their next sign-in, from any device, skips the
+// code once and trusts that device. Their password is still required.
+async function allowMfaBypass(req, res) {
+  try {
+    const { rowCount } = await pool.query('UPDATE users SET mfa_bypass_once = true WHERE id = $1', [req.params.userId]);
+    if (!rowCount) return res.status(404).json({ error: 'User not found' });
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -251,4 +267,5 @@ module.exports = {
   updateServer, getServer, renameChannel, setServerOwner,
   getAllUsers, updateUserRole, deleteUser, setUserInvisible,
   getStats, getRecentMessages, forcePasswordReset, setUserPassword,
+  allowMfaBypass,
 };

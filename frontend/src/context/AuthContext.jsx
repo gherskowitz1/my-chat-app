@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { getDeviceToken, setDeviceToken, deviceLabel, sessionHasDevice } from '../utils/trustedDevice';
 
 const AuthContext = createContext(null);
 
@@ -37,7 +38,17 @@ export function AuthProvider({ children }) {
       const token = localStorage.getItem('token');
       if (token) {
         api.get('/auth/me')
-          .then((data) => setUser(data))
+          .then((data) => {
+            setUser(data);
+            // Signed in from before two-step sign-in existed: make this
+            // device trusted now, rather than asking for a code on the day
+            // the feature ships (see adoptDevice on the server).
+            if (!sessionHasDevice(token)) {
+              api.post('/auth/devices/adopt', { deviceLabel: deviceLabel() })
+                .then((d) => { persistToken(d.token); setDeviceToken(d.deviceToken); })
+                .catch(() => {});
+            }
+          })
           .catch(() => clearToken())
           .finally(() => setLoading(false));
       } else {
@@ -54,18 +65,35 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
-    const data = await api.post('/auth/login', { email, password });
+  const finishSignIn = (data) => {
     persistToken(data.token);
+    setDeviceToken(data.deviceToken);
     setUser(data.user);
     return data.user;
   };
 
+  // Returns { mfaRequired: true, challengeId, method, emailHint } when this
+  // device isn't trusted yet — the caller then asks for the code and calls
+  // verifyLogin. Otherwise signs straight in.
+  const login = async (email, password) => {
+    const data = await api.post('/auth/login', {
+      email, password, deviceToken: getDeviceToken(), deviceLabel: deviceLabel(),
+    });
+    if (data.mfaRequired) return data;
+    finishSignIn(data);
+    return { mfaRequired: false };
+  };
+
+  const verifyLogin = async (challengeId, code) => {
+    const data = await api.post('/auth/login/verify', { challengeId, code, deviceLabel: deviceLabel() });
+    return finishSignIn(data);
+  };
+
+  const resendLoginCode = (challengeId) => api.post('/auth/login/resend', { challengeId });
+
   const signup = async (username, email, password, inviteCode) => {
-    const data = await api.post('/auth/signup', { username, email, password, inviteCode });
-    persistToken(data.token);
-    setUser(data.user);
-    return data.user;
+    const data = await api.post('/auth/signup', { username, email, password, inviteCode, deviceLabel: deviceLabel() });
+    return finishSignIn(data);
   };
 
   const logout = () => {
@@ -118,7 +146,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, linkSteam, deleteAccount }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyLogin, resendLoginCode, signup, logout, updateAvatar, updateUsername, updatePassword, updateAvatarColor, updateStatusText, linkSteam, deleteAccount }}>
       {children}
     </AuthContext.Provider>
   );

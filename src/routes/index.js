@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const { authMiddleware, adminMiddleware, authFromHeaderOrQuery } = require('../middleware/auth');
-const { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount } = require('../controllers/authController');
-const { loginLimiter, signupLimiter, forgotPasswordLimiter } = require('../middleware/rateLimit');
+const { signup, login, verifyLogin, resendLoginCode, listDevices, removeDevice, removeOtherDevices, adoptDevice, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount } = require('../controllers/authController');
+const { loginLimiter, signupLimiter, forgotPasswordLimiter, mfaVerifyLimiter, mfaResendLimiter } = require('../middleware/rateLimit');
 const { getChannels, createChannel, deleteChannel, getMessages, getMessagesAround, getChannelMembers, updateChannelAccess, sendMessageWithAttachments, createPoll } = require('../controllers/channelController');
 const { getOrCreateConversation, getMyConversations, getDmMessages, getDmMessagesAround, getUsers, sendDmMessageWithAttachments, hideConversation } = require('../controllers/dmController');
 const { getAttachment } = require('../controllers/attachmentController');
@@ -11,7 +11,7 @@ const { getToken, getParticipants, muteParticipant, removeParticipant, forceVoic
 const {
   updateServer, getServer, renameChannel, setServerOwner,
   getAllUsers, updateUserRole, deleteUser, setUserInvisible,
-  getStats, getRecentMessages, forcePasswordReset, setUserPassword,
+  getStats, getRecentMessages, forcePasswordReset, setUserPassword, allowMfaBypass,
 } = require('../controllers/adminController');
 const { forgotPassword, resetPassword } = require('../controllers/passwordResetController');
 const { sendInvite } = require('../controllers/inviteController');
@@ -39,6 +39,13 @@ const {
 router.get('/auth/config', getAuthConfig);
 router.post('/auth/signup', signupLimiter, signup);
 router.post('/auth/login', loginLimiter, login);
+// Two-step sign-in on new devices + the trusted device list (services/mfa.js)
+router.post('/auth/login/verify', mfaVerifyLimiter, verifyLogin);
+router.post('/auth/login/resend', mfaResendLimiter, resendLoginCode);
+router.get('/auth/devices', authMiddleware, listDevices);
+router.post('/auth/devices/adopt', authMiddleware, adoptDevice);
+router.delete('/auth/devices', authMiddleware, removeOtherDevices);
+router.delete('/auth/devices/:deviceId', authMiddleware, removeDevice);
 router.get('/auth/me', authMiddleware, getMe);
 router.post('/auth/forgot-password', forgotPasswordLimiter, forgotPassword);
 router.post('/auth/reset-password', resetPassword);
@@ -133,6 +140,7 @@ router.patch('/admin/users/:userId/invisible', authMiddleware, adminMiddleware, 
 router.delete('/admin/users/:userId', authMiddleware, adminMiddleware, deleteUser);
 router.post('/admin/users/:userId/force-reset', authMiddleware, adminMiddleware, forcePasswordReset);
 router.patch('/admin/users/:userId/password', authMiddleware, adminMiddleware, setUserPassword);
+router.post('/admin/users/:userId/mfa-bypass', authMiddleware, adminMiddleware, allowMfaBypass);
 router.get('/admin/messages/recent', authMiddleware, adminMiddleware, getRecentMessages);
 
 // Announcements

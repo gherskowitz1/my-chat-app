@@ -21,6 +21,9 @@ function loadRemembered() {
 
 export default function AuthPage() {
   const { login, signup } = useAuth();
+  // Set when the password was right but this device isn't trusted yet —
+  // swaps the form for the code step (CodeStep below).
+  const [challenge, setChallenge] = useState(null);
   const [searchParams] = useSearchParams();
   const remembered = loadRemembered();
   const [mode, setMode] = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'login');
@@ -45,7 +48,8 @@ export default function AuthPage() {
     setLoading(true);
     try {
       if (mode === 'login') {
-        await login(form.email, form.password);
+        const result = await login(form.email, form.password);
+        if (result.mfaRequired) setChallenge(result);
         if (rememberMe) {
           localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: form.email, password: form.password }));
         } else {
@@ -71,11 +75,19 @@ export default function AuthPage() {
           <span>The Crows Nest</span>
         </div>
 
-        <h1>{mode === 'login' ? 'Welcome back!' : 'Create an account'}</h1>
-        <p className={styles.subtitle}>
-          {mode === 'login' ? "We're so excited to see you again!" : 'Join the conversation today.'}
-        </p>
+        {!challenge && (
+          <>
+            <h1>{mode === 'login' ? 'Welcome back!' : 'Create an account'}</h1>
+            <p className={styles.subtitle}>
+              {mode === 'login' ? "We're so excited to see you again!" : 'Join the conversation today.'}
+            </p>
+          </>
+        )}
 
+        {challenge ? (
+          <CodeStep challenge={challenge} onBack={() => { setChallenge(null); setError(''); }} />
+        ) : (
+        <>
         {error && <div className={styles.error}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
@@ -155,6 +167,8 @@ export default function AuthPage() {
             <>Already have an account? <button onClick={() => { setMode('login'); setError(''); }}>Log In</button></>
           )}
         </p>
+        </>
+        )}
 
         <div className={styles.downloadSection}>
           <div className={styles.downloadDivider}><span>or</span></div>
@@ -188,5 +202,98 @@ export default function AuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+const RESEND_COOLDOWN_S = 60;
+
+// Second step of signing in on a device that isn't trusted yet: the 6-digit
+// code from the email (or, for people who turned it on, their
+// authenticator app). Getting it right signs in and remembers this device.
+function CodeStep({ challenge, onBack }) {
+  const { verifyLogin, resendLoginCode } = useAuth();
+  const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S);
+  const isApp = challenge.method === 'totp';
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    setBusy(true);
+    try {
+      await verifyLogin(challenge.challengeId, code);
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  };
+
+  const resend = async () => {
+    setError('');
+    setNotice('');
+    try {
+      await resendLoginCode(challenge.challengeId);
+      setNotice('A new code is on its way.');
+      setCooldown(RESEND_COOLDOWN_S);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  return (
+    <>
+      <h1>{isApp ? 'Enter your app code' : 'Check your email'}</h1>
+      <p className={styles.subtitle}>
+        {isApp
+          ? 'Open your authenticator app (Authy, Google Authenticator…) and enter the 6-digit code for The Crows Nest.'
+          : <>We sent a 6-digit code to <strong>{challenge.emailHint}</strong>.</>}
+      </p>
+      <p className={styles.codeHint}>This is a new device for your account. After this, it’ll be remembered and you won’t need a code here again.</p>
+
+      {error && <div className={styles.error}>{error}</div>}
+      {notice && <div className={styles.notice}>{notice}</div>}
+
+      <form onSubmit={submit} className={styles.form}>
+        <label className={styles.field}>
+          <span>{isApp ? 'CODE (OR A BACKUP CODE)' : 'SIGN-IN CODE'}</span>
+          <input
+            className={styles.codeInput}
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            inputMode={isApp ? 'text' : 'numeric'}
+            autoComplete="one-time-code"
+            placeholder="123456"
+            maxLength={isApp ? 20 : 7}
+            autoFocus
+            required
+          />
+        </label>
+        <button type="submit" className={styles.submit} disabled={busy || code.trim().length < 6}>
+          {busy ? 'Checking…' : 'Verify'}
+        </button>
+      </form>
+
+      <p className={styles.toggle}>
+        {!isApp && (
+          cooldown > 0
+            ? <span>Didn’t get it? You can resend in {cooldown}s · </span>
+            : <><button onClick={resend}>Resend code</button> · </>
+        )}
+        <button onClick={onBack}>Back to sign in</button>
+      </p>
+      {!isApp && (
+        <p className={styles.codeFooter}>Check spam too. Still nothing? An admin can let you in without a code.</p>
+      )}
+    </>
   );
 }

@@ -408,8 +408,10 @@ function AccountTab() {
             {passwordSuccess && <div className={styles.hint}>{passwordSuccess}</div>}
           </div>
         </form>
-        <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in.</p>
+        <p className={styles.hint}>Changing your password signs out every other device you're logged in on — this one stays logged in — and they'll need a sign-in code again.</p>
       </section>
+
+      <TrustedDevicesSection />
 
       <section className={styles.section}>
         <h3 className={styles.dangerTitle}>⚠️ Delete Account</h3>
@@ -436,6 +438,58 @@ function AccountTab() {
         </form>
       </section>
     </>
+  );
+}
+
+// Devices that can sign in without a code (two-step sign-in — see the
+// server's services/mfa.js). Removing one also signs it out.
+function TrustedDevicesSection() {
+  const [devices, setDevices] = useState([]);
+  const [error, setError] = useState('');
+
+  const load = () => api.get('/auth/devices').then(setDevices).catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const remove = async (device) => {
+    if (!confirm(`Remove "${device.label}"? It'll be signed out and need a sign-in code next time.`)) return;
+    setError('');
+    try { await api.delete(`/auth/devices/${device.id}`); load(); } catch (err) { setError(err.message); }
+  };
+
+  const removeOthers = async () => {
+    if (!confirm('Sign out every other device? They’ll each need a sign-in code next time.')) return;
+    setError('');
+    try { await api.delete('/auth/devices'); load(); } catch (err) { setError(err.message); }
+  };
+
+  const others = devices.filter((d) => !d.current);
+
+  return (
+    <section className={styles.section}>
+      <h3>🛡️ Trusted Devices</h3>
+      <p className={styles.hint} style={{ marginBottom: 10 }}>
+        Signing in on a new device asks for a code sent to your email. These devices already passed that check and won’t be asked again.
+      </p>
+      <div className={styles.deviceList}>
+        {devices.map((d) => (
+          <div key={d.id} className={styles.deviceRow}>
+            <div className={styles.deviceInfo}>
+              <span className={styles.deviceName}>{d.label}{d.current && <span className={styles.thisDevice}>This device</span>}</span>
+              <span className={styles.deviceMeta}>
+                Added {new Date(d.created_at).toLocaleDateString()} · last used {new Date(d.last_used_at).toLocaleDateString()}
+              </span>
+            </div>
+            {!d.current && <button className={styles.deviceRemove} onClick={() => remove(d)}>Remove</button>}
+          </div>
+        ))}
+      </div>
+      {others.length > 0 && (
+        <div className={styles.footer}>
+          <button className={styles.dangerBtn} onClick={removeOthers}>Sign out all other devices</button>
+        </div>
+      )}
+      {error && <div className={styles.avatarError}>{error}</div>}
+    </section>
   );
 }
 

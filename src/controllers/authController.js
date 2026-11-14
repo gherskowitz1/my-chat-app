@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { resolveSteamId } = require('../services/steamPlayers');
+const mfa = require('../services/mfa');
 
 const DEFAULT_SERVER = '00000000-0000-0000-0000-000000000001';
 
@@ -41,12 +41,10 @@ async function signup(req, res) {
       ['00000000-0000-0000-0000-000000000001', user.id]
     );
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, tv: 0 },
-      process.env.JWT_SECRET,
-      { expiresIn: '180d' }
-    );
-    res.json({ token, user });
+    // The device you sign up on is your first trusted device.
+    const { deviceId, deviceToken } = await mfa.createTrustedDevice(user.id, req.body.deviceLabel);
+    const token = mfa.signSession({ ...user, token_version: 0 }, deviceId);
+    res.json({ token, user, deviceToken });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'Username or email already taken' });
@@ -56,8 +54,15 @@ async function signup(req, res) {
   }
 }
 
+const publicUser = (u) => ({ id: u.id, username: u.username, email: u.email, role: u.role, avatar_color: u.avatar_color, avatar_url: u.avatar_url });
+
+// Sign-in, step 1: email + password. From a trusted device (the client
+// sends its device token) that's the whole thing. From anywhere else the
+// response is { mfaRequired, challengeId, method } instead of a session,
+// and step 2 (verifyLogin) needs the code. See services/mfa.js.
 async function login(req, res) {
-  const { email, password } = req.body;
+  const { email, password, deviceToken, deviceLabel } = req.body;
+  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
   try {
     const { rows } = await pool.query(
       'SELECT * FROM users WHERE email = $1',
@@ -68,15 +73,116 @@ async function login(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, tv: user.token_version || 0 },
-      process.env.JWT_SECRET,
-      { expiresIn: '180d' }
+    const device = await mfa.findTrustedDevice(user.id, deviceToken);
+    if (device) {
+      return res.json({ token: mfa.signSession(user, device.id), user: publicUser(user) });
+    }
+
+    // An admin let this person skip the code once (locked out, e.g. a
+    // mistyped email at signup). Uses it up and trusts this device.
+    if (user.mfa_bypass_once) {
+      await pool.query('UPDATE users SET mfa_bypass_once = false WHERE id = $1', [user.id]);
+      const created = await mfa.createTrustedDevice(user.id, deviceLabel);
+      return res.json({ token: mfa.signSession(user, created.deviceId), user: publicUser(user), deviceToken: created.deviceToken });
+    }
+
+    const method = 'email';
+    const challengeId = await mfa.createChallenge(user, method);
+    res.json({ mfaRequired: true, challengeId, method, emailHint: mfa.maskEmail(user.email) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Sign-in, step 2: the code. On success this device becomes trusted for
+// good, and the response includes the device token for the client to keep.
+async function verifyLogin(req, res) {
+  const { challengeId, code, deviceLabel } = req.body;
+  try {
+    const challenge = await mfa.getChallenge(challengeId);
+    if (!challenge) return res.status(410).json({ error: 'That code has expired. Sign in again to get a new one.' });
+
+    const result = await mfa.checkEmailCode(challenge, code);
+    if (result === 'locked') {
+      await mfa.consumeChallenge(challenge.id);
+      return res.status(429).json({ error: 'Too many wrong codes. Sign in again to get a new one.' });
+    }
+    if (result !== 'ok') return res.status(400).json({ error: 'That code isn’t right. Check it and try again.' });
+
+    await mfa.consumeChallenge(challenge.id);
+    const user = { ...challenge, id: challenge.user_id };
+    const { deviceId, deviceToken } = await mfa.createTrustedDevice(user.id, deviceLabel);
+    res.json({ token: mfa.signSession(user, deviceId), user: publicUser(user), deviceToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function resendLoginCode(req, res) {
+  try {
+    const challenge = await mfa.getChallenge(req.body.challengeId);
+    if (!challenge) return res.status(410).json({ error: 'That sign-in has expired. Start again.' });
+    if (challenge.method !== 'email') return res.status(400).json({ error: 'Nothing to resend.' });
+    if (challenge.last_sent_at && Date.now() - new Date(challenge.last_sent_at).getTime() < mfa.RESEND_COOLDOWN_MS) {
+      return res.status(429).json({ error: 'Give it a minute before asking for another code.' });
+    }
+    await mfa.issueEmailCode(challenge.id, { ...challenge, id: challenge.user_id });
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// ── Trusted devices (User Settings > Account) ───────────────
+
+async function listDevices(req, res) {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, label, created_at, last_used_at FROM trusted_devices WHERE user_id = $1 ORDER BY last_used_at DESC',
+      [req.user.id]
     );
-    res.json({
-      token,
-      user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar_color: user.avatar_color, avatar_url: user.avatar_url },
-    });
+    res.json(rows.map((d) => ({ ...d, current: d.id === req.user.did })));
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Removing a device signs it out too (its session carries the device id).
+async function removeDevice(req, res) {
+  try {
+    await pool.query('DELETE FROM trusted_devices WHERE id = $1 AND user_id = $2', [req.params.deviceId, req.user.id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+async function removeOtherDevices(req, res) {
+  try {
+    await pool.query(
+      'DELETE FROM trusted_devices WHERE user_id = $1 AND id IS DISTINCT FROM $2',
+      [req.user.id, req.user.did || null]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// For devices that were already signed in before two-step sign-in existed:
+// they've proven who they are already, so they become trusted without a
+// code (otherwise everyone would be asked for one the day this ships).
+// Only for sessions with no device attached.
+async function adoptDevice(req, res) {
+  if (req.user.did) return res.status(400).json({ error: 'This device is already trusted.' });
+  try {
+    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'User not found' });
+    const { deviceId, deviceToken } = await mfa.createTrustedDevice(req.user.id, req.body.deviceLabel);
+    res.json({ token: mfa.signSession(rows[0], deviceId), deviceToken });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -141,12 +247,8 @@ async function updateUsername(req, res) {
     // touch other devices — just refreshes this one's token so the new
     // username shows up immediately anywhere it's read from the JWT itself
     // (e.g. the display name a LiveKit voice token is minted with).
-    const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role, tv: user.token_version || 0 },
-      process.env.JWT_SECRET,
-      { expiresIn: '180d' }
-    );
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, avatar_color: user.avatar_color, avatar_url: user.avatar_url } });
+    const token = mfa.signSession(user, req.user.did);
+    res.json({ token, user: publicUser(user) });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(409).json({ error: 'That username is already taken' });
@@ -185,11 +287,13 @@ async function updatePassword(req, res) {
     );
     const updated = updatedRows[0];
 
-    const token = jwt.sign(
-      { id: updated.id, username: updated.username, role: updated.role, tv: updated.token_version },
-      process.env.JWT_SECRET,
-      { expiresIn: '180d' }
+    // A new password also un-trusts every other device — if someone else
+    // had it, they now need a code again on top of the new password.
+    await pool.query(
+      'DELETE FROM trusted_devices WHERE user_id = $1 AND id IS DISTINCT FROM $2',
+      [user.id, req.user.did || null]
     );
+    const token = mfa.signSession(updated, req.user.did);
     res.json({ token });
   } catch (err) {
     console.error(err);
@@ -292,4 +396,8 @@ async function deleteAccount(req, res) {
   }
 }
 
-module.exports = { signup, login, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword, updateAvatarColor, updateStatusText, updateSteamId, deleteAccount };
+module.exports = {
+  signup, login, verifyLogin, resendLoginCode, getMe, updateAvatar, getAuthConfig, updateUsername, updatePassword,
+  updateAvatarColor, updateStatusText, updateSteamId, deleteAccount,
+  listDevices, removeDevice, removeOtherDevices, adoptDevice,
+};

@@ -5,9 +5,20 @@ const { pool } = require('../db');
 // treated as version 0 so shipping this doesn't invalidate every existing
 // session on deploy. Only a password change/reset from here on bumps the
 // real column past 0.
+//
+// A token tied to a trusted device (`did`, see services/mfa.js) is also
+// rejected once that device has been removed — that's what makes "remove
+// device" sign it out. Same single query, so no extra round trip.
 async function checkTokenVersion(decoded) {
-  const { rows } = await pool.query('SELECT token_version FROM users WHERE id = $1', [decoded.id]);
-  if (!rows[0]) return false;
+  const { rows } = await pool.query(
+    `SELECT token_version,
+            ($2::uuid IS NULL OR EXISTS (
+              SELECT 1 FROM trusted_devices d WHERE d.id = $2::uuid AND d.user_id = users.id
+            )) AS device_ok
+     FROM users WHERE id = $1`,
+    [decoded.id, decoded.did || null]
+  );
+  if (!rows[0] || !rows[0].device_ok) return false;
   return (decoded.tv || 0) === rows[0].token_version;
 }
 

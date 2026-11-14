@@ -105,6 +105,8 @@ async function resetPassword(req, res) {
     // Bumps token_version too — a reset means any existing session (including
     // one an attacker may have started) should stop working immediately.
     await pool.query('UPDATE users SET password_hash = $1, token_version = token_version + 1 WHERE id = $2', [hash, rows[0].user_id]);
+    // Every device needs a sign-in code again after a reset (services/mfa.js).
+    await pool.query('DELETE FROM trusted_devices WHERE user_id = $1', [rows[0].user_id]);
     await pool.query('DELETE FROM password_reset_tokens WHERE token = $1', [token]);
 
     res.json({ message: 'Password updated successfully' });
