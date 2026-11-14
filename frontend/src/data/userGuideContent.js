@@ -18,7 +18,7 @@ export const USER_GUIDE = {
         { type: 'sub', num: '1.2', title: 'Logging In, Out, and Remember Me' },
         { type: 'bullets', items: [
           'Log in: enter your email and password on the login screen',
-          'Remember Me: check this box to stay signed in on this device without re-entering your password each time',
+          'Remember my email: check this box to have your email filled in next time (your password is never saved — and once you’ve signed in on a device, it stays signed in for 180 days anyway)',
           'Log out: click the arrow icon at the very bottom of the left sidebar',
         ] },
         { type: 'note', variant: 'info', text: 'Your session stays active for 180 days either way. You will be logged out automatically after that.' },

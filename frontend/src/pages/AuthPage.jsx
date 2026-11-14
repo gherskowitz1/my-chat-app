@@ -4,16 +4,21 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import styles from './AuthPage.module.css';
 
-// "Remember me" stores the raw password in localStorage so the login form
-// can pre-fill it — a deliberate tradeoff (not encrypted; anything that can
-// read this browser's localStorage, e.g. an XSS payload, could read it too)
-// chosen over the safer "remember email only" alternative.
+// "Remember me" pre-fills the email only. It used to store the password
+// too (in plain text); now that trusted devices make signing back in quick,
+// that's no longer worth the risk — and any password saved by the old
+// version is scrubbed the first time this page loads.
 const REMEMBER_KEY = 'crowsnest_remembered_login';
 
 function loadRemembered() {
   try {
     const raw = localStorage.getItem(REMEMBER_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (saved.password !== undefined) {
+      localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: saved.email }));
+    }
+    return { email: saved.email };
   } catch {
     return null;
   }
@@ -30,7 +35,7 @@ export default function AuthPage() {
   const [form, setForm] = useState({
     username: '',
     email: searchParams.get('email') || remembered?.email || '',
-    password: remembered?.password || '',
+    password: '',
     inviteCode: '',
   });
   const [rememberMe, setRememberMe] = useState(!!remembered);
@@ -51,7 +56,7 @@ export default function AuthPage() {
         const result = await login(form.email, form.password);
         if (result.mfaRequired) setChallenge(result);
         if (rememberMe) {
-          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: form.email, password: form.password }));
+          localStorage.setItem(REMEMBER_KEY, JSON.stringify({ email: form.email }));
         } else {
           localStorage.removeItem(REMEMBER_KEY);
         }
@@ -149,7 +154,7 @@ export default function AuthPage() {
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
-              <span>Remember me</span>
+              <span>Remember my email</span>
             </label>
           )}
           <button type="submit" className={styles.submit} disabled={loading}>
