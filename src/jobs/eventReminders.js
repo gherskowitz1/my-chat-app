@@ -124,4 +124,5 @@ function startEventReminders(io) {
   setInterval(() => tick(io), CHECK_EVERY_MS);
 }
 
-module.exports = { startEventReminders };
+// runOnce: one pass of the job, for the automated tests.
+module.exports = { startEventReminders, runOnce: tick };

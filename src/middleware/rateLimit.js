@@ -3,7 +3,10 @@ const rateLimit = require('express-rate-limit');
 // Keyed by IP (the default), which is why index.js sets `trust proxy` —
 // without it every request behind Railway's proxy would resolve to the same
 // internal IP and share one limit across all users.
+// Skipped under the automated tests (npm test), which sign in far more
+// often than any limit allows.
 const make = (windowMs, max, message) => rateLimit({
+  skip: () => process.env.NODE_ENV === 'test',
   windowMs,
   max,
   standardHeaders: true,

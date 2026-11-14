@@ -55,6 +55,9 @@ async function createEvent(req, res) {
   const title = req.body.title?.trim();
   const description = req.body.description?.trim() || null;
   const startsAt = new Date(req.body.startsAt);
+  // Whole minutes, so a series' later dates (worked out to the minute in
+  // utils/recurrence.js) line up exactly with its first.
+  if (!Number.isNaN(startsAt.getTime())) startsAt.setUTCSeconds(0, 0);
   const voiceChannelId = req.body.voiceChannelId || null;
   const recurrence = req.body.recurrence && req.body.recurrence !== 'none' ? req.body.recurrence : null;
   const timeZone = req.body.timeZone;

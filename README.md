@@ -74,6 +74,22 @@ After signing up, run this SQL on your database:
 UPDATE users SET role = 'admin' WHERE email = 'your@email.com';
 ```
 
+### Running the tests
+
+```bash
+npm test
+```
+
+No database setup needed: the tests run the real server code against
+[PGlite](https://pglite.dev) — PostgreSQL compiled to run inside Node, in
+memory — so they never touch your real `DATABASE_URL`. Every test starts
+from a fresh database built from `src/db/schema.sql`, which also proves the
+schema still applies cleanly. Covered: two-step sign-in and trusted devices,
+the authenticator app and backup codes, Game Night events and reminders,
+Wrapped, socket permission checks, and the pure date/code logic. Run them
+before pushing any change to `schema.sql` — a broken schema stops the
+backend from booting.
+
 ---
 
 ## Deploy to Railway
